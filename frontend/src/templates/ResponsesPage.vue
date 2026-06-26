@@ -15,6 +15,7 @@ const formatDate = (value) => {
 const loadResponses = async () => {
   isLoading.value = true
   status.value = ''
+
   try {
     const data = await getResponses()
     responses.value = Array.isArray(data) ? data : []
@@ -28,7 +29,7 @@ const loadResponses = async () => {
 const remove = async (id) => {
   try {
     await deleteResponse(id)
-    responses.value = responses.value.filter(item => item.id !== id)
+    responses.value = responses.value.filter((item) => item.id !== id)
   } catch {
     status.value = 'Не удалось удалить отклик.'
   }
@@ -43,7 +44,7 @@ onMounted(loadResponses)
       <section class="head">
         <p class="eyebrow">Отклики работодателя</p>
         <h1>Кандидаты</h1>
-        <p>Заявки на ваши вакансии из backend.</p>
+        <p>Заявки на ваши вакансии из backend с быстрым переходом в диалог.</p>
       </section>
 
       <p v-if="status" class="notice">{{ status }}</p>
@@ -52,15 +53,18 @@ onMounted(loadResponses)
       <section class="list">
         <article v-for="item in responses" :key="item.id" class="response-card">
           <div class="avatar">{{ (item.name || 'C')[0] }}{{ (item.surname || 'V')[0] }}</div>
-          <div>
+
+          <div class="main">
             <h2>{{ item.name }} {{ item.surname }}</h2>
             <p>{{ item.job_title }} · {{ item.job_company }}</p>
             <span>{{ item.phone }} · {{ item.email }} · Подан {{ formatDate(item.created_at) }}</span>
             <p v-if="item.message" class="message">{{ item.message }}</p>
           </div>
-          <div class="score">
+
+          <div class="side">
             <strong>{{ item.job_location }}</strong>
             <span>{{ item.job_salary || 'Зарплата не указана' }}</span>
+            <RouterLink :to="`/messages?application=${item.id}`">Написать</RouterLink>
             <button type="button" @click="remove(item.id)">Удалить</button>
           </div>
         </article>
@@ -113,7 +117,7 @@ h1 {
 
 .response-card {
   display: grid;
-  grid-template-columns: 4rem 1fr auto;
+  grid-template-columns: 4rem minmax(0, 1fr) auto;
   gap: 1rem;
   padding: 1.25rem;
   align-items: center;
@@ -130,13 +134,17 @@ h1 {
   font-weight: 800;
 }
 
+.main {
+  min-width: 0;
+}
+
 h2,
 p {
   margin: 0;
 }
 
-.response-card p,
-.response-card span {
+.main p,
+.main span {
   color: rgba(30, 35, 38, 0.62);
 }
 
@@ -144,18 +152,24 @@ p {
   margin-top: 0.5rem;
 }
 
-.score {
+.side {
   display: grid;
   gap: 0.35rem;
   text-align: center;
 }
 
-.score strong {
+.side strong {
   color: #19785a;
   font-size: 1.2rem;
 }
 
-.score button {
+.side a {
+  color: #19785a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.side button {
   border: none;
   background: transparent;
   color: #d32f2f;
@@ -167,7 +181,7 @@ p {
     grid-template-columns: 1fr;
   }
 
-  .score {
+  .side {
     text-align: left;
   }
 }

@@ -2,7 +2,7 @@
 
 ## Current Phase
 - Step 0: completed
-- Step 1: ready to start after backup push
+- Step 1: backend started
 
 ## Current Snapshot
 - Existing frontend is `Vue 3 + Vite`, but mostly JavaScript, not TypeScript.
@@ -23,9 +23,23 @@
 - Inspected current data models:
   - `backend/database/models.py`
 - Created `docs/api_contract.md` with MVP endpoint contract.
+- Pushed pre-change backup point to GitHub:
+  - branch: `main`
+  - commit: `c5237a8`
 
 ## In Progress
-- Create pre-backend backup point in git before structural changes.
+- Backend micro-step 4:
+  use a hybrid bridge so the new app entrypoint serves the already working legacy MVP routes while migration continues.
+  Simplify config dependencies to avoid slow package installation on the current Python runtime.
+  Switch the default backend startup path to the new hybrid app and smoke-test key endpoints.
+- Frontend micro-step 1:
+  strengthen API client, auth bootstrap and route guards around the already working UI.
+- Frontend micro-step 2:
+  move key client session and communication state into a shared global store with Pinia so auth and chat data are not recreated per page.
+- Frontend micro-step 3:
+  centralize jobs listing, filters, sorting, and bookmark state in a shared store so the vacancies page becomes a real global workflow instead of a local component-only implementation.
+- MVP flow hardening:
+  make vacancy publication, applying, and employer-candidate communication work end-to-end from the existing production paths.
 
 ## Backend Micro-Steps
 1. Create target backend app skeleton:
@@ -94,9 +108,15 @@
    - visual QA in browser
 
 ## Remaining
-- Push current state to GitHub
-- Start Backend Step 1 micro-step 1
+- Keep migrating route groups from legacy modules into the new stack incrementally.
+- Prioritize working MVP over full architectural replacement in one pass.
+- Stabilize frontend auth/session flow before deeper visual and TypeScript migration.
+- Verify complete cycle:
+  create vacancy -> apply -> open conversation -> exchange messages
+- Centralize key frontend state so auth bootstrap, active chat, and message threads are reused across views instead of recreated locally.
+- Replace vacancies-page placeholder filters with real, stateful filters backed by shared store data and synced URL parameters.
 
 ## Risks / Notes
 - Current codebase already contains working pieces. During migration we should replace them incrementally, not blindly rewrite everything at once.
 - Because the requested stack differs from the current implementation, Step 1 should prioritize architecture alignment before feature polish.
+- Fastest path to MVP: run a hybrid backend where `backend/app/main.py` exposes both the new foundation and the proven legacy business routes.

@@ -14,6 +14,7 @@ const job = ref(null)
 const isLoading = ref(false)
 const error = ref('')
 const applyStatus = ref('')
+const appliedApplicationId = ref(null)
 const brokenLogo = ref(false)
 const form = ref({
   name: '',
@@ -111,6 +112,7 @@ const loadJob = async () => {
 
 const submitApplication = async () => {
   applyStatus.value = ''
+  appliedApplicationId.value = null
 
   if (!user.value) {
     applyStatus.value = 'Войдите в аккаунт, чтобы отправить отклик.'
@@ -118,12 +120,13 @@ const submitApplication = async () => {
   }
 
   try {
-    await applyToJob({
+    const result = await applyToJob({
       ...form.value,
       username: user.value.email,
       email: form.value.email || user.value.email,
       job_id: Number(job.value.id),
     })
+    appliedApplicationId.value = result?.application_id ?? null
     applyStatus.value = 'Отклик отправлен работодателю.'
   } catch (err) {
     applyStatus.value = err?.key === 'duplicate_application'
@@ -293,6 +296,13 @@ watch(() => route.params.id, loadJob)
 
             <button type="submit" class="btn-primary">Отправить отклик</button>
             <p v-if="applyStatus" class="status">{{ applyStatus }}</p>
+            <RouterLink
+              v-if="appliedApplicationId"
+              :to="`/messages?application=${appliedApplicationId}`"
+              class="btn-secondary message-link"
+            >
+              Перейти к диалогу
+            </RouterLink>
           </form>
         </section>
       </template>
@@ -605,6 +615,10 @@ watch(() => route.params.id, loadJob)
   border-color: rgba(220, 38, 38, 0.14);
   background: rgba(220, 38, 38, 0.08);
   color: #b91c1c;
+}
+
+.message-link {
+  width: 100%;
 }
 
 @media (max-width: 72rem) {

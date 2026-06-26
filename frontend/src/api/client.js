@@ -1,11 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 export class ApiError extends Error {
-  constructor(key, status) {
+  constructor(key, status, payload = null) {
     super(key)
     this.name = 'ApiError'
     this.key = key
     this.status = status
+    this.payload = payload
   }
 }
 
@@ -29,15 +30,28 @@ const getErrorKey = (payload) => {
   return 'unknown_error'
 }
 
+const parseResponseBody = (text) => {
+  if (!text) return null
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return {
+      detail: text,
+    }
+  }
+}
+
 export const apiRequest = async (path, options = {}) => {
   const token = getAuthToken()
   const headers = new Headers(options.headers || {})
+  const skipAuth = options.skipAuth === true
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
-  if (token && !headers.has('Authorization')) {
+  if (!skipAuth && token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
@@ -53,10 +67,10 @@ export const apiRequest = async (path, options = {}) => {
   }
 
   const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+  const data = parseResponseBody(text)
 
   if (!response.ok) {
-    throw new ApiError(getErrorKey(data), response.status)
+    throw new ApiError(getErrorKey(data), response.status, data)
   }
 
   return data

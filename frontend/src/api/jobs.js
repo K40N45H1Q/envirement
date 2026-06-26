@@ -1,6 +1,17 @@
 import { apiRequest } from './client'
 
-export const getJobs = () => apiRequest('/api/get_jobs')
+export const getJobs = (params = {}) => {
+  const search = new URLSearchParams()
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      search.set(key, String(value))
+    }
+  })
+
+  const query = search.toString()
+  return apiRequest(`/api/get_jobs${query ? `?${query}` : ''}`)
+}
 export const getJob = (id) => apiRequest(`/api/jobs/${id}`)
 
 export const getMyJobs = () => apiRequest('/api/my_jobs')
@@ -10,6 +21,15 @@ export const getResponses = () => apiRequest('/api/responses')
 
 export const deleteResponse = (id) => apiRequest(`/api/responses/${id}`, {
   method: 'DELETE',
+})
+
+export const getMessageConversations = () => apiRequest('/api/messages/conversations')
+
+export const getMessageThread = (applicationId) => apiRequest(`/api/messages/${applicationId}`)
+
+export const sendMessage = (applicationId, body) => apiRequest(`/api/messages/${applicationId}`, {
+  method: 'POST',
+  body: JSON.stringify({ body }),
 })
 
 export const applyToJob = (payload) => apiRequest('/api/apply', {

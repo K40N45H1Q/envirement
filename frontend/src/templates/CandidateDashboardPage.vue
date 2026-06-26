@@ -146,10 +146,10 @@ onMounted(loadRecommendations)
             <RouterLink
               v-for="application in applications.slice(0, 3)"
               :key="application.id"
-              :to="`/jobs/${application.job_id}`"
+              :to="`/messages?application=${application.id}`"
               class="step"
             >
-              <i class="fas fa-briefcase"></i>
+              <i class="fas fa-message"></i>
               <span>{{ application.job_title }} · {{ application.job_company }}</span>
             </RouterLink>
 

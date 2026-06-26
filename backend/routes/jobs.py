@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile
 from sqlmodel import select
 
-from database.models import Job, JobApplication, User, get_session
+from database.models import Job, JobApplication, Message, User, get_session
 from routes.safety import get_current_user, require_account_types
 
 router = APIRouter()
@@ -15,6 +15,26 @@ UPLOAD_DIR = getenv("UPLOAD_DIR")
 if not UPLOAD_DIR:
     base_dir = path.dirname(path.dirname(path.abspath(__file__)))
     UPLOAD_DIR = path.join(base_dir, "uploads")
+
+
+def get_application_context(application_id: int, current_user: User, session):
+    application = session.get(JobApplication, application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail={"key": "application_not_found"})
+
+    job = session.get(Job, application.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail={"key": "job_not_found"})
+
+    is_candidate = application.applicant_user_id == current_user.id
+    is_employer = job.user_id == current_user.id
+    is_admin = current_user.account_type == "admin"
+
+    if not (is_candidate or is_employer or is_admin):
+        raise HTTPException(status_code=403, detail={"key": "forbidden"})
+
+    recipient_user_id = job.user_id if is_candidate else application.applicant_user_id
+    return application, job, recipient_user_id, is_candidate
 
 
 @router.post("/create_job")
@@ -42,7 +62,7 @@ async def create_job(
     else:
         logo_path = logo_url or ""
 
-    job_status = "approved" if current_user.account_type == "admin" else "pending"
+    job_status = "approved"
 
     job = Job(
         title=title,
@@ -135,8 +155,7 @@ async def update_job(
     job.location = location
     job.description = description
 
-    if current_user.account_type != "admin" and job.status == "approved":
-        job.status = "pending"
+    job.status = "approved"
 
     session.add(job)
     session.commit()
@@ -266,7 +285,7 @@ async def apply_to_job(
     session.add(application)
     session.commit()
     session.refresh(application)
-    return {"status": "ok"}
+    return {"status": "ok", "application_id": application.id}
 
 
 @router.get("/responses")
@@ -323,6 +342,175 @@ def get_my_job_responses(
             "created_at": app.created_at,
         })
     return result
+
+
+@router.get("/messages/conversations")
+def get_message_conversations(
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    candidate_applications = session.exec(
+        select(JobApplication).where(JobApplication.applicant_user_id == current_user.id)
+    ).all()
+
+    employer_jobs = session.exec(
+        select(Job).where(Job.user_id == current_user.id)
+    ).all()
+    employer_job_ids = [job.id for job in employer_jobs]
+    employer_applications = session.exec(
+        select(JobApplication).where(JobApplication.job_id.in_(employer_job_ids))
+    ).all() if employer_job_ids else []
+
+    applications_map = {
+        application.id: application
+        for application in [*candidate_applications, *employer_applications]
+    }
+    if not applications_map:
+        return []
+
+    job_ids = list({application.job_id for application in applications_map.values()})
+    jobs = session.exec(select(Job).where(Job.id.in_(job_ids))).all()
+    jobs_map = {job.id: job for job in jobs}
+
+    applicant_ids = [
+        application.applicant_user_id
+        for application in applications_map.values()
+        if application.applicant_user_id is not None
+    ]
+    users = session.exec(select(User).where(User.id.in_(set(applicant_ids)))).all() if applicant_ids else []
+    users_map = {user.id: user for user in users}
+
+    messages = session.exec(
+        select(Message)
+        .where(Message.application_id.in_(list(applications_map.keys())))
+        .order_by(Message.created_at.desc())
+    ).all()
+
+    latest_message_by_application = {}
+    for message in messages:
+        latest_message_by_application.setdefault(message.application_id, message)
+
+    conversations = []
+    for application in applications_map.values():
+        job = jobs_map.get(application.job_id)
+        if not job:
+            continue
+
+        is_candidate = application.applicant_user_id == current_user.id
+        candidate = users_map.get(application.applicant_user_id)
+        latest_message = latest_message_by_application.get(application.id)
+
+        conversations.append({
+            "application_id": application.id,
+            "job_id": application.job_id,
+            "job_title": job.title,
+            "job_company": job.company,
+            "job_location": job.location,
+            "counterparty_name": (
+                job.company if is_candidate
+                else f"{application.name} {application.surname}".strip() or "Кандидат"
+            ),
+            "counterparty_email": (
+                application.email if is_candidate
+                else getattr(candidate, "email", application.email)
+            ),
+            "last_message": latest_message.body if latest_message else application.message or "Диалог еще не начат",
+            "last_message_at": latest_message.created_at if latest_message else application.created_at,
+            "created_at": application.created_at,
+        })
+
+    conversations.sort(
+        key=lambda item: item["last_message_at"] or item["created_at"],
+        reverse=True,
+    )
+    return conversations
+
+
+@router.get("/messages/{application_id}")
+def get_messages(
+    application_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    application, job, _, is_candidate = get_application_context(application_id, current_user, session)
+    messages = session.exec(
+        select(Message)
+        .where(Message.application_id == application_id)
+        .order_by(Message.created_at.asc())
+    ).all()
+
+    thread = []
+    if application.message:
+        thread.append({
+            "id": f"application-{application.id}",
+            "body": application.message,
+            "created_at": application.created_at,
+            "sender_role": "candidate",
+            "is_own": is_candidate,
+            "sender_name": f"{application.name} {application.surname}".strip() or "Кандидат",
+        })
+
+    for message in messages:
+        sender_role = "candidate" if message.sender_user_id == application.applicant_user_id else "employer"
+        thread.append({
+            "id": message.id,
+            "body": message.body,
+            "created_at": message.created_at,
+            "sender_role": sender_role,
+            "is_own": message.sender_user_id == current_user.id,
+            "sender_name": (
+                f"{application.name} {application.surname}".strip()
+                if sender_role == "candidate"
+                else job.company
+            ),
+        })
+
+    return {
+        "application_id": application.id,
+        "job_id": job.id,
+        "job_title": job.title,
+        "job_company": job.company,
+        "job_location": job.location,
+        "messages": thread,
+    }
+
+
+@router.post("/messages/{application_id}")
+async def send_message(
+    application_id: int = Path(...),
+    request_data: dict | None = None,
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    application, job, recipient_user_id, is_candidate = get_application_context(application_id, current_user, session)
+    body = ((request_data or {}).get("body") or "").strip()
+    if not body:
+        raise HTTPException(status_code=400, detail={"key": "missing_message_body"})
+    if recipient_user_id is None:
+        raise HTTPException(status_code=400, detail={"key": "conversation_not_available"})
+
+    message = Message(
+        application_id=application.id,
+        sender_user_id=current_user.id,
+        recipient_user_id=recipient_user_id,
+        body=body,
+    )
+    session.add(message)
+    session.commit()
+    session.refresh(message)
+
+    return {
+        "id": message.id,
+        "body": message.body,
+        "created_at": message.created_at,
+        "sender_role": "candidate" if is_candidate else "employer",
+        "is_own": True,
+        "sender_name": (
+            f"{application.name} {application.surname}".strip()
+            if is_candidate
+            else job.company
+        ),
+    }
 
 
 @router.delete("/responses/{response_id}", status_code=204)

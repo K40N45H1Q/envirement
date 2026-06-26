@@ -42,6 +42,15 @@ class JobApplication(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class Message(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    application_id: int = Field(foreign_key="jobapplication.id", index=True)
+    sender_user_id: int = Field(foreign_key="user.id", index=True)
+    recipient_user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class CandidateProfile(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)

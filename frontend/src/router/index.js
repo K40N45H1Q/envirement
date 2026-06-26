@@ -42,7 +42,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const { state, loadUser } = useAuth()
+  const { state, initialize } = useAuth()
   const token = getAuthToken()
 
   if (to.meta.requiresAuth) {
@@ -56,9 +56,7 @@ router.beforeEach(async (to) => {
       }
     }
 
-    if (!state.user) {
-      await loadUser()
-    }
+    await initialize()
 
     if (!state.user) {
       return {
@@ -76,9 +74,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.path === '/signin' && token) {
-    if (!state.user) {
-      await loadUser()
-    }
+    await initialize()
 
     if (state.user) {
       return typeof to.query.redirect === 'string'

@@ -1,22 +1,67 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import { useMessagingStore } from '@/stores/messaging'
 
-const chats = [
-  { name: 'Build Solutions GmbH', text: 'Добрый день! Ваш отклик получен.' },
-  { name: 'Nord Metal', text: 'Можем обсудить дату выхода?' },
-  { name: 'Euro Logistics', text: 'Спасибо за резюме.' },
-]
+const route = useRoute()
+const router = useRouter()
+const messaging = useMessagingStore()
 
-const active = ref(chats[0])
-const draft = ref('')
-const sent = ref([])
+const conversations = computed(() => messaging.conversations)
+const activeApplicationId = computed(() => messaging.activeApplicationId)
+const thread = computed(() => messaging.thread)
+const draft = computed({
+  get: () => messaging.draft,
+  set: (value) => messaging.setDraft(value),
+})
+const status = computed(() => messaging.status)
+const isLoading = computed(() => messaging.isLoading)
+const isSending = computed(() => messaging.isSending)
+const activeConversation = computed(() => messaging.activeConversation)
 
-const send = () => {
-  if (!draft.value.trim()) return
-  sent.value.push(draft.value.trim())
-  draft.value = ''
+const activeTitle = computed(() => activeConversation.value?.counterparty_name || 'Сообщения')
+const activeSubtitle = computed(() => {
+  if (!activeConversation.value) return 'Диалоги по вакансиям и откликам'
+  return `${activeConversation.value.job_title} · ${activeConversation.value.job_company}`
+})
+
+const syncQuery = (applicationId) => {
+  router.replace({
+    path: '/messages',
+    query: applicationId ? { application: String(applicationId) } : {},
+  })
 }
+
+const openConversation = async (applicationId) => {
+  if (!applicationId) return
+  syncQuery(applicationId)
+  await messaging.openConversation(applicationId)
+}
+
+const loadConversations = async () => {
+  await messaging.loadConversations(route.query.application)
+
+  if (messaging.activeApplicationId) {
+    syncQuery(messaging.activeApplicationId)
+  }
+}
+
+const send = async () => {
+  await messaging.sendCurrentMessage()
+}
+
+watch(() => route.query.application, async (value) => {
+  const applicationId = Number(value)
+  if (!applicationId || applicationId === messaging.activeApplicationId) return
+
+  const exists = messaging.conversations.some((item) => item.application_id === applicationId)
+  if (exists) {
+    await openConversation(applicationId)
+  }
+})
+
+onMounted(loadConversations)
 </script>
 
 <template>
@@ -25,30 +70,55 @@ const send = () => {
       <section class="messages">
         <aside class="chat-list">
           <h1>Сообщения</h1>
+          <p v-if="status" class="status">{{ status }}</p>
+          <p v-if="isLoading" class="status">Загрузка диалогов...</p>
+
           <button
-            v-for="chat in chats"
-            :key="chat.name"
+            v-for="conversation in conversations"
+            :key="conversation.application_id"
             type="button"
-            :class="{ active: active.name === chat.name }"
-            @click="active = chat"
+            :class="{ active: activeApplicationId === conversation.application_id }"
+            @click="openConversation(conversation.application_id)"
           >
-            <strong>{{ chat.name }}</strong>
-            <span>{{ chat.text }}</span>
+            <strong>{{ conversation.counterparty_name }}</strong>
+            <span>{{ conversation.last_message }}</span>
           </button>
+
+          <p v-if="!isLoading && !conversations.length" class="status">
+            Пока нет диалогов. Они появятся после публикации вакансии и отклика.
+          </p>
         </aside>
 
         <article class="chat">
           <header>
-            <strong>{{ active.name }}</strong>
-            <span>online</span>
+            <strong>{{ activeTitle }}</strong>
+            <span>{{ activeSubtitle }}</span>
           </header>
+
           <div class="thread">
-            <p class="bubble">{{ active.text }}</p>
-            <p v-for="message in sent" :key="message" class="bubble own">{{ message }}</p>
+            <p
+              v-for="message in thread"
+              :key="message.id"
+              class="bubble"
+              :class="{ own: message.is_own }"
+            >
+              {{ message.body }}
+            </p>
+
+            <p v-if="!thread.length" class="empty-thread">
+              Выберите диалог слева, чтобы начать общение.
+            </p>
           </div>
+
           <form @submit.prevent="send">
-            <input v-model="draft" placeholder="Напишите сообщение" />
-            <button type="submit"><i class="fas fa-paper-plane"></i></button>
+            <input
+              v-model="draft"
+              :disabled="!activeApplicationId || isSending"
+              placeholder="Напишите сообщение"
+            />
+            <button type="submit" :disabled="!activeApplicationId || isSending">
+              <i class="fas fa-paper-plane"></i>
+            </button>
           </form>
         </article>
       </section>
@@ -91,6 +161,16 @@ const send = () => {
   font-size: clamp(1.7rem, 2vw, 2.2rem);
 }
 
+.status {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
+  line-height: 1.5;
+}
+
 .chat-list button {
   display: grid;
   gap: 0.35rem;
@@ -119,7 +199,8 @@ const send = () => {
 }
 
 .chat-list span,
-header span {
+header span,
+.empty-thread {
   color: var(--text-muted);
 }
 
@@ -197,6 +278,12 @@ form button {
   background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
   color: #fff;
   box-shadow: 0 0.875rem 1.8rem rgba(21, 149, 93, 0.18);
+}
+
+form button:disabled,
+input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 @media (max-width: 56rem) {
