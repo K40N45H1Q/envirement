@@ -23,6 +23,8 @@ class Job(SQLModel, table=True):
     description: Optional[str] = None
     salary: Optional[str] = None
     logo: Optional[str] = None
+    has_housing: bool = Field(default=False)
+    has_transport: bool = Field(default=False)
     user_id: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -91,6 +93,27 @@ def update_candidate_profile_timestamp(mapper, connection, target):
 
 engine = create_engine("sqlite:///default.db", echo=False)
 SQLModel.metadata.create_all(engine)
+
+
+def ensure_job_columns():
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(job)").fetchall()
+        }
+
+        if "has_housing" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN has_housing BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+        if "has_transport" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN has_transport BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+
+ensure_job_columns()
 
 
 def get_session():

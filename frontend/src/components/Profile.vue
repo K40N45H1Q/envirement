@@ -48,6 +48,28 @@ const accountTypeLabel = computed(() => {
 })
 
 const avatarPreview = computed(() => avatarObjectUrl.value || profile.value.avatar_url || '')
+const profileHints = computed(() => [
+  {
+    icon: 'fas fa-circle-check',
+    text: profile.value.first_name && profile.value.last_name ? 'Имя и фамилия заполнены' : 'Добавьте имя и фамилию',
+    done: !!profile.value.first_name && !!profile.value.last_name,
+  },
+  {
+    icon: 'fas fa-phone',
+    text: profile.value.phone ? 'Контактный номер добавлен' : 'Укажите номер телефона',
+    done: !!profile.value.phone,
+  },
+  {
+    icon: 'fas fa-file-arrow-up',
+    text: profile.value.resume_name ? 'Резюме прикреплено' : 'Прикрепите резюме',
+    done: !!profile.value.resume_name,
+  },
+  {
+    icon: 'fas fa-user-pen',
+    text: profile.value.summary ? 'Описание профиля заполнено' : 'Добавьте короткое описание о себе',
+    done: !!profile.value.summary,
+  },
+])
 const profileProgress = computed(() => {
   const fields = [
     profile.value.first_name,
@@ -156,7 +178,7 @@ onBeforeUnmount(revokeAvatarPreview)
             <h1>{{ fullName || 'Заполните профиль' }}</h1>
             <p>
               Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться
-              на вакансии и выглядеть полноценным кандидатом в кабинете работодателя.
+              на вакансии и поддерживать профиль кандидата в актуальном состоянии.
             </p>
           </div>
           <div class="head-badge">
@@ -295,21 +317,14 @@ onBeforeUnmount(revokeAvatarPreview)
               </div>
 
               <div class="hint-list">
-                <div class="hint-item" :class="{ 'hint-item--done': !!profile.first_name && !!profile.last_name }">
-                  <i class="fas fa-circle-check"></i>
-                  <span>Добавьте имя и фамилию</span>
-                </div>
-                <div class="hint-item" :class="{ 'hint-item--done': !!profile.phone }">
-                  <i class="fas fa-phone"></i>
-                  <span>Укажите номер телефона</span>
-                </div>
-                <div class="hint-item" :class="{ 'hint-item--done': !!profile.resume_name }">
-                  <i class="fas fa-file-arrow-up"></i>
-                  <span>Прикрепите резюме</span>
-                </div>
-                <div class="hint-item" :class="{ 'hint-item--done': !!profile.summary }">
-                  <i class="fas fa-user-pen"></i>
-                  <span>Добавьте короткое описание о себе</span>
+                <div
+                  v-for="hint in profileHints"
+                  :key="hint.text"
+                  class="hint-item"
+                  :class="{ 'hint-item--done': hint.done }"
+                >
+                  <i :class="hint.icon"></i>
+                  <span>{{ hint.text }}</span>
                 </div>
               </div>
             </section>
@@ -730,7 +745,11 @@ label {
     grid-auto-columns: minmax(10.5rem, 1fr);
     overflow-x: auto;
     padding-bottom: 0.9rem;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
   }
 }
 

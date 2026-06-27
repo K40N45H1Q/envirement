@@ -144,6 +144,8 @@ def ensure_mvp_seed_data():
                     "service trips across the Baltics, accommodation support and company transport."
                 ),
                 "logo": "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=320&q=80",
+                "has_housing": True,
+                "has_transport": True,
             },
             {
                 "title": "HV Electrician",
@@ -155,6 +157,8 @@ def ensure_mvp_seed_data():
                     "safety procedures, transport to project sites included."
                 ),
                 "logo": "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=320&q=80",
+                "has_housing": False,
+                "has_transport": True,
             },
             {
                 "title": "MIG/MAG Welder",
@@ -166,6 +170,8 @@ def ensure_mvp_seed_data():
                     "official employment, accommodation support."
                 ),
                 "logo": "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=320&q=80",
+                "has_housing": True,
+                "has_transport": False,
             },
             {
                 "title": "Blade Repair Technician",
@@ -177,6 +183,8 @@ def ensure_mvp_seed_data():
                     "preferred, project-based rotations."
                 ),
                 "logo": "https://images.unsplash.com/photo-1509395176047-4a66953fd231?auto=format&fit=crop&w=320&q=80",
+                "has_housing": False,
+                "has_transport": False,
             },
             {
                 "title": "Driver CE",
@@ -188,6 +196,8 @@ def ensure_mvp_seed_data():
                     "card, housing support during onboarding."
                 ),
                 "logo": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=320&q=80",
+                "has_housing": True,
+                "has_transport": True,
             },
         ]
 
@@ -215,6 +225,8 @@ def ensure_mvp_seed_data():
                 job.location = job_data["location"]
                 job.description = job_data["description"]
                 job.logo = job_data["logo"]
+                job.has_housing = job_data["has_housing"]
+                job.has_transport = job_data["has_transport"]
                 session.add(job)
             created_jobs.append(job)
 

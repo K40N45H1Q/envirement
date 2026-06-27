@@ -47,6 +47,8 @@ export const normalizeJob = (job, index = 0) => ({
   salary: job.salary || 'По договоренности',
   description: job.description || '',
   logo: job.logo || '',
+  has_housing: Boolean(job.has_housing),
+  has_transport: Boolean(job.has_transport),
   status: job.status || 'approved',
   created_at: job.created_at || '',
   initials: initialsFor(job.company || job.title),

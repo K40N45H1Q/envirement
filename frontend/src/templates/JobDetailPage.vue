@@ -624,7 +624,6 @@ watch(() => route.params.id, loadJob)
 @media (max-width: 72rem) {
   .facts-grid,
   .content-grid,
-  .hero,
   .content-blocks,
   .company-grid {
     grid-template-columns: 1fr;
@@ -632,6 +631,24 @@ watch(() => route.params.id, loadJob)
 
   .apply-form {
     position: static;
+  }
+}
+
+@media (max-width: 60rem) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 1.25rem;
+  }
+
+  .hero-side {
+    justify-items: start;
+    text-align: left;
+    padding-top: 1rem;
+    border-top: 0.0625rem solid var(--border-subtle);
+  }
+
+  .hero-side strong {
+    font-size: 1.85rem;
   }
 }
 
@@ -649,9 +666,9 @@ watch(() => route.params.id, loadJob)
     grid-template-columns: 1fr;
   }
 
-  .hero-side {
-    justify-items: start;
-    text-align: left;
+  .hero-meta,
+  .hero-tags {
+    gap: 0.65rem;
   }
 }
 </style>

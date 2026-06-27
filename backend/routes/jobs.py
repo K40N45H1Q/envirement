@@ -44,6 +44,8 @@ async def create_job(
     salary: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
+    has_housing: bool = Form(False),
+    has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
     logo_url: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
@@ -71,6 +73,8 @@ async def create_job(
         location=location,
         description=description,
         logo=logo_path,
+        has_housing=has_housing,
+        has_transport=has_transport,
         user_id=current_user.id,
         status=job_status,
     )
@@ -115,6 +119,8 @@ async def update_job(
     salary: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
+    has_housing: bool = Form(False),
+    has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
     logo_url: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
@@ -154,6 +160,8 @@ async def update_job(
     job.salary = salary
     job.location = location
     job.description = description
+    job.has_housing = has_housing
+    job.has_transport = has_transport
 
     job.status = "approved"
 

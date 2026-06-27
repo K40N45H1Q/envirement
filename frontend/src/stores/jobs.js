@@ -78,8 +78,8 @@ const parseSalaryAmount = (salary = '') => {
   return Math.max(...values.map((value) => Number(value.replace(/\s+/g, '')) || 0))
 }
 
-const inferHousing = (job) => /(жиль|housing|accommodation|relocation|прожив)/i.test(`${job.title} ${job.description}`)
-const inferTransport = (job) => /(transport|shuttle|car|vehicle|авто|транспорт|доставка)/i.test(`${job.title} ${job.description}`)
+const inferHousing = (job) => job.has_housing ?? /(жиль|housing|accommodation|relocation|прожив)/i.test(`${job.title} ${job.description}`)
+const inferTransport = (job) => job.has_transport ?? /(transport|shuttle|car|vehicle|авто|транспорт|доставка)/i.test(`${job.title} ${job.description}`)
 const inferEmployment = (job) => {
   const haystack = `${job.title} ${job.description}`.toLowerCase()
   if (/(вахт|shift)/.test(haystack)) return 'shift'
