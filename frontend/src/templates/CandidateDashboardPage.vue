@@ -100,7 +100,7 @@ onMounted(loadRecommendations)
 
         <section class="workspace">
           <div class="panel">
-            <div class="panel-title">
+            <div class="panel-header">
               <div>
                 <p class="eyebrow compact">Рекомендации</p>
                 <h2>Вакансии для отклика</h2>
@@ -111,52 +111,60 @@ onMounted(loadRecommendations)
             </div>
 
             <p v-if="notice" class="notice">{{ notice }}</p>
-            <p v-if="isLoading" class="state">Загрузка вакансий...</p>
+            <p v-else-if="isLoading" class="state">Загрузка вакансий...</p>
 
-            <RouterLink
-              v-for="job in recommendedJobs"
-              v-else
-              :key="job.id"
-              :to="`/jobs/${job.id}`"
-              class="job-row"
-            >
-              <div class="job-logo" :style="{ background: job.color }">
-                <img v-if="job.logo" :src="job.logo" :alt="job.company" />
-                <span v-else>{{ job.initials }}</span>
-              </div>
-              <div>
-                <h3>{{ job.title }}</h3>
-                <p>{{ job.company }} · {{ job.location }}</p>
-                <strong>{{ job.salary }}</strong>
-              </div>
-              <span>Откликнуться</span>
-            </RouterLink>
+            <div v-else-if="recommendedJobs.length" class="jobs-list">
+              <RouterLink
+                v-for="job in recommendedJobs"
+                :key="job.id"
+                :to="`/jobs/${job.id}`"
+                class="job-row"
+              >
+                <div class="job-logo" :style="{ background: job.color }">
+                  <img v-if="job.logo" :src="job.logo" :alt="job.company" />
+                  <span v-else>{{ job.initials }}</span>
+                </div>
+                <div class="job-info">
+                  <h3>{{ job.title }}</h3>
+                  <p>{{ job.company }} · {{ job.location }}</p>
+                  <strong>{{ job.salary }}</strong>
+                </div>
+                <span class="job-action">Откликнуться</span>
+              </RouterLink>
+            </div>
 
-            <p v-if="!isLoading && !recommendedJobs.length" class="state">
+            <p v-else class="state">
               Новых вакансий для отклика пока нет.
             </p>
           </div>
 
-          <div class="panel steps">
-            <div>
-              <p class="eyebrow compact">Мои отклики</p>
-              <h2>Последняя активность</h2>
+          <div class="panel panel-activity">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow compact">Мои отклики</p>
+                <h2>Последняя активность</h2>
+              </div>
             </div>
 
-            <RouterLink
-              v-for="application in applications.slice(0, 3)"
-              :key="application.id"
-              :to="`/messages?application=${application.id}`"
-              class="step"
-            >
-              <i class="fas fa-message"></i>
-              <span>{{ application.job_title }} · {{ application.job_company }}</span>
-            </RouterLink>
+            <div class="activity-list">
+              <RouterLink
+                v-for="application in applications.slice(0, 3)"
+                :key="application.id"
+                :to="`/messages?application=${application.id}`"
+                class="activity-item"
+              >
+                <i class="fas fa-message"></i>
+                <div class="activity-info">
+                  <span class="activity-title">{{ application.job_title }}</span>
+                  <span class="activity-company">{{ application.job_company }}</span>
+                </div>
+              </RouterLink>
 
-            <RouterLink v-if="!applications.length" to="/profile" class="step">
-              <i class="fas fa-user-pen"></i>
-              <span>Заполнить профиль и начать откликаться</span>
-            </RouterLink>
+              <RouterLink v-if="!applications.length" to="/profile" class="activity-item empty">
+                <i class="fas fa-user-pen"></i>
+                <span>Заполнить профиль и начать откликаться</span>
+              </RouterLink>
+            </div>
           </div>
         </section>
       </section>
@@ -171,7 +179,7 @@ onMounted(loadRecommendations)
   padding: 2rem var(--shell-gutter) 4rem;
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .sidebar,
@@ -219,7 +227,7 @@ onMounted(loadRecommendations)
 
 .content {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .head {
@@ -227,7 +235,7 @@ onMounted(loadRecommendations)
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1.6rem;
+  padding: 1.75rem;
   background:
     radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%),
     var(--surface-primary);
@@ -262,6 +270,11 @@ h1 {
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
+h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
 .btn-primary {
   display: inline-flex;
   gap: 0.5rem;
@@ -281,11 +294,11 @@ h1 {
 .cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .cards article {
-  padding: 1.25rem;
+  padding: 1.5rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 94%, transparent), var(--surface-primary)),
     var(--surface-primary);
@@ -294,41 +307,45 @@ h1 {
 .cards strong {
   display: block;
   color: var(--brand-strong);
-  font-size: 2rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.35rem;
 }
 
-.cards span,
-.job-row p,
-.state {
+.cards span {
   color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-  gap: 1.25rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1.5rem;
+  align-items: stretch;
 }
 
 .panel {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   padding: 1.5rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)),
     var(--surface-primary);
 }
 
-.panel-title {
+.panel-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .icon-button {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: grid;
   place-items: center;
   border: 0.0625rem solid var(--border-strong);
@@ -336,6 +353,12 @@ h1 {
   background: color-mix(in srgb, var(--brand-soft) 70%, transparent);
   color: var(--brand-strong);
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+  background: color-mix(in srgb, var(--brand-soft) 90%, transparent);
+  transform: rotate(180deg);
 }
 
 .notice,
@@ -348,14 +371,19 @@ h1 {
   color: var(--brand-strong);
 }
 
+.jobs-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .job-row {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr) auto;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
   gap: 1rem;
   align-items: center;
   padding: 1rem;
   border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 0.875rem;
   color: inherit;
   text-decoration: none;
   background: color-mix(in srgb, var(--surface-secondary) 84%, transparent);
@@ -364,20 +392,21 @@ h1 {
 
 .job-row:hover,
 .job-row:focus-visible {
-  transform: translateY(-0.0625rem);
+  transform: translateY(-0.125rem);
   border-color: var(--border-strong);
   box-shadow: var(--shadow-soft);
 }
 
 .job-logo {
-  width: 4rem;
-  height: 4rem;
+  width: 3.5rem;
+  height: 3.5rem;
   display: grid;
   place-items: center;
   border-radius: 0.75rem;
   color: #fff;
   font-weight: 800;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .job-logo img {
@@ -386,40 +415,105 @@ h1 {
   object-fit: cover;
 }
 
-.job-row p {
-  margin: 0.25rem 0;
+.job-info h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
 }
 
-.job-row strong,
-.job-row > span {
+.job-info p {
+  margin: 0 0 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.job-info strong {
   color: var(--brand-strong);
   font-weight: 800;
+  font-size: 0.95rem;
 }
 
-.steps {
-  gap: 0.75rem;
+.job-action {
+  color: var(--brand-strong);
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  margin-left: 1rem;
 }
 
-.step {
+.panel-activity {
+  gap: 1.25rem;
+}
+
+.activity-list {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
+  flex: 1;
+}
+
+.activity-item {
+  display: flex;
+  gap: 0.85rem;
   align-items: center;
-  padding: 0.9rem;
+  padding: 0.95rem 1rem;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 0.875rem;
   background: color-mix(in srgb, var(--surface-secondary) 86%, transparent);
   color: var(--text-primary);
-  font-weight: 800;
   text-decoration: none;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.step i {
+.activity-item i {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
   color: var(--brand-strong);
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
-.step:hover,
-.step:focus-visible {
+.activity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.activity-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-company {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-item.empty {
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.activity-item.empty i {
+  width: auto;
+  height: auto;
+  font-size: 1.25rem;
+}
+
+.activity-item:hover,
+.activity-item:focus-visible {
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--brand-soft) 52%, transparent);
 }
@@ -441,9 +535,26 @@ h1 {
 }
 
 @media (max-width: 48rem) {
-  .head,
-  .job-row {
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .head > div {
     display: grid;
+    gap: 0.5rem;
+  }
+
+  .job-row {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .job-action {
+    grid-column: 2;
+    margin-left: 0;
+    font-size: 0.85rem;
   }
 
   .cards {
@@ -465,7 +576,7 @@ h1 {
   .head,
   .panel,
   .cards article {
-    padding: 1.15rem;
+    padding: 1.25rem;
   }
 }
 </style>

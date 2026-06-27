@@ -54,12 +54,12 @@ watch(() => route.query, syncFromRoute)
 <style scoped>
 .search-section {
   width: 100%;
-  padding: 0 2rem 3rem;
-  background: #fff;
+  max-width: 100rem;
+  margin: 0 auto;
 }
 
 .search-card {
-  max-width: 72rem;
+  width: 100%;
   margin: 0 auto;
   padding: 1rem;
   display: grid;

@@ -284,7 +284,7 @@ onMounted(loadDashboard)
 
           <section v-if="activeSection === 'jobs'" class="workspace">
             <form class="panel form-panel" @submit.prevent="submitJob">
-              <div class="panel-title">
+              <div class="panel-header">
                 <div>
                   <p class="eyebrow compact">{{ isEditing ? 'Редактирование' : 'Новая вакансия' }}</p>
                   <h2>{{ isEditing ? 'Обновить вакансию' : 'Создать вакансию' }}</h2>
@@ -294,19 +294,21 @@ onMounted(loadDashboard)
                 </button>
               </div>
 
-              <div class="field-grid">
-                <label>Название<input v-model="form.title" required placeholder="Электрик" /></label>
-                <label>Компания<input v-model="form.company" required placeholder="Build Solutions GmbH" /></label>
+              <div class="form-content">
+                <div class="field-grid">
+                  <label>Название<input v-model="form.title" required placeholder="Электрик" /></label>
+                  <label>Компания<input v-model="form.company" required placeholder="Build Solutions GmbH" /></label>
+                </div>
+                <div class="field-grid">
+                  <label>Зарплата<input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" /></label>
+                  <label>Локация<input v-model="form.location" required placeholder="Берлин, Германия" /></label>
+                </div>
+                <label>Логотип URL<input v-model="form.logo_url" placeholder="https://example.com/logo.png" /></label>
+                <label>
+                  Описание
+                  <textarea v-model="form.description" required rows="7" placeholder="Обязанности, требования, условия работы и график"></textarea>
+                </label>
               </div>
-              <div class="field-grid">
-                <label>Зарплата<input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" /></label>
-                <label>Локация<input v-model="form.location" required placeholder="Берлин, Германия" /></label>
-              </div>
-              <label>Логотип URL<input v-model="form.logo_url" placeholder="https://example.com/logo.png" /></label>
-              <label>
-                Описание
-                <textarea v-model="form.description" required rows="7" placeholder="Обязанности, требования, условия работы и график"></textarea>
-              </label>
 
               <div class="form-actions">
                 <button class="btn-primary" type="submit" :disabled="isSaving">{{ submitLabel }}</button>
@@ -315,7 +317,7 @@ onMounted(loadDashboard)
             </form>
 
             <div class="panel jobs-panel">
-              <div class="panel-title">
+              <div class="panel-header">
                 <div>
                   <p class="eyebrow compact">Публикации</p>
                   <h2>Мои вакансии</h2>
@@ -325,35 +327,37 @@ onMounted(loadDashboard)
                 </button>
               </div>
 
-              <article v-for="job in jobs" :key="job.id" class="job-row">
-                <div class="job-logo" :style="{ background: job.color }">
-                  <img v-if="job.logo" :src="job.logo" :alt="job.company" />
-                  <span v-else>{{ job.initials }}</span>
-                </div>
-
-                <div class="job-body">
-                  <div class="job-top">
-                    <div class="job-heading">
-                      <h3>{{ job.title }}</h3>
-                      <p>{{ job.company }} · {{ job.location }}</p>
-                    </div>
-                    <span class="badge" :class="job.status">{{ statusLabel(job.status) }}</span>
+              <div class="jobs-list">
+                <article v-for="job in jobs" :key="job.id" class="job-row">
+                  <div class="job-logo" :style="{ background: job.color }">
+                    <img v-if="job.logo" :src="job.logo" :alt="job.company" />
+                    <span v-else>{{ job.initials }}</span>
                   </div>
 
-                  <p class="job-description">{{ job.description || 'Описание пока не заполнено.' }}</p>
+                  <div class="job-body">
+                    <div class="job-top">
+                      <div class="job-heading">
+                        <h3>{{ job.title }}</h3>
+                        <p>{{ job.company }} · {{ job.location }}</p>
+                      </div>
+                      <span class="badge" :class="job.status">{{ statusLabel(job.status) }}</span>
+                    </div>
 
-                  <div class="job-actions">
-                    <strong>{{ job.salary }}</strong>
-                    <div class="job-buttons">
-                      <RouterLink v-if="job.status === 'approved'" :to="`/jobs/${job.id}`" class="text-button">Открыть</RouterLink>
-                      <button type="button" class="text-button" @click="editJob(job)">Редактировать</button>
-                      <button type="button" class="text-button danger" :disabled="deletingId === job.id" @click="removeJob(job)">
-                        {{ deletingId === job.id ? 'Удаление...' : 'Удалить' }}
-                      </button>
+                    <p class="job-description">{{ job.description || 'Описание пока не заполнено.' }}</p>
+
+                    <div class="job-actions">
+                      <strong class="job-salary">{{ job.salary }}</strong>
+                      <div class="job-buttons">
+                        <RouterLink v-if="job.status === 'approved'" :to="`/jobs/${job.id}`" class="text-button">Открыть</RouterLink>
+                        <button type="button" class="text-button" @click="editJob(job)">Редактировать</button>
+                        <button type="button" class="text-button danger" :disabled="deletingId === job.id" @click="removeJob(job)">
+                          {{ deletingId === job.id ? 'Удаление...' : 'Удалить' }}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
+                </article>
+              </div>
 
               <p v-if="!jobs.length" class="state">Вакансий пока нет.</p>
             </div>
@@ -420,25 +424,34 @@ onMounted(loadDashboard)
 </template>
 
 <style scoped>
-.page { width: min(100%, var(--shell-max-width)); margin: 0 auto; padding: 2rem var(--shell-gutter) 4rem; display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 1.25rem; }
+.page { width: min(100%, var(--shell-max-width)); margin: 0 auto; padding: 2rem var(--shell-gutter) 4rem; display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 1.5rem; }
 .sidebar, .head, .panel, .stats article { border: 0.0625rem solid var(--border-subtle); border-radius: 1rem; background: var(--surface-primary); box-shadow: var(--shadow-soft); }
 .sidebar { display: grid; align-content: start; gap: 0.45rem; padding: 1rem; position: sticky; top: 5.5rem; }
 .sidebar-link { display: flex; gap: 0.65rem; align-items: center; min-height: 3rem; padding: 0.75rem 0.9rem; border: none; border-radius: 0.875rem; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; }
 .sidebar-link:hover, .sidebar-link--active { background: linear-gradient(180deg, color-mix(in srgb, var(--brand-base) 22%, transparent), color-mix(in srgb, var(--brand-strong) 14%, transparent)); border: 0.0625rem solid var(--border-strong); }
-.content, .workspace, .workspace--overview { display: grid; gap: 1.25rem; }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.6rem; background: radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%), var(--surface-primary); }
+.content, .workspace, .workspace--overview { display: grid; gap: 1.5rem; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.75rem; background: radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%), var(--surface-primary); }
 .head p:not(.eyebrow), .muted, .job-description, .job-heading p { color: var(--text-muted); }
 .eyebrow { margin: 0 0 0.45rem; color: var(--brand-strong); font-weight: 700; text-transform: uppercase; }
 .compact { font-size: 0.76rem; }
 h1, h2, h3, p { margin: 0; }
 h1 { font-size: clamp(2rem, 4vw, 3rem); color: var(--text-primary); }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
-.stats article, .panel, .mini-card { padding: 1.25rem; }
+h2 { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; }
+.stats article, .panel, .mini-card { padding: 1.5rem; }
 .stats strong { display: block; color: var(--brand-strong); font-size: 2rem; }
-.workspace { grid-template-columns: minmax(22rem, 30rem) minmax(0, 1fr); align-items: start; }
-.panel { background: linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)), var(--surface-primary); }
-.panel-title, .job-top, .job-actions, .response-row, .head-actions, .form-actions, .summary-row { display: flex; justify-content: space-between; gap: 1rem; }
-.panel-title, .job-top, .job-actions, .response-row { align-items: flex-start; }
+.workspace { grid-template-columns: 1fr 1fr; align-items: stretch; }
+.panel { display: flex; flex-direction: column; gap: 1.25rem; background: linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)), var(--surface-primary); }
+.form-panel { gap: 1.25rem; }
+.form-content { display: grid; gap: 1rem; }
+.jobs-panel { gap: 1.25rem; min-height: 0; }
+.jobs-list { display: grid; gap: 1rem; overflow-y: auto; max-height: calc(100vh - 420px); padding-right: 0.5rem; }
+.jobs-list::-webkit-scrollbar { width: 6px; }
+.jobs-list::-webkit-scrollbar-track { background: var(--surface-secondary); border-radius: 3px; }
+.jobs-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.jobs-list::-webkit-scrollbar-thumb:hover { background: var(--brand-strong); }
+.panel-header, .panel-title, .job-top, .job-actions, .response-row, .head-actions, .form-actions, .summary-row { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.panel-header { flex-shrink: 0; }
 .summary-row, .overview-grid, .pricing-grid, .field-grid { display: grid; gap: 1rem; }
 .overview-grid, .pricing-grid, .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .field-grid label, label { display: grid; gap: 0.45rem; color: var(--text-primary); font-weight: 700; }
@@ -456,21 +469,29 @@ textarea { resize: vertical; min-height: 10rem; }
 .summary-pill--warm { background: rgba(180, 83, 9, 0.1); color: #92400e; }
 .summary-pill--danger { background: rgba(220, 38, 38, 0.1); color: #b91c1c; }
 .job-row { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 1rem; padding: 1rem; border: 0.0625rem solid var(--border-subtle); border-radius: 1rem; background: color-mix(in srgb, var(--surface-secondary) 84%, transparent); }
-.job-logo { width: 4.5rem; height: 4.5rem; display: grid; place-items: center; border-radius: 1rem; color: #fff; font-size: 1.35rem; font-weight: 800; overflow: hidden; }
+.job-logo { width: 4.5rem; height: 4.5rem; display: grid; place-items: center; border-radius: 1rem; color: #fff; font-size: 1.35rem; font-weight: 800; overflow: hidden; flex-shrink: 0; }
 .job-logo img { width: 100%; height: 100%; object-fit: cover; }
-.job-body { min-width: 0; display: grid; gap: 0.8rem; }
-.badge { padding: 0.45rem 0.8rem; border-radius: 999rem; font-size: 0.82rem; font-weight: 800; }
+.job-body { min-width: 0; display: grid; gap: 0.75rem; }
+.job-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.job-heading h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.25rem; }
+.job-heading p { margin: 0; font-size: 0.9rem; }
+.badge { padding: 0.45rem 0.8rem; border-radius: 999rem; font-size: 0.82rem; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
 .badge.approved { background: rgba(25, 120, 90, 0.1); color: #19785a; }
 .badge.pending { background: rgba(180, 83, 9, 0.1); color: #92400e; }
 .badge.rejected { background: rgba(220, 38, 38, 0.1); color: #b91c1c; }
-.job-buttons, .inline-item { display: flex; gap: 0.45rem; flex-wrap: wrap; }
-.text-button, .inline-item { align-items: center; justify-content: center; min-height: 2.5rem; padding: 0.5rem 0.8rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--brand-soft) 72%, transparent); color: var(--brand-strong); font-weight: 800; text-decoration: none; }
+.job-description { margin: 0; font-size: 0.9rem; line-height: 1.5; color: var(--text-muted); }
+.job-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.job-salary { font-weight: 800; color: var(--brand-strong); font-size: 1rem; }
+.job-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.text-button, .inline-item { align-items: center; justify-content: center; min-height: 2.5rem; padding: 0.5rem 0.85rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--brand-soft) 72%, transparent); color: var(--brand-strong); font-weight: 700; text-decoration: none; border: none; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+.text-button:hover { background: color-mix(in srgb, var(--brand-soft) 90%, transparent); }
 .text-button.danger { background: rgba(220, 38, 38, 0.08); color: #b91c1c; }
+.text-button.danger:hover { background: rgba(220, 38, 38, 0.15); }
 .mini-card { border: 0.0625rem solid var(--border-subtle); border-radius: 1rem; background: color-mix(in srgb, var(--surface-secondary) 90%, transparent); display: grid; gap: 0.75rem; }
 .inline-item { justify-content: space-between; }
 .inline-item span { color: var(--text-muted); font-weight: 600; }
 .response-row { padding: 1rem; border: 0.0625rem solid var(--border-subtle); border-radius: 1rem; background: color-mix(in srgb, var(--surface-secondary) 88%, transparent); margin-top: 0.75rem; }
 .plan-name { color: var(--brand-strong); font-size: 0.9rem; text-transform: uppercase; }
-@media (max-width: 72rem) { .page, .workspace { grid-template-columns: 1fr; } .sidebar { position: static; grid-auto-flow: column; grid-auto-columns: minmax(10.5rem, 1fr); overflow-x: auto; } }
-@media (max-width: 48rem) { .stats, .overview-grid, .pricing-grid, .field-grid { grid-template-columns: 1fr; } .head, .panel-title, .job-top, .job-actions, .response-row, .head-actions, .form-actions { display: grid; } .btn-primary, .btn-secondary { width: 100%; } .page { padding-top: 1.25rem; } }
+@media (max-width: 72rem) { .page, .workspace { grid-template-columns: 1fr; } .sidebar { position: static; grid-auto-flow: column; grid-auto-columns: minmax(10.5rem, 1fr); overflow-x: auto; } .jobs-list { max-height: none; } }
+@media (max-width: 48rem) { .stats, .overview-grid, .pricing-grid, .field-grid { grid-template-columns: 1fr; } .head, .panel-header, .panel-title, .job-top, .job-actions, .response-row, .head-actions, .form-actions { display: grid; } .btn-primary, .btn-secondary { width: 100%; } .page { padding-top: 1.25rem; } .job-buttons { flex-direction: column; } .text-button { width: 100%; } }
 </style>

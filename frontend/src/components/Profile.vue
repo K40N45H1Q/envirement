@@ -229,7 +229,7 @@ onBeforeUnmount(revokeAvatarPreview)
                 </label>
               </div>
 
-              <label>
+              <label class="summary-label">
                 О себе
                 <textarea
                   v-model="profile.summary"
@@ -327,7 +327,7 @@ onBeforeUnmount(revokeAvatarPreview)
   padding: 2rem var(--shell-gutter) 4rem;
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .sidebar,
@@ -379,7 +379,7 @@ onBeforeUnmount(revokeAvatarPreview)
 
 .content {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .head {
@@ -387,7 +387,7 @@ onBeforeUnmount(revokeAvatarPreview)
   justify-content: space-between;
   gap: 1.5rem;
   align-items: center;
-  padding: 1.6rem;
+  padding: 1.75rem;
   background:
     radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%),
     var(--surface-primary);
@@ -421,6 +421,11 @@ h1 {
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
+h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
 .head-badge {
   min-width: 9rem;
   padding: 1rem 1.1rem;
@@ -428,6 +433,7 @@ h1 {
   border-radius: 1rem;
   background: color-mix(in srgb, var(--brand-soft) 62%, white);
   text-align: center;
+  flex-shrink: 0;
 }
 
 .head-badge strong {
@@ -443,11 +449,11 @@ h1 {
 .cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .cards article {
-  padding: 1.25rem;
+  padding: 1.5rem;
 }
 
 .cards strong {
@@ -462,14 +468,31 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 21rem;
-  gap: 1.25rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1.5rem;
+  align-items: stretch;
 }
 
-.panel {
-  display: grid;
-  gap: 1rem;
+.profile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)),
+    var(--surface-primary);
+}
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.side-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   padding: 1.5rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)),
@@ -479,8 +502,9 @@ h1 {
 .panel-title {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .notice {
@@ -511,6 +535,7 @@ h1 {
   position: relative;
   color: #fff;
   box-shadow: 0 1rem 2rem rgba(21, 149, 93, 0.18);
+  flex-shrink: 0;
 }
 
 .avatar img {
@@ -566,6 +591,13 @@ h1 {
 }
 
 label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.summary-label {
   display: grid;
   gap: 0.45rem;
   color: var(--text-primary);
@@ -632,11 +664,6 @@ label {
   color: #b91c1c;
 }
 
-.side-column {
-  display: grid;
-  gap: 1.25rem;
-}
-
 .resume-dropzone {
   padding: 1.15rem;
   border-radius: 1rem;
@@ -654,6 +681,12 @@ label {
   margin-top: 0.35rem;
   color: var(--text-muted);
   line-height: 1.55;
+}
+
+.resume-link {
+  border: 0.0625rem solid var(--border-strong);
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
 }
 
 .hint-list {
@@ -719,9 +752,10 @@ label {
   }
 
   .head,
-  .panel,
+  .profile-panel,
+  .side-card,
   .cards article {
-    padding: 1.15rem;
+    padding: 1.25rem;
   }
 
   .save-btn,

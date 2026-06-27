@@ -17,9 +17,3 @@ import Service from '@/components/Service.vue';
       </main>
     </AppLayout>
 </template>
-
-<style scoped>
-.home-page {
-    background: #fff;
-}
-</style>
