@@ -154,10 +154,10 @@ onBeforeUnmount(() => {
   position: relative;
   width: min(100%, 25rem);
   padding: 2rem;
-  border: 0.0625rem solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #fff;
-  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.18);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-secondary);
+  box-shadow: var(--shadow-strong);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -180,25 +180,25 @@ onBeforeUnmount(() => {
 }
 
 .modal-close:hover {
-  background: rgba(30, 35, 38, 0.06);
-  color: #1e2326;
+  background: color-mix(in srgb, var(--brand-soft) 45%, white);
+  color: var(--text-primary);
 }
 
 .title {
   margin: 0 1.5rem 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1e2326;
+  color: var(--text-primary);
   text-align: center;
 }
 
 .input {
   width: 100%;
   padding: 0.75rem 0.875rem;
-  border: 0.0625rem solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: #1e2326;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
   font-size: 0.875rem;
   outline: none;
   transition: all 0.2s ease;
@@ -206,12 +206,12 @@ onBeforeUnmount(() => {
 }
 
 .input::placeholder {
-  color: rgba(30, 35, 38, 0.4);
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
 }
 
 .input:focus {
-  border-color: #19785a;
-  box-shadow: 0 0 0 0.1875rem rgba(25, 120, 90, 0.1);
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 0.1875rem rgba(29, 168, 107, 0.12);
 }
 
 .input.error {
@@ -244,23 +244,13 @@ onBeforeUnmount(() => {
 }
 
 .toggle:hover {
-  color: #19785a;
+  color: var(--brand-strong);
 }
 
 .submit-btn {
   width: 100%;
   min-height: 2.875rem;
   margin-top: 0.5rem;
-  border: none;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  font-family: inherit;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: #146a4f;
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0.25rem 0.75rem rgba(25, 120, 90, 0.2);
 }
 
 .submit-btn:disabled {
@@ -287,7 +277,7 @@ onBeforeUnmount(() => {
 }
 
 .link-accent {
-  color: #19785a;
+  color: var(--brand-strong);
   font-weight: 600;
 }
 

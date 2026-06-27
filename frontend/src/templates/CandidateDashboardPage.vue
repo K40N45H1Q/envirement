@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
@@ -9,11 +9,14 @@ import { useAuth } from '@/stores/auth'
 import { normalizeJob } from '@/utils/jobs'
 
 const { state } = useAuth()
+
 const jobs = ref([])
 const applications = ref([])
 const profile = ref(null)
 const isLoading = ref(false)
+const isRefreshingApplications = ref(false)
 const notice = ref('')
+const applicationsRefreshTimer = ref(null)
 
 const shellSections = [
   { id: 'dashboard', label: 'Дашборд', icon: 'fas fa-table-columns', to: '/dashboard' },
@@ -23,9 +26,28 @@ const shellSections = [
   { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/messages' },
 ]
 
-const userName = computed(() => state.user?.email?.split('@')[0] || 'кандидат')
+const normalizeAccountType = (accountType) => {
+  if (accountType === 'user') return 'candidate'
+  return accountType || ''
+}
+
+const currentAccountType = computed(() => normalizeAccountType(state.user?.account_type))
+const isCandidateAccount = computed(() => currentAccountType.value === 'candidate')
+
+const userName = computed(() => {
+  const profileName = [profile.value?.first_name, profile.value?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+
+  if (profileName) return profileName
+
+  return state.user?.email?.split('@')[0] || 'кандидат'
+})
+
 const appliedJobIds = computed(() => new Set(applications.value.map((item) => item.job_id)))
 const recommendedJobs = computed(() => jobs.value.filter((job) => !appliedJobIds.value.has(job.id)).slice(0, 3))
+
 const profileScore = computed(() => {
   const fields = [
     profile.value?.first_name,
@@ -33,29 +55,63 @@ const profileScore = computed(() => {
     profile.value?.phone,
     profile.value?.resume_name,
   ]
+
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 })
+
 const activeApplications = computed(() => applications.value.length)
+
 const shellStats = computed(() => ([
   { value: `${profileScore.value}%`, label: 'Заполнение профиля' },
   { value: activeApplications.value, label: 'Моих откликов' },
   { value: recommendedJobs.value.length, label: 'Новых вакансий' },
 ]))
 
+const getSettledValue = (result, fallback) => {
+  if (result.status === 'fulfilled') {
+    return result.value
+  }
+
+  return fallback
+}
+
 const loadRecommendations = async () => {
   isLoading.value = true
   notice.value = ''
 
   try {
-    const [jobsData, applicationsData, profileData] = await Promise.all([
+    const [jobsResult, applicationsResult, profileResult] = await Promise.allSettled([
       getJobs(),
-      getMyApplications(),
-      getProfile(),
+      isCandidateAccount.value ? getMyApplications() : Promise.resolve([]),
+      isCandidateAccount.value ? getProfile() : Promise.resolve(null),
     ])
+
+    const jobsData = getSettledValue(jobsResult, [])
+    const applicationsData = getSettledValue(applicationsResult, [])
+    const profileData = getSettledValue(profileResult, null)
 
     jobs.value = Array.isArray(jobsData) ? jobsData.map(normalizeJob) : []
     applications.value = Array.isArray(applicationsData) ? applicationsData : []
-    profile.value = profileData
+    profile.value = profileData && typeof profileData === 'object' ? profileData : null
+
+    const hasCandidateDataError =
+      isCandidateAccount.value &&
+      (applicationsResult.status === 'rejected' || profileResult.status === 'rejected')
+
+    if (!isCandidateAccount.value && state.user) {
+      notice.value = 'Этот кабинет доступен только кандидату.'
+      return
+    }
+
+    if (jobsResult.status === 'rejected') {
+      notice.value = 'Не удалось загрузить список вакансий.'
+      return
+    }
+
+    if (hasCandidateDataError) {
+      notice.value = 'Часть данных профиля не загрузилась. Проверьте, что тип аккаунта кандидата установлен как candidate.'
+      return
+    }
 
     if (!jobs.value.length) {
       notice.value = 'Пока опубликованных вакансий нет.'
@@ -70,7 +126,44 @@ const loadRecommendations = async () => {
   }
 }
 
-onMounted(loadRecommendations)
+const refreshApplicationsSilently = async () => {
+  if (!isCandidateAccount.value || isRefreshingApplications.value) return
+
+  isRefreshingApplications.value = true
+
+  try {
+    const applicationsData = await getMyApplications()
+    applications.value = Array.isArray(applicationsData) ? applicationsData : []
+  } catch {
+    // Не показываем ошибку при фоновом обновлении, чтобы не мешать пользователю.
+  } finally {
+    isRefreshingApplications.value = false
+  }
+}
+
+const startApplicationsRealtime = () => {
+  if (applicationsRefreshTimer.value || !isCandidateAccount.value) return
+
+  applicationsRefreshTimer.value = window.setInterval(() => {
+    refreshApplicationsSilently()
+  }, 5000)
+}
+
+const stopApplicationsRealtime = () => {
+  if (!applicationsRefreshTimer.value) return
+
+  window.clearInterval(applicationsRefreshTimer.value)
+  applicationsRefreshTimer.value = null
+}
+
+onMounted(async () => {
+  await loadRecommendations()
+  startApplicationsRealtime()
+})
+
+onBeforeUnmount(() => {
+  stopApplicationsRealtime()
+})
 </script>
 
 <template>
@@ -140,13 +233,15 @@ onMounted(loadRecommendations)
             <RouterLink
               v-for="application in applications.slice(0, 3)"
               :key="application.id"
-              :to="`/messages?application=${application.id}`"
+              :to="application.chat_approved ? `/messages?application=${application.id}` : '/jobs'"
               class="activity-item"
             >
               <i class="fas fa-message"></i>
               <div class="activity-info">
                 <span class="activity-title">{{ application.job_title }}</span>
-                <span class="activity-company">{{ application.job_company }}</span>
+                <span class="activity-company">
+                  {{ application.job_company }}{{ application.chat_approved ? '' : ' · Чат ждёт подтверждения' }}
+                </span>
               </div>
             </RouterLink>
 

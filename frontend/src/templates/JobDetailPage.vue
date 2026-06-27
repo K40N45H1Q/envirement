@@ -14,7 +14,6 @@ const job = ref(null)
 const isLoading = ref(false)
 const error = ref('')
 const applyStatus = ref('')
-const appliedApplicationId = ref(null)
 const brokenLogo = ref(false)
 const form = ref({
   name: '',
@@ -46,7 +45,7 @@ const featureList = computed(() => {
     `Компания: ${job.value.company}`,
     `Локация: ${job.value.location}`,
     `Формат оплаты: ${job.value.salary || 'по договоренности'}`,
-    'Отклик сразу попадает работодателю в рабочий кабинет',
+    'После отклика работодатель видит заявку в кабинете и может подтвердить чат',
   ]
 })
 
@@ -112,8 +111,6 @@ const loadJob = async () => {
 
 const submitApplication = async () => {
   applyStatus.value = ''
-  appliedApplicationId.value = null
-
   if (!user.value) {
     applyStatus.value = 'Войдите в аккаунт, чтобы отправить отклик.'
     return
@@ -126,8 +123,9 @@ const submitApplication = async () => {
       email: form.value.email || user.value.email,
       job_id: Number(job.value.id),
     })
-    appliedApplicationId.value = result?.application_id ?? null
-    applyStatus.value = 'Отклик отправлен работодателю.'
+    applyStatus.value = result?.application_id
+      ? 'Отклик отправлен. Чат откроется после подтверждения работодателем.'
+      : 'Отклик отправлен работодателю.'
   } catch (err) {
     applyStatus.value = err?.key === 'duplicate_application'
       ? 'Вы уже откликались на эту вакансию.'
@@ -278,13 +276,12 @@ watch(() => route.params.id, loadJob)
             </div>
 
             <p class="form-note">
-              Данные отправятся работодателю сразу после отправки формы. Часть полей уже
-              предзаполнена из вашего профиля.
+              Данные сразу попадут в отклики работодателя. После подтверждения он сможет открыть чат.
             </p>
 
             <div class="form-chip">
               <i class="fas fa-sparkles"></i>
-              <span>Отклик сохраняет связь с аккаунтом кандидата и вакансией.</span>
+              <span>Отклик связывается с вашим аккаунтом и вакансией без ручных шагов.</span>
             </div>
 
             <input v-model="form.name" required placeholder="Имя" />
@@ -296,13 +293,6 @@ watch(() => route.params.id, loadJob)
 
             <button type="submit" class="btn-primary">Отправить отклик</button>
             <p v-if="applyStatus" class="status">{{ applyStatus }}</p>
-            <RouterLink
-              v-if="appliedApplicationId"
-              :to="`/messages?application=${appliedApplicationId}`"
-              class="btn-secondary message-link"
-            >
-              Перейти к диалогу
-            </RouterLink>
           </form>
         </section>
       </template>

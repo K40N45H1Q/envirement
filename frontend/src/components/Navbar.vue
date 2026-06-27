@@ -119,9 +119,38 @@
 <script>
 import { useAuth } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { ACCOUNT_LABELS, defaultRouteForAccount } from '@/utils/auth'
 import BaseDropdown from './BaseDropdown.vue'
 import Logo from './Logo.vue'
+
+const ACCOUNT_LABELS = {
+  candidate: 'Кандидат',
+  user: 'Кандидат',
+  employer: 'Работодатель',
+  admin: 'Администратор',
+}
+
+function normalizeAccountType(accountType) {
+  if (accountType === 'user') return 'candidate'
+  return accountType || ''
+}
+
+function routeForAccount(accountType) {
+  const normalizedType = normalizeAccountType(accountType)
+
+  if (normalizedType === 'candidate') {
+    return '/dashboard'
+  }
+
+  if (normalizedType === 'employer') {
+    return '/employer-dashboard'
+  }
+
+  if (normalizedType === 'admin') {
+    return '/admin'
+  }
+
+  return '/'
+}
 
 export default {
   emits: ['open-login', 'open-register'],
@@ -163,6 +192,11 @@ export default {
     user() {
       return this.authState.user
     },
+
+    normalizedAccountType() {
+      return normalizeAccountType(this.user?.account_type)
+    },
+
     currentLanguage: {
       get() {
         return this.uiStore.language
@@ -171,22 +205,34 @@ export default {
         this.uiStore.setLanguage(value)
       },
     },
+
     dashboardRoute() {
-      return defaultRouteForAccount(this.user?.account_type)
+      return routeForAccount(this.user?.account_type)
     },
+
     accountTypeLabel() {
-      return ACCOUNT_LABELS[this.user?.account_type] || 'Account'
+      return ACCOUNT_LABELS[this.user?.account_type] || ACCOUNT_LABELS[this.normalizedAccountType] || 'Account'
     },
+
     mobileAccountLinks() {
       if (!this.user) return []
 
-      if (this.user.account_type === 'user') {
+      if (this.normalizedAccountType === 'candidate') {
         return [
           { label: 'Профиль', to: '/profile', primary: true },
           { label: 'Дашборд', to: '/dashboard' },
           { label: 'Резюме', to: '/resume-builder' },
           { label: 'Сообщения', to: '/messages' },
           { label: 'Вакансии', to: '/jobs' },
+        ]
+      }
+
+      if (this.normalizedAccountType === 'admin') {
+        return [
+          { label: 'Админ-панель', to: '/admin', primary: true },
+          { label: 'Кабинет работодателя', to: '/employer-dashboard' },
+          { label: 'Вакансии', to: '/admin?section=jobs' },
+          { label: 'Профиль', to: '/profile' },
         ]
       }
 

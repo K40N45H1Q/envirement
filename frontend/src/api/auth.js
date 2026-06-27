@@ -1,12 +1,24 @@
 import { apiRequest, clearAuthToken, setAuthToken } from './client'
 
-export const createAccount = ({ email, password, accountType = 'user' }) => {
+export const createAccount = ({
+  email,
+  password,
+  accountType = 'candidate',
+  companyName = '',
+  companyCountry = '',
+  companyIndustry = '',
+  companyRegistrationNumber = '',
+}) => {
   return apiRequest('/create_account', {
     method: 'POST',
     body: JSON.stringify({
       email,
       password,
       account_type: accountType,
+      company_name: companyName,
+      company_country: companyCountry,
+      company_industry: companyIndustry,
+      company_registration_number: companyRegistrationNumber,
     }),
   })
 }

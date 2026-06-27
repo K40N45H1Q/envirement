@@ -1,11 +1,14 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
-import { deleteResponse, getResponses } from '@/api/jobs'
+import { approveResponseChat, deleteResponse, getResponses } from '@/api/jobs'
 
+const router = useRouter()
 const responses = ref([])
 const status = ref('')
 const isLoading = ref(false)
+const approvingId = ref(null)
 
 const formatDate = (value) => {
   if (!value) return 'Дата не указана'
@@ -23,6 +26,20 @@ const loadResponses = async () => {
     status.value = 'Войдите как работодатель, чтобы увидеть отклики.'
   } finally {
     isLoading.value = false
+  }
+}
+
+const approveChat = async (id) => {
+  approvingId.value = id
+
+  try {
+    await approveResponseChat(id)
+    await loadResponses()
+    await router.push(`/employer-dashboard?section=messages&application=${id}`)
+  } catch {
+    status.value = 'Не удалось подтвердить чат.'
+  } finally {
+    approvingId.value = null
   }
 }
 
@@ -44,7 +61,7 @@ onMounted(loadResponses)
       <section class="head">
         <p class="eyebrow">Отклики работодателя</p>
         <h1>Кандидаты</h1>
-        <p>Здесь собраны отклики на ваши вакансии с быстрым переходом в диалог с кандидатом.</p>
+        <p>Подтвердите чат только для тех откликов, с которыми хотите продолжить общение.</p>
       </section>
 
       <p v-if="status" class="notice">{{ status }}</p>
@@ -64,8 +81,16 @@ onMounted(loadResponses)
           <div class="side">
             <strong>{{ item.job_location }}</strong>
             <span>{{ item.job_salary || 'Зарплата не указана' }}</span>
-            <RouterLink :to="`/messages?application=${item.id}`">Написать</RouterLink>
-            <button type="button" @click="remove(item.id)">Удалить</button>
+            <span class="badge" :class="item.chat_approved ? 'active' : 'pending'">
+              {{ item.chat_approved ? 'Чат активен' : 'Ждёт подтверждения' }}
+            </span>
+            <button v-if="!item.chat_approved" type="button" @click="approveChat(item.id)">
+              {{ approvingId === item.id ? 'Подтверждаем...' : 'Подтвердить чат' }}
+            </button>
+            <button v-else type="button" @click="router.push(`/employer-dashboard?section=messages&application=${item.id}`)">
+              Открыть сообщения
+            </button>
+            <button type="button" class="danger" @click="remove(item.id)">Удалить</button>
           </div>
         </article>
 
@@ -87,9 +112,10 @@ onMounted(loadResponses)
 .head,
 .response-card,
 .notice {
-  border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 0.5rem 2rem rgba(30, 35, 38, 0.06);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-soft);
 }
 
 .head,
@@ -99,13 +125,18 @@ onMounted(loadResponses)
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: #19785a;
-  font-weight: 700;
+  color: var(--brand-strong);
+  font-weight: 800;
   text-transform: uppercase;
 }
 
-h1 {
+h1,
+h2,
+p {
   margin: 0;
+}
+
+h1 {
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
@@ -117,7 +148,7 @@ h1 {
 
 .response-card {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr) auto;
+  grid-template-columns: 4rem minmax(0, 1fr) 18rem;
   gap: 1rem;
   padding: 1.25rem;
   align-items: center;
@@ -129,60 +160,70 @@ h1 {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #19785a;
+  background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
   color: #fff;
   font-weight: 800;
 }
 
-.main {
-  min-width: 0;
-}
-
-h2,
-p {
-  margin: 0;
+.main,
+.side {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .main p,
-.main span {
-  color: rgba(30, 35, 38, 0.62);
+.main span,
+.side span {
+  color: var(--text-muted);
 }
 
 .message {
   margin-top: 0.5rem;
 }
 
-.side {
-  display: grid;
-  gap: 0.35rem;
-  text-align: center;
-}
-
 .side strong {
-  color: #19785a;
-  font-size: 1.2rem;
+  color: var(--brand-strong);
+  font-size: 1.05rem;
 }
 
-.side a {
-  color: #19785a;
-  font-weight: 700;
-  text-decoration: none;
+.badge {
+  width: fit-content;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.badge.pending {
+  background: rgba(180, 83, 9, 0.1);
+  color: #92400e;
+}
+
+.badge.active {
+  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  color: var(--brand-strong);
 }
 
 .side button {
-  border: none;
-  background: transparent;
-  color: #d32f2f;
+  min-height: 2.8rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  color: var(--brand-strong);
+  font: inherit;
+  font-weight: 800;
   cursor: pointer;
 }
 
-@media (max-width: 48rem) {
+.side .danger {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+@media (max-width: 56rem) {
   .response-card {
     grid-template-columns: 1fr;
-  }
-
-  .side {
-    text-align: left;
   }
 }
 </style>

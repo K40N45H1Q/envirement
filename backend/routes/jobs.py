@@ -26,8 +26,14 @@ def get_application_context(application_id: int, current_user: User, session):
     if not job:
         raise HTTPException(status_code=404, detail={"key": "job_not_found"})
 
-    is_candidate = application.applicant_user_id == current_user.id
-    is_employer = job.user_id == current_user.id
+    is_candidate = (
+        application.applicant_user_id == current_user.id
+        and current_user.account_type == "candidate"
+    )
+    is_employer = (
+        job.user_id == current_user.id
+        and current_user.account_type == "employer"
+    )
     is_admin = current_user.account_type == "admin"
 
     if not (is_candidate or is_employer or is_admin):
@@ -35,6 +41,16 @@ def get_application_context(application_id: int, current_user: User, session):
 
     recipient_user_id = job.user_id if is_candidate else application.applicant_user_id
     return application, job, recipient_user_id, is_candidate
+
+
+def ensure_chat_access(application: JobApplication, current_user: User, is_candidate: bool):
+    if application.chat_approved:
+        return
+
+    if is_candidate:
+        raise HTTPException(status_code=403, detail={"key": "chat_not_approved"})
+
+    raise HTTPException(status_code=400, detail={"key": "chat_not_approved"})
 
 
 @router.post("/create_job")
@@ -251,7 +267,7 @@ async def apply_to_job(
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
-    require_account_types(current_user, "user")
+    require_account_types(current_user, "candidate")
 
     job_id = request_data.get("job_id")
     phone = request_data.get("phone")
@@ -289,6 +305,7 @@ async def apply_to_job(
         surname=surname,
         nationality=nationality,
         message=message,
+        chat_approved=False,
     )
     session.add(application)
     session.commit()
@@ -347,9 +364,34 @@ def get_my_job_responses(
             "surname": app.surname,
             "nationality": app.nationality,
             "message": app.message,
+            "chat_approved": app.chat_approved,
             "created_at": app.created_at,
         })
     return result
+
+
+@router.patch("/responses/{response_id}/approve-chat")
+def approve_response_chat(
+    response_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    require_account_types(current_user, "employer", "admin")
+
+    application = session.get(JobApplication, response_id)
+    if not application:
+        raise HTTPException(status_code=404, detail={"key": "application_not_found"})
+
+    job = session.get(Job, application.job_id)
+    if not job or job.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail={"key": "forbidden"})
+
+    application.chat_approved = True
+    session.add(application)
+    session.commit()
+    session.refresh(application)
+
+    return {"status": "ok", "application_id": application.id, "chat_approved": True}
 
 
 @router.get("/messages/conversations")
@@ -357,17 +399,27 @@ def get_message_conversations(
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
-    candidate_applications = session.exec(
-        select(JobApplication).where(JobApplication.applicant_user_id == current_user.id)
-    ).all()
+    candidate_applications = []
+    if current_user.account_type == "candidate":
+        candidate_applications = session.exec(
+            select(JobApplication).where(
+                JobApplication.applicant_user_id == current_user.id,
+                JobApplication.chat_approved == True,
+            )
+        ).all()
 
-    employer_jobs = session.exec(
-        select(Job).where(Job.user_id == current_user.id)
-    ).all()
-    employer_job_ids = [job.id for job in employer_jobs]
-    employer_applications = session.exec(
-        select(JobApplication).where(JobApplication.job_id.in_(employer_job_ids))
-    ).all() if employer_job_ids else []
+    employer_applications = []
+    if current_user.account_type in {"employer", "admin"}:
+        employer_jobs = session.exec(
+            select(Job).where(Job.user_id == current_user.id)
+        ).all()
+        employer_job_ids = [job.id for job in employer_jobs]
+        employer_applications = session.exec(
+            select(JobApplication).where(
+                JobApplication.job_id.in_(employer_job_ids),
+                JobApplication.chat_approved == True,
+            )
+        ).all() if employer_job_ids else []
 
     applications_map = {
         application.id: application
@@ -404,7 +456,10 @@ def get_message_conversations(
         if not job:
             continue
 
-        is_candidate = application.applicant_user_id == current_user.id
+        is_candidate = (
+            application.applicant_user_id == current_user.id
+            and current_user.account_type == "candidate"
+        )
         candidate = users_map.get(application.applicant_user_id)
         latest_message = latest_message_by_application.get(application.id)
 
@@ -441,6 +496,7 @@ def get_messages(
     session=Depends(get_session),
 ):
     application, job, _, is_candidate = get_application_context(application_id, current_user, session)
+    ensure_chat_access(application, current_user, is_candidate)
     messages = session.exec(
         select(Message)
         .where(Message.application_id == application_id)
@@ -491,6 +547,8 @@ async def send_message(
     session=Depends(get_session),
 ):
     application, job, recipient_user_id, is_candidate = get_application_context(application_id, current_user, session)
+    ensure_chat_access(application, current_user, is_candidate)
+
     body = ((request_data or {}).get("body") or "").strip()
     if not body:
         raise HTTPException(status_code=400, detail={"key": "missing_message_body"})

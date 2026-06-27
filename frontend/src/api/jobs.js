@@ -19,6 +19,10 @@ export const getMyApplications = () => apiRequest('/api/my_applications')
 
 export const getResponses = () => apiRequest('/api/responses')
 
+export const approveResponseChat = (id) => apiRequest(`/api/responses/${id}/approve-chat`, {
+  method: 'PATCH',
+})
+
 export const deleteResponse = (id) => apiRequest(`/api/responses/${id}`, {
   method: 'DELETE',
 })

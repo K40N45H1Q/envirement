@@ -22,7 +22,7 @@ router = APIRouter()
 SECRET_KEY = getenv("SECRET_KEY") or secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-PUBLIC_ACCOUNT_TYPES = {"user", "employer"}
+PUBLIC_ACCOUNT_TYPES = {"candidate", "employer"}
 DEFAULT_ADMIN_EMAIL = getenv("DEFAULT_ADMIN_EMAIL", "admin@cvhold.local")
 DEFAULT_ADMIN_PASSWORD = getenv("DEFAULT_ADMIN_PASSWORD", "CVHOLD_Admin_2026_Secure!")
 DEFAULT_EMPLOYER_EMAIL = getenv("DEFAULT_EMPLOYER_EMAIL", "employer@cvhold.local")
@@ -54,7 +54,7 @@ def ensure_default_admin():
             },
             {
                 "email": DEFAULT_CANDIDATE_EMAIL,
-                "account_type": "user",
+                "account_type": "candidate",
                 "hashed_password": hash_password(DEFAULT_CANDIDATE_PASSWORD),
             },
         ]
@@ -310,9 +310,13 @@ def ensure_mvp_seed_data():
                     surname=item["surname"],
                     nationality=item["nationality"],
                     message=item["message"],
+                    chat_approved=True,
                 )
                 session.add(application)
                 session.flush()
+            elif not application.chat_approved:
+                application.chat_approved = True
+                session.add(application)
 
             existing_messages = session.exec(
                 select(Message).where(Message.application_id == application.id)
@@ -368,12 +372,19 @@ async def create_account(
     data = await request.json()
     email = data.get("email")
     password = data.get("password")
-    account_type = data.get("account_type", "user")
+    account_type = data.get("account_type", "candidate")
+    company_name = data.get("company_name")
+    company_country = data.get("company_country")
+    company_industry = data.get("company_industry")
+    company_registration_number = data.get("company_registration_number")
 
     if not email or not password:
         error("missing_fields")
     if account_type not in PUBLIC_ACCOUNT_TYPES:
         error("invalid_account_type")
+    if account_type == "employer":
+        if not company_name or not company_country or not company_industry:
+            error("missing_company_fields")
 
     if session.exec(select(User).where(User.email == email)).first():
         error("user_exists")
@@ -382,6 +393,12 @@ async def create_account(
         email=email,
         account_type=account_type,
         hashed_password=hash_password(password),
+        company_name=company_name if account_type == "employer" else None,
+        company_country=company_country if account_type == "employer" else None,
+        company_industry=company_industry if account_type == "employer" else None,
+        company_registration_number=(
+            company_registration_number if account_type == "employer" else None
+        ),
     )
 
     session.add(user)

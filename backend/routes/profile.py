@@ -179,6 +179,7 @@ def get_my_applications(current_user=Depends(get_current_user), session=Depends(
             "name": application.name,
             "surname": application.surname,
             "nationality": application.nationality,
+            "chat_approved": application.chat_approved,
             "created_at": application.created_at,
         })
     return result

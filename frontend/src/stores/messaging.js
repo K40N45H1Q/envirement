@@ -22,6 +22,7 @@ export const useMessagingStore = defineStore('messaging', {
     draft: '',
     status: '',
     isLoading: false,
+    isRefreshing: false,
     isSending: false,
     isDeleting: false,
     initialized: false,
@@ -43,6 +44,7 @@ export const useMessagingStore = defineStore('messaging', {
       this.draft = ''
       this.status = ''
       this.isLoading = false
+      this.isRefreshing = false
       this.isSending = false
       this.isDeleting = false
       this.initialized = false
@@ -73,16 +75,19 @@ export const useMessagingStore = defineStore('messaging', {
       try {
         const data = await getMessageThread(applicationId)
         this.thread = Array.isArray(data?.messages) ? data.messages : []
-      } catch {
+      } catch (error) {
         this.thread = []
+
         if (!silent) {
-          this.status = 'Не удалось открыть переписку по выбранному отклику.'
+          this.status = error?.key === 'chat_not_approved'
+            ? 'Чат станет доступен после подтверждения работодателем.'
+            : 'Не удалось открыть переписку по выбранному отклику.'
         }
       }
     },
 
     async openConversation(applicationId) {
-      this.activeApplicationId = applicationId || null
+      this.activeApplicationId = Number(applicationId) || null
       this.status = ''
       await this.loadThread(this.activeApplicationId)
     },
@@ -95,27 +100,31 @@ export const useMessagingStore = defineStore('messaging', {
 
       try {
         const data = await getMessageConversations()
-        this.conversations = sortConversations(Array.isArray(data) ? data : [])
+        const nextConversations = sortConversations(Array.isArray(data) ? data : [])
 
         const requestedId = Number(requestedApplicationId)
         const preferredId = requestedId || this.activeApplicationId
-        const initialConversation = this.conversations.find((item) => item.application_id === preferredId)
-          || this.conversations[0]
+
+        const selectedConversation = nextConversations.find((item) => item.application_id === preferredId)
+          || nextConversations[0]
           || null
 
-        this.activeApplicationId = initialConversation?.application_id || null
+        this.conversations = nextConversations
+        this.activeApplicationId = selectedConversation?.application_id || null
 
         if (this.activeApplicationId) {
-          await this.loadThread(this.activeApplicationId, { silent: true })
+          await this.loadThread(this.activeApplicationId, { silent })
         } else {
           this.thread = []
         }
 
         this.initialized = true
       } catch {
-        this.conversations = []
-        this.thread = []
-        this.status = 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.'
+        if (!silent) {
+          this.conversations = []
+          this.thread = []
+          this.status = 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.'
+        }
       } finally {
         if (!silent) {
           this.isLoading = false
@@ -123,21 +132,31 @@ export const useMessagingStore = defineStore('messaging', {
       }
     },
 
-    async refreshActiveConversation() {
-      if (!this.activeApplicationId) return
-      await this.loadConversations(this.activeApplicationId, { silent: true })
+    async refreshConversations() {
+      if (this.isRefreshing || this.isLoading || this.isSending || this.isDeleting) return
+
+      this.isRefreshing = true
+
+      try {
+        await this.loadConversations(this.activeApplicationId, { silent: true })
+      } finally {
+        this.isRefreshing = false
+      }
     },
 
     startRealtime() {
       if (this.pollingTimer) return
 
+      this.refreshConversations()
+
       this.pollingTimer = window.setInterval(() => {
-        this.refreshActiveConversation()
+        this.refreshConversations()
       }, 2500)
     },
 
     stopRealtime() {
       if (!this.pollingTimer) return
+
       window.clearInterval(this.pollingTimer)
       this.pollingTimer = null
     },
@@ -161,12 +180,14 @@ export const useMessagingStore = defineStore('messaging', {
         this.syncConversationMessage(message)
         this.draft = ''
         return message
-      } catch {
-        this.status = 'Не удалось отправить сообщение.'
+      } catch (error) {
+        this.status = error?.key === 'chat_not_approved'
+          ? 'Работодатель ещё не подтвердил чат по этому отклику.'
+          : 'Не удалось отправить сообщение.'
         return null
       } finally {
         this.isSending = false
-        await this.refreshActiveConversation()
+        await this.refreshConversations()
       }
     },
 
@@ -179,14 +200,17 @@ export const useMessagingStore = defineStore('messaging', {
       try {
         const deletedId = this.activeApplicationId
         await deleteMessageConversation(deletedId)
+
         this.conversations = this.conversations.filter((item) => item.application_id !== deletedId)
         this.thread = []
         this.draft = ''
         this.activeApplicationId = this.conversations[0]?.application_id || null
 
         if (this.activeApplicationId) {
-          await this.loadThread(this.activeApplicationId, { silent: true })
+          await this.loadThread(this.activeApplicationId)
         }
+
+        await this.refreshConversations()
 
         return true
       } catch {

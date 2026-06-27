@@ -10,6 +10,10 @@ class User(SQLModel, table=True):
     email: str
     hashed_password: str
     account_type: str
+    company_name: Optional[str] = None
+    company_country: Optional[str] = None
+    company_industry: Optional[str] = None
+    company_registration_number: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -41,6 +45,7 @@ class JobApplication(SQLModel, table=True):
     surname: str
     nationality: Optional[str] = None
     message: Optional[str] = None
+    chat_approved: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -113,7 +118,43 @@ def ensure_job_columns():
             )
 
 
+def ensure_user_columns():
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(user)").fetchall()
+        }
+
+        additions = {
+            "company_name": "ALTER TABLE user ADD COLUMN company_name VARCHAR",
+            "company_country": "ALTER TABLE user ADD COLUMN company_country VARCHAR",
+            "company_industry": "ALTER TABLE user ADD COLUMN company_industry VARCHAR",
+            "company_registration_number": "ALTER TABLE user ADD COLUMN company_registration_number VARCHAR",
+        }
+
+        for column, statement in additions.items():
+            if column not in columns:
+                connection.exec_driver_sql(statement)
+
+
 ensure_job_columns()
+ensure_user_columns()
+
+
+def ensure_application_columns():
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(jobapplication)").fetchall()
+        }
+
+        if "chat_approved" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE jobapplication ADD COLUMN chat_approved BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+
+ensure_application_columns()
 
 
 def get_session():

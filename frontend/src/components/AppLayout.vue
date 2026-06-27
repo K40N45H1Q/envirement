@@ -58,8 +58,8 @@ onBeforeUnmount(() => {
   />
   <RegisterModal
     v-if="activeModal === 'register'"
+    :visible="true"
     @close="closeAuthModal"
-    @open-login="openLoginModal"
   />
 </template>
 

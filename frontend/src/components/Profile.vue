@@ -1,8 +1,16 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useAuth } from '@/stores/auth'
+
 import { getProfile, updateProfile } from '@/api/profile'
+import { useAuth } from '@/stores/auth'
+
+const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const { state } = useAuth()
 
@@ -18,11 +26,11 @@ const profile = ref({
 })
 const avatarFile = ref(null)
 const resumeFile = ref(null)
-const isSaving = ref(false)
+const avatarObjectUrl = ref('')
 const isLoading = ref(false)
+const isSaving = ref(false)
 const saveMessage = ref('')
 const errorMessage = ref('')
-const avatarObjectUrl = ref('')
 
 const user = computed(() => state.user)
 const fullName = computed(() => `${profile.value.first_name || ''} ${profile.value.last_name || ''}`.trim())
@@ -38,16 +46,40 @@ const initials = computed(() => {
 
   return (user.value?.email || 'CV').slice(0, 2).toUpperCase()
 })
-
 const accountTypeLabel = computed(() => {
   const type = user.value?.account_type
   if (type === 'user') return 'Соискатель'
   if (type === 'employer') return 'Работодатель'
   if (type === 'admin') return 'Администратор'
-  return 'Неизвестно'
+  return 'Аккаунт'
 })
-
+const profileEyebrow = computed(() => {
+  if (user.value?.account_type === 'employer') return 'Профиль работодателя'
+  if (user.value?.account_type === 'admin') return 'Профиль администратора'
+  return 'Профиль кандидата'
+})
+const profileDescription = computed(() => {
+  if (user.value?.account_type === 'employer') {
+    return 'Обновляйте контактные данные, аватар и документы аккаунта в одном месте.'
+  }
+  if (user.value?.account_type === 'admin') {
+    return 'Поддерживайте данные аккаунта и прикрепленные файлы в актуальном состоянии.'
+  }
+  return 'Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться на вакансии.'
+})
 const avatarPreview = computed(() => avatarObjectUrl.value || profile.value.avatar_url || '')
+const profileProgress = computed(() => {
+  const fields = [
+    profile.value.first_name,
+    profile.value.last_name,
+    profile.value.phone,
+    profile.value.current_role,
+    profile.value.summary,
+    profile.value.resume_name,
+    profile.value.avatar_url || avatarFile.value,
+  ]
+  return Math.round((fields.filter(Boolean).length / fields.length) * 100)
+})
 const profileHints = computed(() => [
   {
     icon: 'fas fa-circle-check',
@@ -61,30 +93,17 @@ const profileHints = computed(() => [
   },
   {
     icon: 'fas fa-file-arrow-up',
-    text: profile.value.resume_name ? 'Резюме прикреплено' : 'Прикрепите резюме',
+    text: profile.value.resume_name ? 'Файл профиля прикреплен' : 'Прикрепите резюме или документ',
     done: !!profile.value.resume_name,
   },
   {
     icon: 'fas fa-user-pen',
-    text: profile.value.summary ? 'Описание профиля заполнено' : 'Добавьте короткое описание о себе',
+    text: profile.value.summary ? 'Описание профиля заполнено' : 'Добавьте короткое описание',
     done: !!profile.value.summary,
   },
 ])
-const profileProgress = computed(() => {
-  const fields = [
-    profile.value.first_name,
-    profile.value.last_name,
-    profile.value.phone,
-    profile.value.current_role,
-    profile.value.summary,
-    profile.value.resume_name,
-    profile.value.avatar_url || avatarFile.value,
-  ]
-  const filled = fields.filter(Boolean).length
-  return Math.round((filled / fields.length) * 100)
-})
 
-const loadProfile = async () => {
+async function loadProfile() {
   isLoading.value = true
   errorMessage.value = ''
 
@@ -97,14 +116,14 @@ const loadProfile = async () => {
   }
 }
 
-const revokeAvatarPreview = () => {
+function revokeAvatarPreview() {
   if (avatarObjectUrl.value) {
     URL.revokeObjectURL(avatarObjectUrl.value)
     avatarObjectUrl.value = ''
   }
 }
 
-const onAvatarChange = (event) => {
+function onAvatarChange(event) {
   const file = event.target.files?.[0]
   if (!file) return
   avatarFile.value = file
@@ -112,21 +131,21 @@ const onAvatarChange = (event) => {
   avatarObjectUrl.value = URL.createObjectURL(file)
 }
 
-const onResumeChange = (event) => {
+function onResumeChange(event) {
   const file = event.target.files?.[0]
   if (!file) return
   resumeFile.value = file
   profile.value.resume_name = file.name
 }
 
-const onDropResume = (event) => {
+function onDropResume(event) {
   const file = event.dataTransfer.files?.[0]
   if (!file) return
   resumeFile.value = file
   profile.value.resume_name = file.name
 }
 
-const saveProfileData = async () => {
+async function saveProfileData() {
   isSaving.value = true
   saveMessage.value = ''
   errorMessage.value = ''
@@ -144,7 +163,7 @@ const saveProfileData = async () => {
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()
-    saveMessage.value = 'Профиль успешно сохранён.'
+    saveMessage.value = 'Профиль успешно сохранен.'
   } catch {
     errorMessage.value = 'Не удалось сохранить профиль.'
   } finally {
@@ -157,14 +176,12 @@ onBeforeUnmount(revokeAvatarPreview)
 </script>
 
 <template>
-  <main class="page">
-    <div v-if="!user" class="not-auth">
-      Войдите в аккаунт, чтобы заполнить профиль кандидата.
-    </div>
+  <main class="page" :class="{ 'page--embedded': props.embedded }">
+    <div v-if="!user" class="not-auth">Войдите в аккаунт, чтобы открыть профиль.</div>
 
     <template v-else>
-      <aside class="sidebar">
-        <RouterLink to="/dashboard"><i class="fas fa-table-columns"></i> Дашборд</RouterLink>
+      <aside v-if="!props.embedded" class="sidebar">
+        <RouterLink to="/dashboard"><i class="fas fa-table-columns"></i> Дэшборд</RouterLink>
         <RouterLink to="/profile"><i class="fas fa-user"></i> Профиль</RouterLink>
         <RouterLink to="/jobs"><i class="fas fa-briefcase"></i> Вакансии</RouterLink>
         <RouterLink to="/resume-builder"><i class="fas fa-file-lines"></i> Резюме</RouterLink>
@@ -172,14 +189,11 @@ onBeforeUnmount(revokeAvatarPreview)
       </aside>
 
       <section class="content">
-        <section class="head">
+        <section v-if="!props.embedded" class="head">
           <div>
-            <p class="eyebrow">Профиль кандидата</p>
+            <p class="eyebrow">{{ profileEyebrow }}</p>
             <h1>{{ fullName || 'Заполните профиль' }}</h1>
-            <p>
-              Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться
-              на вакансии и поддерживать профиль кандидата в актуальном состоянии.
-            </p>
+            <p>{{ profileDescription }}</p>
           </div>
           <div class="head-badge">
             <strong>{{ profileProgress }}%</strong>
@@ -187,14 +201,14 @@ onBeforeUnmount(revokeAvatarPreview)
           </div>
         </section>
 
-        <section class="cards">
+        <section v-if="!props.embedded" class="cards">
           <article>
             <strong>{{ accountTypeLabel }}</strong>
             <span>Тип аккаунта</span>
           </article>
           <article>
             <strong>{{ profile.resume_name ? 'Есть' : 'Нет' }}</strong>
-            <span>Резюме в профиле</span>
+            <span>Файлы в профиле</span>
           </article>
           <article>
             <strong>{{ profile.phone ? 'Да' : 'Нет' }}</strong>
@@ -247,7 +261,7 @@ onBeforeUnmount(revokeAvatarPreview)
                 </label>
                 <label>
                   Текущая роль
-                  <input v-model="profile.current_role" type="text" placeholder="Например, Сварщик MIG/MAG" class="input" />
+                  <input v-model="profile.current_role" type="text" placeholder="Например, Recruiter или MIG/MAG Welder" class="input" />
                 </label>
               </div>
 
@@ -256,12 +270,12 @@ onBeforeUnmount(revokeAvatarPreview)
                 <textarea
                   v-model="profile.summary"
                   rows="5"
-                  placeholder="Коротко опишите опыт, навыки и желаемый тип работы"
+                  placeholder="Коротко опишите опыт, навыки и текущий фокус работы"
                   class="input textarea"
                 ></textarea>
               </label>
 
-              <button class="save-btn" :disabled="isSaving" @click="saveProfileData">
+              <button class="btn-primary save-btn" :disabled="isSaving" @click="saveProfileData">
                 {{ isSaving ? 'Сохранение...' : 'Сохранить профиль' }}
               </button>
 
@@ -274,26 +288,14 @@ onBeforeUnmount(revokeAvatarPreview)
             <section class="panel side-card">
               <div class="panel-title">
                 <div>
-                  <p class="eyebrow compact">Резюме</p>
-                  <h2>Файлы кандидата</h2>
+                  <p class="eyebrow compact">Файлы</p>
+                  <h2>Резюме и документы</h2>
                 </div>
               </div>
 
-              <label
-                class="resume-dropzone"
-                @dragover.prevent
-                @drop.prevent="onDropResume"
-              >
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  hidden
-                  @change="onResumeChange"
-                />
-
-                <div class="drop-title">
-                  {{ profile.resume_name || 'Загрузите резюме или сертификаты' }}
-                </div>
+              <label class="resume-dropzone" @dragover.prevent @drop.prevent="onDropResume">
+                <input type="file" accept=".pdf,.doc,.docx" hidden @change="onResumeChange" />
+                <div class="drop-title">{{ profile.resume_name || 'Загрузите резюме или документ' }}</div>
                 <span>PDF, DOC, DOCX. Можно перетащить файл в эту область.</span>
               </label>
 
@@ -304,7 +306,7 @@ onBeforeUnmount(revokeAvatarPreview)
                 rel="noreferrer"
                 class="btn-secondary resume-link"
               >
-                Открыть текущее резюме
+                Открыть текущий файл
               </a>
             </section>
 
@@ -317,12 +319,7 @@ onBeforeUnmount(revokeAvatarPreview)
               </div>
 
               <div class="hint-list">
-                <div
-                  v-for="hint in profileHints"
-                  :key="hint.text"
-                  class="hint-item"
-                  :class="{ 'hint-item--done': hint.done }"
-                >
+                <div v-for="hint in profileHints" :key="hint.text" class="hint-item" :class="{ 'hint-item--done': hint.done }">
                   <i :class="hint.icon"></i>
                   <span>{{ hint.text }}</span>
                 </div>
@@ -343,6 +340,12 @@ onBeforeUnmount(revokeAvatarPreview)
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
   gap: 1.5rem;
+}
+
+.page--embedded {
+  width: 100%;
+  padding: 0;
+  grid-template-columns: 1fr;
 }
 
 .sidebar,
@@ -373,7 +376,6 @@ onBeforeUnmount(revokeAvatarPreview)
   border-radius: 0.875rem;
   color: var(--text-primary);
   text-decoration: none;
-  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .sidebar a:hover,
@@ -383,12 +385,7 @@ onBeforeUnmount(revokeAvatarPreview)
 }
 
 .sidebar a.router-link-active {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand-base) 22%, transparent),
-    color-mix(in srgb, var(--brand-strong) 14%, transparent)
-  );
-  color: var(--text-primary);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-base) 22%, transparent), color-mix(in srgb, var(--brand-strong) 14%, transparent));
   border: 0.0625rem solid var(--border-strong);
 }
 
@@ -403,9 +400,7 @@ onBeforeUnmount(revokeAvatarPreview)
   gap: 1.5rem;
   align-items: center;
   padding: 1.75rem;
-  background:
-    radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%),
-    var(--surface-primary);
+  background: radial-gradient(circle at top right, rgba(26, 177, 111, 0.14), transparent 28%), var(--surface-primary);
 }
 
 .head p:not(.eyebrow) {
@@ -457,7 +452,10 @@ h2 {
   font-size: 2rem;
 }
 
-.head-badge span {
+.head-badge span,
+.cards span,
+.identity span,
+.resume-dropzone span {
   color: var(--text-muted);
 }
 
@@ -477,25 +475,17 @@ h2 {
   font-size: 1.4rem;
 }
 
-.cards span {
-  color: var(--text-muted);
-}
-
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 22rem;
   gap: 1.5rem;
-  align-items: stretch;
 }
 
-.profile-panel {
+.panel {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   padding: 1.5rem;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)),
-    var(--surface-primary);
 }
 
 .side-column {
@@ -504,22 +494,10 @@ h2 {
   gap: 1.5rem;
 }
 
-.side-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.5rem;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)),
-    var(--surface-primary);
-}
-
 .panel-title {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
   gap: 1rem;
-  flex-shrink: 0;
 }
 
 .notice {
@@ -545,12 +523,10 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   overflow: hidden;
   position: relative;
   color: #fff;
-  box-shadow: 0 1rem 2rem rgba(21, 149, 93, 0.18);
-  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .avatar img {
@@ -573,7 +549,6 @@ h2 {
   justify-content: center;
   font-size: 0.82rem;
   opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
 .avatar:hover .avatar-hover {
@@ -587,11 +562,6 @@ h2 {
 
 .identity strong {
   font-size: 1.2rem;
-  color: var(--text-primary);
-}
-
-.identity span {
-  color: var(--text-muted);
 }
 
 .identity-role {
@@ -605,13 +575,7 @@ h2 {
   gap: 1rem;
 }
 
-label {
-  display: grid;
-  gap: 0.45rem;
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
+label,
 .summary-label {
   display: grid;
   gap: 0.45rem;
@@ -621,7 +585,6 @@ label {
 
 .input {
   width: 100%;
-  min-width: 0;
   min-height: 3.15rem;
   padding: 0.9rem 1rem;
   border: 0.0625rem solid var(--border-subtle);
@@ -638,33 +601,12 @@ label {
 
 .save-btn,
 .resume-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-height: 3rem;
-  padding: 0.8rem 1rem;
-  border-radius: 0.875rem;
-  text-decoration: none;
-  font-weight: 800;
-}
-
-.save-btn {
-  border: none;
-  background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 0.875rem 1.8rem rgba(21, 149, 93, 0.18);
-}
-
-.save-btn:disabled {
-  opacity: 0.7;
-  cursor: wait;
 }
 
 .status {
   padding: 0.9rem 1rem;
   border-radius: 0.875rem;
-  font-size: 0.95rem;
 }
 
 .status--success {
@@ -690,18 +632,6 @@ label {
 .drop-title {
   color: var(--text-primary);
   font-weight: 700;
-}
-
-.resume-dropzone span {
-  margin-top: 0.35rem;
-  color: var(--text-muted);
-  line-height: 1.55;
-}
-
-.resume-link {
-  border: 0.0625rem solid var(--border-strong);
-  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
-  color: var(--brand-strong);
 }
 
 .hint-list {
@@ -753,13 +683,8 @@ label {
     display: grid;
   }
 
-  .page {
-    padding-top: 1.25rem;
-  }
-
   .head,
-  .profile-panel,
-  .side-card,
+  .panel,
   .cards article {
     padding: 1.25rem;
   }

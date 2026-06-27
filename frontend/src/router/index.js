@@ -14,7 +14,48 @@ import InfoPage from '@/templates/InfoPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
 import { getAuthToken } from '@/api/client'
 import { useAuth } from '@/stores/auth'
-import { canAccessRoute, defaultRouteForAccount } from '@/utils/auth'
+
+const normalizeAccountType = (accountType) => {
+  if (accountType === 'user') return 'candidate'
+  return accountType || ''
+}
+
+const canAccessRoute = (accountType, allowedTypes = []) => {
+  if (!allowedTypes.length) return true
+
+  const normalizedType = normalizeAccountType(accountType)
+  const normalizedAllowedTypes = allowedTypes.map(normalizeAccountType)
+
+  return normalizedAllowedTypes.includes(normalizedType)
+}
+
+const defaultRouteForAccount = (accountType) => {
+  const normalizedType = normalizeAccountType(accountType)
+
+  if (normalizedType === 'candidate') {
+    return '/dashboard'
+  }
+
+  if (normalizedType === 'employer') {
+    return '/employer-dashboard'
+  }
+
+  if (normalizedType === 'admin') {
+    return '/employer-dashboard'
+  }
+
+  return '/'
+}
+
+const shouldRedirect = (to, target) => {
+  if (!target) return false
+
+  const targetPath = typeof target === 'string'
+    ? target.split('?')[0]
+    : target.path
+
+  return targetPath && targetPath !== to.path
+}
 
 const routes = [
   { path: '/', component: HomePage },
@@ -22,10 +63,10 @@ const routes = [
   { path: '/jobs/:id', component: JobDetailPage },
   { path: '/employers', component: EmployersPage },
   { path: '/pricing', component: PricingPage },
-  { path: '/resume-builder', component: ResumeBuilderPage, meta: { requiresAuth: true, accountTypes: ['user'] } },
+  { path: '/resume-builder', component: ResumeBuilderPage, meta: { requiresAuth: true, accountTypes: ['candidate'] } },
   { path: '/signin', component: SignInPage },
-  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true, accountTypes: ['user', 'employer', 'admin'] } },
-  { path: '/dashboard', component: CandidateDashboardPage, meta: { requiresAuth: true, accountTypes: ['user'] } },
+  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
+  { path: '/dashboard', component: CandidateDashboardPage, meta: { requiresAuth: true, accountTypes: ['candidate'] } },
   { path: '/employer-dashboard', component: EmployerDashboardPage, meta: { requiresAuth: true, accountTypes: ['employer', 'admin'] } },
   { path: '/responses', component: ResponsesPage, meta: { requiresAuth: true, accountTypes: ['employer', 'admin'] } },
   { path: '/messages', component: MessagesPage, meta: { requiresAuth: true } },
@@ -68,8 +109,26 @@ router.beforeEach(async (to) => {
       }
     }
 
-    if (!canAccessRoute(state.user.account_type, to.meta.accountTypes || [])) {
-      return defaultRouteForAccount(state.user.account_type)
+    const normalizedType = normalizeAccountType(state.user.account_type)
+
+    if (to.path === '/profile' && ['employer', 'admin'].includes(normalizedType)) {
+      const target = '/employer-dashboard?section=profile'
+
+      if (to.fullPath !== target) {
+        return target
+      }
+
+      return true
+    }
+
+    if (!canAccessRoute(normalizedType, to.meta.accountTypes || [])) {
+      const target = defaultRouteForAccount(normalizedType)
+
+      if (shouldRedirect(to, target)) {
+        return target
+      }
+
+      return true
     }
   }
 
@@ -77,9 +136,13 @@ router.beforeEach(async (to) => {
     await initialize()
 
     if (state.user) {
-      return typeof to.query.redirect === 'string'
+      const target = typeof to.query.redirect === 'string'
         ? to.query.redirect
         : defaultRouteForAccount(state.user.account_type)
+
+      if (shouldRedirect(to, target)) {
+        return target
+      }
     }
   }
 
