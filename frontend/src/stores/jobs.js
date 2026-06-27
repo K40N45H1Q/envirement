@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { getJobs } from '@/api/jobs'
 import { normalizeJob } from '@/utils/jobs'
 
@@ -306,7 +306,7 @@ export const useJobsStore = defineStore('jobs', {
         this.jobs = Array.isArray(data) ? data.map(normalizeJob) : []
       } catch {
         this.jobs = []
-        this.error = 'Не удалось загрузить вакансии из backend.'
+        this.error = 'Не удалось загрузить вакансии. Попробуйте обновить страницу.'
       } finally {
         this.isLoading = false
       }
@@ -362,3 +362,4 @@ export const useJobsStore = defineStore('jobs', {
     },
   },
 })
+

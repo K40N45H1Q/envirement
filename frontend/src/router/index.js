@@ -22,7 +22,7 @@ const routes = [
   { path: '/jobs/:id', component: JobDetailPage },
   { path: '/employers', component: EmployersPage },
   { path: '/pricing', component: PricingPage },
-  { path: '/resume-builder', component: ResumeBuilderPage },
+  { path: '/resume-builder', component: ResumeBuilderPage, meta: { requiresAuth: true, accountTypes: ['user'] } },
   { path: '/signin', component: SignInPage },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true, accountTypes: ['user', 'employer', 'admin'] } },
   { path: '/dashboard', component: CandidateDashboardPage, meta: { requiresAuth: true, accountTypes: ['user'] } },

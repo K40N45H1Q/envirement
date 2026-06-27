@@ -117,8 +117,8 @@ onBeforeUnmount(() => {
           <p class="section-eyebrow">Вакансии</p>
           <h1>Найдите работу мечты по всей Европе</h1>
           <p>
-            Лента строится на реальных вакансиях из backend, а фильтры, сортировка и закладки
-            живут в общем глобальном состоянии и восстанавливаются после переходов.
+            Подберите подходящую вакансию по стране, категории, зарплате и условиям работы,
+            а закладки и фильтры сохранятся между переходами по сайту.
           </p>
         </div>
 
@@ -188,7 +188,7 @@ onBeforeUnmount(() => {
             <div class="results-banner">
               <div>
                 <strong>{{ resultsLabel }}</strong>
-                <p>Фильтры применяются к реальным данным, загруженным из backend.</p>
+                <p>Комбинируйте поиск, категории, зарплату и условия, чтобы быстро сузить выдачу.</p>
               </div>
 
               <button type="button" class="btn-secondary results-reset" @click="resetFilters">
@@ -539,6 +539,15 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   font: inherit;
   appearance: none;
+  line-height: 1.3;
+}
+
+.input-wrap select {
+  cursor: pointer;
+}
+
+.input-wrap input {
+  cursor: text;
 }
 
 .input-wrap i {
@@ -686,6 +695,9 @@ onBeforeUnmount(() => {
   color: var(--brand-strong);
   font: inherit;
   font-weight: 700;
+  padding-right: 1.25rem;
+  appearance: none;
+  cursor: pointer;
 }
 
 .notice {
@@ -945,3 +957,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

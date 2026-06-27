@@ -6,38 +6,38 @@
           <Logo />
         </RouterLink>
         <p>
-          CVHOLD connects European employers and skilled specialists through structured
-          profiles, transparent applications, and practical hiring workflows.
+          CVHOLD помогает работодателям и специалистам по всей Европе находить друг друга
+          через понятные профили, прозрачные отклики и удобный рабочий процесс найма.
         </p>
       </div>
 
-      <nav class="footer-grid" aria-label="Footer">
+      <nav class="footer-grid" aria-label="Подвал сайта">
         <div class="footer-column">
-          <h2>Platform</h2>
-          <RouterLink to="/jobs">Jobs</RouterLink>
-          <RouterLink to="/resume-builder">Resume</RouterLink>
-          <RouterLink to="/about">About</RouterLink>
+          <h2>Платформа</h2>
+          <RouterLink to="/jobs">Вакансии</RouterLink>
+          <RouterLink to="/resume-builder">Резюме</RouterLink>
+          <RouterLink to="/about">О нас</RouterLink>
         </div>
 
         <div class="footer-column">
-          <h2>Employers</h2>
-          <RouterLink to="/employers">Solutions</RouterLink>
-          <RouterLink to="/pricing">Pricing</RouterLink>
-          <RouterLink to="/employer-dashboard">Dashboard</RouterLink>
+          <h2>Работодателям</h2>
+          <RouterLink to="/employers">Решения</RouterLink>
+          <RouterLink to="/pricing">Тарифы</RouterLink>
+          <RouterLink to="/employer-dashboard">Кабинет</RouterLink>
         </div>
 
         <div class="footer-column">
-          <h2>Support</h2>
+          <h2>Поддержка</h2>
           <RouterLink to="/faq">FAQ</RouterLink>
-          <RouterLink to="/contacts">Contacts</RouterLink>
-          <RouterLink to="/terms">Terms</RouterLink>
+          <RouterLink to="/contacts">Контакты</RouterLink>
+          <RouterLink to="/terms">Условия</RouterLink>
         </div>
       </nav>
     </div>
 
     <div class="footer-meta">
-      <span>&copy; 2026 CVHOLD. All rights reserved.</span>
-      <span>Workforce platform for Latvia, Lithuania, Estonia, and wider Europe.</span>
+      <span>&copy; 2026 CVHOLD. Все права защищены.</span>
+      <span>Платформа для поиска работы и найма в Латвии, Литве, Эстонии и по всей Европе.</span>
     </div>
   </footer>
 </template>

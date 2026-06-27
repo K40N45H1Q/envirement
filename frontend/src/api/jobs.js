@@ -32,6 +32,10 @@ export const sendMessage = (applicationId, body) => apiRequest(`/api/messages/${
   body: JSON.stringify({ body }),
 })
 
+export const deleteMessageConversation = (applicationId) => apiRequest(`/api/messages/${applicationId}`, {
+  method: 'DELETE',
+})
+
 export const applyToJob = (payload) => apiRequest('/api/apply', {
   method: 'POST',
   body: JSON.stringify(payload),

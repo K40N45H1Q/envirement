@@ -40,6 +40,8 @@
   centralize jobs listing, filters, sorting, and bookmark state in a shared store so the vacancies page becomes a real global workflow instead of a local component-only implementation.
 - MVP flow hardening:
   make vacancy publication, applying, and employer-candidate communication work end-to-end from the existing production paths.
+- Frontend polish pass:
+  remove technical wording from the vacancies UI, finish select styling, translate the shared footer to Russian, and harden `/messages` and `/resume-builder` so they work as production-facing screens instead of partial flows.
 
 ## Backend Micro-Steps
 1. Create target backend app skeleton:
@@ -115,6 +117,8 @@
   create vacancy -> apply -> open conversation -> exchange messages
 - Centralize key frontend state so auth bootstrap, active chat, and message threads are reused across views instead of recreated locally.
 - Replace vacancies-page placeholder filters with real, stateful filters backed by shared store data and synced URL parameters.
+- Add conversation deletion and live refresh behavior so employer-candidate messaging stays current without manual reloads.
+- Lock resume builder to authenticated candidates only and complete all three profile steps with real avatar/document uploads.
 
 ## Risks / Notes
 - Current codebase already contains working pieces. During migration we should replace them incrementally, not blindly rewrite everything at once.

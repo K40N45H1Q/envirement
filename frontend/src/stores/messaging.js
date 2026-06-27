@@ -1,5 +1,10 @@
 import { defineStore } from 'pinia'
-import { getMessageConversations, getMessageThread, sendMessage } from '@/api/jobs'
+import {
+  deleteMessageConversation,
+  getMessageConversations,
+  getMessageThread,
+  sendMessage,
+} from '@/api/jobs'
 
 const sortConversations = (conversations) => {
   return [...conversations].sort((a, b) => {
@@ -18,7 +23,9 @@ export const useMessagingStore = defineStore('messaging', {
     status: '',
     isLoading: false,
     isSending: false,
+    isDeleting: false,
     initialized: false,
+    pollingTimer: null,
   }),
 
   getters: {
@@ -29,6 +36,7 @@ export const useMessagingStore = defineStore('messaging', {
 
   actions: {
     reset() {
+      this.stopRealtime()
       this.conversations = []
       this.activeApplicationId = null
       this.thread = []
@@ -36,6 +44,7 @@ export const useMessagingStore = defineStore('messaging', {
       this.status = ''
       this.isLoading = false
       this.isSending = false
+      this.isDeleting = false
       this.initialized = false
     },
 
@@ -55,7 +64,7 @@ export const useMessagingStore = defineStore('messaging', {
       )))
     },
 
-    async loadThread(applicationId) {
+    async loadThread(applicationId, { silent = false } = {}) {
       if (!applicationId) {
         this.thread = []
         return
@@ -66,7 +75,9 @@ export const useMessagingStore = defineStore('messaging', {
         this.thread = Array.isArray(data?.messages) ? data.messages : []
       } catch {
         this.thread = []
-        this.status = 'Не удалось открыть переписку по выбранному отклику.'
+        if (!silent) {
+          this.status = 'Не удалось открыть переписку по выбранному отклику.'
+        }
       }
     },
 
@@ -76,23 +87,26 @@ export const useMessagingStore = defineStore('messaging', {
       await this.loadThread(this.activeApplicationId)
     },
 
-    async loadConversations(requestedApplicationId = null) {
-      this.isLoading = true
-      this.status = ''
+    async loadConversations(requestedApplicationId = null, { silent = false } = {}) {
+      if (!silent) {
+        this.isLoading = true
+        this.status = ''
+      }
 
       try {
         const data = await getMessageConversations()
         this.conversations = sortConversations(Array.isArray(data) ? data : [])
 
         const requestedId = Number(requestedApplicationId)
-        const initialConversation = this.conversations.find((item) => item.application_id === requestedId)
+        const preferredId = requestedId || this.activeApplicationId
+        const initialConversation = this.conversations.find((item) => item.application_id === preferredId)
           || this.conversations[0]
           || null
 
         this.activeApplicationId = initialConversation?.application_id || null
 
         if (this.activeApplicationId) {
-          await this.loadThread(this.activeApplicationId)
+          await this.loadThread(this.activeApplicationId, { silent: true })
         } else {
           this.thread = []
         }
@@ -101,10 +115,31 @@ export const useMessagingStore = defineStore('messaging', {
       } catch {
         this.conversations = []
         this.thread = []
-        this.status = 'Не удалось загрузить сообщения. Проверьте, что backend запущен и вы вошли в аккаунт.'
+        this.status = 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.'
       } finally {
-        this.isLoading = false
+        if (!silent) {
+          this.isLoading = false
+        }
       }
+    },
+
+    async refreshActiveConversation() {
+      if (!this.activeApplicationId) return
+      await this.loadConversations(this.activeApplicationId, { silent: true })
+    },
+
+    startRealtime() {
+      if (this.pollingTimer) return
+
+      this.pollingTimer = window.setInterval(() => {
+        this.refreshActiveConversation()
+      }, 2500)
+    },
+
+    stopRealtime() {
+      if (!this.pollingTimer) return
+      window.clearInterval(this.pollingTimer)
+      this.pollingTimer = null
     },
 
     async sendCurrentMessage() {
@@ -131,6 +166,34 @@ export const useMessagingStore = defineStore('messaging', {
         return null
       } finally {
         this.isSending = false
+        await this.refreshActiveConversation()
+      }
+    },
+
+    async deleteActiveConversation() {
+      if (!this.activeApplicationId) return false
+
+      this.isDeleting = true
+      this.status = ''
+
+      try {
+        const deletedId = this.activeApplicationId
+        await deleteMessageConversation(deletedId)
+        this.conversations = this.conversations.filter((item) => item.application_id !== deletedId)
+        this.thread = []
+        this.draft = ''
+        this.activeApplicationId = this.conversations[0]?.application_id || null
+
+        if (this.activeApplicationId) {
+          await this.loadThread(this.activeApplicationId, { silent: true })
+        }
+
+        return true
+      } catch {
+        this.status = 'Не удалось удалить диалог.'
+        return false
+      } finally {
+        this.isDeleting = false
       }
     },
   },

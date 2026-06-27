@@ -513,6 +513,24 @@ async def send_message(
     }
 
 
+@router.delete("/messages/{application_id}", status_code=204)
+def delete_conversation(
+    application_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    application, _, _, _ = get_application_context(application_id, current_user, session)
+    messages = session.exec(
+        select(Message).where(Message.application_id == application.id)
+    ).all()
+
+    for message in messages:
+        session.delete(message)
+
+    session.delete(application)
+    session.commit()
+
+
 @router.delete("/responses/{response_id}", status_code=204)
 def delete_response(
     response_id: int = Path(...),
