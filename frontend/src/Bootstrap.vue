@@ -5,17 +5,13 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuth } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 
 const { loadUser } = useAuth()
-const LANGUAGE_STORAGE_KEY = 'cvhold-language'
-
-const applyLanguage = (language) => {
-  document.documentElement.lang = language
-}
+const uiStore = useUiStore()
 
 onMounted(() => {
-  const preferredLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'ru'
-  applyLanguage(preferredLanguage)
+  uiStore.initialize()
   loadUser()
 })
 </script>

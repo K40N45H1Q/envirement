@@ -1,12 +1,35 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
+import BaseDropdown from '@/components/BaseDropdown.vue'
 import { getProfile, updateProfile } from '@/api/profile'
 import { useAuth } from '@/stores/auth'
 
-const languageOptions = ['Английский', 'Русский', 'Немецкий', 'Польский', 'Латышский', 'Литовский', 'Эстонский', 'Французский']
-const languageLevelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-const experienceOptions = ['1-3 года', '3-5 лет', '5+ лет']
+const languageNames = ['Английский', 'Русский', 'Немецкий', 'Польский', 'Латышский', 'Литовский', 'Эстонский', 'Французский']
+const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const experienceLabels = ['1-3 года', '3-5 лет', '5+ лет']
+
+const languageOptions = languageNames.map((label) => ({ value: label, label }))
+const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
+const experienceOptions = experienceLabels.map((label) => ({ value: label, label }))
+const mobilityOptions = [
+  { value: '', label: 'Выберите вариант' },
+  { value: 'Максимальная мобильность EU', label: 'Максимальная мобильность EU' },
+  { value: 'Готов к переезду', label: 'Готов к переезду' },
+  { value: 'Только своя страна', label: 'Только своя страна' },
+]
+const preferredMobilityOptions = [
+  { value: '', label: 'Выберите регион' },
+  { value: 'Регион', label: 'Регион' },
+  { value: 'Европа', label: 'Европа' },
+  { value: 'Удалённо', label: 'Удалённо' },
+]
+const permitOptions = [
+  { value: '', label: 'Выберите вариант' },
+  { value: 'EU гражданин', label: 'EU гражданин' },
+  { value: 'Есть виза', label: 'Есть виза' },
+  { value: 'Нужен sponsorship', label: 'Нужен sponsorship' },
+]
 
 const { state } = useAuth()
 
@@ -19,8 +42,8 @@ const avatarFile = ref(null)
 const resumeFile = ref(null)
 const avatarObjectUrl = ref('')
 const newSector = ref('')
-const newLanguage = ref(languageOptions[0])
-const newLanguageLevel = ref(languageLevelOptions[2])
+const newLanguage = ref(languageOptions[0].value)
+const newLanguageLevel = ref(languageLevelOptions[2].value)
 const newLicense = ref('')
 
 const profile = ref({
@@ -172,7 +195,7 @@ const addSector = () => {
 
   profile.value.sectors.push({
     name,
-    experience: experienceOptions[0],
+    experience: experienceOptions[0].value,
   })
   newSector.value = ''
 }
@@ -227,7 +250,7 @@ const goNext = async () => {
   }
 }
 
-const goPrev = async () => {
+const goPrev = () => {
   if (step.value > 1) {
     step.value -= 1
   }
@@ -255,12 +278,13 @@ onBeforeUnmount(() => {
   <AppLayout>
     <main class="page">
       <section class="hero">
-        <div>
+        <div class="hero-copy">
           <div class="title-row">
             <h1>Резюме кандидата</h1>
-            <span class="badge">Только для авторизованного кандидата</span>
+            <span class="badge">Пошаговое заполнение</span>
           </div>
-          <p class="hero-copy">
+
+          <p>
             Заполните профиль по шагам: основная информация, опыт и навыки, затем реальные файлы.
             Всё сохраняется в аккаунт и используется в откликах на вакансии.
           </p>
@@ -272,14 +296,11 @@ onBeforeUnmount(() => {
             :key="item.id"
             type="button"
             class="step"
-            :class="{
-              'step--active': step === item.id,
-              'step--done': step > item.id,
-            }"
+            :class="{ 'step--active': step === item.id, 'step--done': step > item.id }"
             @click="step = item.id"
           >
             <span class="step-index">{{ item.id }}</span>
-            <span>
+            <span class="step-copy">
               <strong>{{ item.title }}</strong>
               <small>{{ item.subtitle }}</small>
             </span>
@@ -345,9 +366,12 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="list-row__actions">
-                  <select v-model="sector.experience">
-                    <option v-for="experience in experienceOptions" :key="experience" :value="experience">{{ experience }}</option>
-                  </select>
+                  <BaseDropdown
+                    v-model="sector.experience"
+                    aria-label="Опыт в сфере"
+                    class="inline-dropdown"
+                    :options="experienceOptions"
+                  />
                   <button type="button" class="ghost-icon" @click="removeSector(index)">×</button>
                 </div>
               </div>
@@ -369,12 +393,18 @@ onBeforeUnmount(() => {
               </div>
 
               <div class="grid-two">
-                <select v-model="newLanguage">
-                  <option v-for="language in languageOptions" :key="language" :value="language">{{ language }}</option>
-                </select>
-                <select v-model="newLanguageLevel">
-                  <option v-for="level in languageLevelOptions" :key="level" :value="level">{{ level }}</option>
-                </select>
+                <BaseDropdown
+                  v-model="newLanguage"
+                  aria-label="Язык"
+                  full-width
+                  :options="languageOptions"
+                />
+                <BaseDropdown
+                  v-model="newLanguageLevel"
+                  aria-label="Уровень языка"
+                  full-width
+                  :options="languageLevelOptions"
+                />
               </div>
 
               <button type="button" class="ghost-button ghost-button--small" :disabled="!canAddLanguage" @click="addLanguage">
@@ -385,30 +415,30 @@ onBeforeUnmount(() => {
             <div class="grid-two">
               <label>
                 Максимальная мобильность
-                <select v-model="profile.mobility">
-                  <option value="">Выберите вариант</option>
-                  <option value="Максимальная мобильность EU">Максимальная мобильность EU</option>
-                  <option value="Готов к переезду">Готов к переезду</option>
-                  <option value="Только своя страна">Только своя страна</option>
-                </select>
+                <BaseDropdown
+                  v-model="profile.mobility"
+                  aria-label="Максимальная мобильность"
+                  full-width
+                  :options="mobilityOptions"
+                />
               </label>
               <label>
                 Предпочтительная мобильность
-                <select v-model="profile.preferred_mobility">
-                  <option value="">Выберите регион</option>
-                  <option value="Регион">Регион</option>
-                  <option value="Европа">Европа</option>
-                  <option value="Удалённо">Удалённо</option>
-                </select>
+                <BaseDropdown
+                  v-model="profile.preferred_mobility"
+                  aria-label="Предпочтительная мобильность"
+                  full-width
+                  :options="preferredMobilityOptions"
+                />
               </label>
               <label>
                 Разрешение на работу
-                <select v-model="profile.work_permit">
-                  <option value="">Выберите вариант</option>
-                  <option value="EU гражданин">EU гражданин</option>
-                  <option value="Есть виза">Есть виза</option>
-                  <option value="Нужен sponsorship">Нужен sponsorship</option>
-                </select>
+                <BaseDropdown
+                  v-model="profile.work_permit"
+                  aria-label="Разрешение на работу"
+                  full-width
+                  :options="permitOptions"
+                />
               </label>
               <label>
                 Дата доступности
@@ -437,7 +467,7 @@ onBeforeUnmount(() => {
               <label class="upload-card avatar-upload">
                 <span class="upload-card__title">Аватар кандидата</span>
                 <div class="avatar">
-                  <img v-if="avatarPreview" :src="avatarPreview" alt="Аватар кандидата" />
+                  <img v-if="avatarPreview" class="avatar__image" :src="avatarPreview" alt="Аватар кандидата" />
                   <span v-else>{{ avatarInitials }}</span>
                 </div>
                 <small>JPG, PNG или WEBP</small>
@@ -481,7 +511,7 @@ onBeforeUnmount(() => {
           <div class="side-card profile-card">
             <div class="profile-card__top">
               <div class="profile-avatar">
-                <img v-if="avatarPreview" :src="avatarPreview" alt="Аватар" />
+                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" alt="Аватар" />
                 <span v-else>{{ avatarInitials }}</span>
               </div>
               <div>
@@ -509,6 +539,7 @@ onBeforeUnmount(() => {
 
           <div class="side-card side-card--dashed">
             <h3>Что должно быть в хорошем CV</h3>
+
             <div class="feature">
               <span class="feature-icon">1</span>
               <div>
@@ -516,6 +547,7 @@ onBeforeUnmount(() => {
                 <small>Укажите специализацию и сильные стороны в нескольких словах.</small>
               </div>
             </div>
+
             <div class="feature">
               <span class="feature-icon">2</span>
               <div>
@@ -523,11 +555,12 @@ onBeforeUnmount(() => {
                 <small>Добавьте направления, стаж, языки и готовность к переезду.</small>
               </div>
             </div>
+
             <div class="feature">
               <span class="feature-icon">3</span>
               <div>
                 <strong>Реальные файлы</strong>
-                <small>Загрузите фото и CV, чтобы профиль был полноценным без заглушек.</small>
+                <small>Загрузите фото и CV, чтобы профиль был полноценным и готовым к откликам.</small>
               </div>
             </div>
           </div>
@@ -556,9 +589,14 @@ onBeforeUnmount(() => {
 }
 
 .hero {
-  padding: 1.5rem;
+  padding: 1.6rem;
   display: grid;
-  gap: 1.25rem;
+  gap: 1.3rem;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .title-row {
@@ -576,6 +614,11 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
 }
 
+.title-row h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.08;
+}
+
 .badge {
   padding: 0.45rem 0.9rem;
   border-radius: 999rem;
@@ -584,13 +627,13 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
-.hero-copy,
+.hero-copy p,
 .hint,
 .profile-meta,
 .side-card p,
 .feature small {
   color: var(--text-muted);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .steps {
@@ -604,12 +647,27 @@ onBeforeUnmount(() => {
   grid-template-columns: auto 1fr;
   gap: 0.85rem;
   align-items: center;
-  padding: 0.95rem 1rem;
+  padding: 1rem 1.05rem;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
   background: var(--surface-secondary);
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.step:hover {
+  border-color: color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
+}
+
+.step-copy,
+.main-card,
+.section {
+  display: grid;
+}
+
+.step-copy {
+  gap: 0.15rem;
 }
 
 .step strong,
@@ -636,6 +694,7 @@ onBeforeUnmount(() => {
 .step--active,
 .step--done {
   border-color: color-mix(in srgb, var(--brand-base) 26%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 44%, white);
 }
 
 .step--active .step-index,
@@ -658,8 +717,12 @@ onBeforeUnmount(() => {
 }
 
 .main-card {
+  gap: 1.35rem;
+}
+
+.card-head {
   display: grid;
-  gap: 1.25rem;
+  gap: 0.4rem;
 }
 
 .grid-two,
@@ -675,7 +738,6 @@ onBeforeUnmount(() => {
 }
 
 .section {
-  display: grid;
   gap: 0.85rem;
 }
 
@@ -692,8 +754,7 @@ label {
 }
 
 input,
-textarea,
-select {
+textarea {
   width: 100%;
   min-width: 0;
   min-height: 3.2rem;
@@ -705,31 +766,20 @@ select {
   font: inherit;
 }
 
-select {
-  appearance: none;
-  padding-right: 2.6rem;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #6b7280 50%),
-    linear-gradient(135deg, #6b7280 50%, transparent 50%);
-  background-position:
-    calc(100% - 1.15rem) calc(50% - 0.12rem),
-    calc(100% - 0.8rem) calc(50% - 0.12rem);
-  background-size: 0.4rem 0.4rem, 0.4rem 0.4rem;
-  background-repeat: no-repeat;
-  cursor: pointer;
-}
-
 textarea {
   min-height: 8rem;
   resize: vertical;
 }
 
 input:focus,
-textarea:focus,
-select:focus {
+textarea:focus {
   outline: none;
   border-color: var(--brand-strong);
   box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
+}
+
+.inline-dropdown {
+  min-width: 10rem;
 }
 
 .list-row {
@@ -748,10 +798,6 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.list-row__actions select {
-  min-width: 9rem;
 }
 
 .dot,
@@ -866,13 +912,15 @@ select:focus {
   color: #fff;
   font-size: 1.3rem;
   font-weight: 800;
+  flex: 0 0 5.2rem;
 }
 
-.avatar img,
-.profile-avatar img {
-  width: 100%;
-  height: 100%;
+.avatar__image,
+.profile-avatar__image {
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover;
+  display: block;
 }
 
 .review-card {
@@ -888,24 +936,24 @@ select:focus {
   margin: 0;
   padding-left: 1.2rem;
   color: var(--text-primary);
+  line-height: 1.7;
 }
 
 .footer-actions {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 .sidebar {
   display: grid;
   gap: 1rem;
   position: sticky;
-  top: 5.5rem;
+  top: 5.75rem;
 }
 
-.profile-card,
-.feature {
+.profile-card {
   display: grid;
   gap: 0.9rem;
 }
@@ -969,7 +1017,9 @@ select:focus {
 }
 
 .feature {
+  display: grid;
   grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.9rem;
   align-items: center;
   padding: 0.85rem 0;
 }
@@ -1020,7 +1070,8 @@ select:focus {
 
   .ghost-button,
   .btn-light,
-  .btn-primary {
+  .btn-primary,
+  .inline-dropdown {
     width: 100%;
   }
 }

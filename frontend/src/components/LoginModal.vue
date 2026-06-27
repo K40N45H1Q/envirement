@@ -118,7 +118,7 @@ const submit = async () => {
       invalid_credentials: 'Неверный Email или пароль',
       missing_fields: 'Заполните все обязательные поля',
       no_token_received: 'Ошибка сервера: токен не получен',
-      network_error: 'Нет связи с сервером. Проверьте, что backend запущен.',
+      network_error: 'Нет связи с сервером. Проверьте подключение и повторите попытку.',
       unknown_error: 'Произошла непредвиденная ошибка',
     }
 

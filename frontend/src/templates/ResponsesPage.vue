@@ -44,7 +44,7 @@ onMounted(loadResponses)
       <section class="head">
         <p class="eyebrow">Отклики работодателя</p>
         <h1>Кандидаты</h1>
-        <p>Заявки на ваши вакансии из backend с быстрым переходом в диалог.</p>
+        <p>Здесь собраны отклики на ваши вакансии с быстрым переходом в диалог с кандидатом.</p>
       </section>
 
       <p v-if="status" class="notice">{{ status }}</p>

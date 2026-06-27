@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import AppLayout from '@/components/AppLayout.vue'
+import BaseDropdown from '@/components/BaseDropdown.vue'
 import JobLocationsMap from '@/components/JobLocationsMap.vue'
 import { useJobsStore } from '@/stores/jobs'
 
@@ -73,6 +74,16 @@ onMounted(async () => {
 })
 
 const categoryConfigs = computed(() => jobsStore.categoryConfigs)
+const categoryDropdownOptions = computed(() => categoryCounts.value.map((category) => ({
+  value: category.id,
+  label: category.label,
+  hint: `${category.count} вакансий`,
+  iconClass: category.icon,
+})))
+const sortOptions = [
+  { value: 'newest', label: 'Новые сначала' },
+  { value: 'salary', label: 'По зарплате' },
+]
 
 const focusJob = (jobId) => {
   const target = document.getElementById(`job-card-${jobId}`)
@@ -154,17 +165,18 @@ onBeforeUnmount(() => {
 
               <label>
                 <span>Категория</span>
-                <div class="input-wrap">
-                  <select v-model="filters.selectedCategory" @change="selectCategory(filters.selectedCategory)">
-                    <option v-for="category in categoryCounts" :key="category.id" :value="category.id">
-                      {{ category.label }}
-                    </option>
-                  </select>
-                  <i class="fas fa-angle-down"></i>
-                </div>
+                <BaseDropdown
+                  v-model="filters.selectedCategory"
+                  aria-label="Категория"
+                  class="search-dropdown"
+                  :options="categoryDropdownOptions"
+                  full-width
+                  :show-selected-hint="false"
+                  @change="selectCategory($event.value)"
+                />
               </label>
 
-              <button type="button" class="btn-primary search-button" @click="runSearch">
+              <button type="submit" class="btn-primary search-button">
                 Найти вакансии
               </button>
             </form>
@@ -229,11 +241,17 @@ onBeforeUnmount(() => {
 
               <div class="toolbar-actions">
                 <label class="sort-label">
-                  <span>Сортировка:</span>
-                  <select v-model="filters.selectedSort" @change="syncRoute">
-                    <option value="newest">Новые сначала</option>
-                    <option value="salary">По зарплате</option>
-                  </select>
+                  <span>Сортировка</span>
+                  <BaseDropdown
+                    v-model="filters.selectedSort"
+                    aria-label="Сортировка"
+                    align="right"
+                    size="sm"
+                    variant="ghost"
+                    class="sort-dropdown"
+                    :options="sortOptions"
+                    @change="syncRoute"
+                  />
                 </label>
               </div>
             </header>
@@ -275,7 +293,7 @@ onBeforeUnmount(() => {
                     type="button"
                     class="save-button"
                     :class="{ 'save-button--active': job.isBookmarked }"
-                    :aria-label="job.isBookmarked ? 'Убрать из сохраненных' : 'Сохранить'"
+                    :aria-label="job.isBookmarked ? 'Убрать из сохраненных' : 'Сохранить вакансию'"
                     @click="jobsStore.toggleBookmark(job.id)"
                   >
                     <i :class="job.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
@@ -411,14 +429,14 @@ onBeforeUnmount(() => {
 .page {
   width: min(100%, var(--shell-max-width));
   margin: 0 auto;
-  padding: 1.5rem var(--shell-gutter) 4rem;
+  padding: 1.6rem var(--shell-gutter) 4rem;
   display: grid;
   gap: 1.25rem;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 24rem);
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 24rem);
   gap: 1.5rem;
   padding: 1.75rem;
   overflow: hidden;
@@ -428,62 +446,27 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.1rem);
   color: var(--text-primary);
+  line-height: 1.08;
 }
 
 .hero-copy p:not(.section-eyebrow) {
   max-width: 40rem;
-  margin-top: 0.75rem;
+  margin-top: 0.85rem;
   color: var(--text-muted);
-  line-height: 1.65;
-}
-
-.hero-map,
-.mini-map {
-  position: relative;
-  overflow: hidden;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1.25rem;
-  background:
-    radial-gradient(circle at 25% 35%, rgba(29, 168, 107, 0.16), transparent 24%),
-    radial-gradient(circle at 70% 55%, rgba(29, 168, 107, 0.14), transparent 18%),
-    linear-gradient(180deg, rgba(232, 249, 238, 0.9), rgba(255, 255, 255, 0.96));
+  line-height: 1.7;
 }
 
 .hero-map {
-  min-height: 13rem;
-}
-
-.mini-map {
   min-height: 15rem;
+  overflow: hidden;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(232, 249, 238, 0.9), rgba(255, 255, 255, 0.96));
 }
-
-.map-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(29, 168, 107, 0.06) 0.0625rem, transparent 0.0625rem),
-    linear-gradient(90deg, rgba(29, 168, 107, 0.06) 0.0625rem, transparent 0.0625rem);
-  background-size: 1rem 1rem;
-  mask-image: radial-gradient(circle at center, black 45%, transparent 95%);
-}
-
-.map-glow {
-  position: absolute;
-  width: 5.5rem;
-  height: 5.5rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(20, 184, 87, 0.42) 0%, rgba(20, 184, 87, 0.06) 58%, transparent 75%);
-  filter: blur(0.125rem);
-}
-
-.map-glow--one { top: 18%; right: 24%; }
-.map-glow--two { bottom: 12%; left: 28%; }
-.map-glow--three { top: 24%; left: 34%; }
-.map-glow--four { bottom: 18%; right: 18%; }
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
+  grid-template-columns: minmax(0, 1fr) 21rem;
   gap: 1.25rem;
   align-items: start;
 }
@@ -504,13 +487,14 @@ onBeforeUnmount(() => {
 
 .sidebar-column {
   position: sticky;
-  top: 5.5rem;
+  top: 5.75rem;
 }
 
 .search-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.95fr) auto;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 0.85rem;
+  align-items: end;
 }
 
 .search-grid label,
@@ -528,8 +512,7 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.input-wrap input,
-.input-wrap select {
+.input-wrap input {
   width: 100%;
   min-height: 3.3rem;
   padding: 0.9rem 2.8rem 0.9rem 1rem;
@@ -538,16 +521,12 @@ onBeforeUnmount(() => {
   background: var(--surface-secondary);
   color: var(--text-primary);
   font: inherit;
-  appearance: none;
-  line-height: 1.3;
 }
 
-.input-wrap select {
-  cursor: pointer;
-}
-
-.input-wrap input {
-  cursor: text;
+.input-wrap input:focus {
+  outline: none;
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
 }
 
 .input-wrap i {
@@ -559,9 +538,17 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+.search-dropdown,
+.sort-dropdown {
+  width: 100%;
+}
+
+.sort-dropdown {
+  min-width: 12rem;
+}
+
 .search-button {
-  align-self: end;
-  min-width: 11rem;
+  min-width: 11.5rem;
 }
 
 .category-row {
@@ -572,7 +559,7 @@ onBeforeUnmount(() => {
 }
 
 .category-pill {
-  min-height: 4.3rem;
+  min-height: 4.4rem;
   padding: 0.8rem;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
@@ -583,7 +570,7 @@ onBeforeUnmount(() => {
   gap: 0.35rem;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .category-pill i {
@@ -597,8 +584,9 @@ onBeforeUnmount(() => {
 
 .category-pill:hover,
 .category-pill--active {
-  border-color: var(--border-strong);
+  border-color: color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
   background: color-mix(in srgb, var(--brand-soft) 62%, white);
+  box-shadow: 0 0.65rem 1.35rem rgba(16, 24, 40, 0.06);
 }
 
 .results-banner,
@@ -607,7 +595,9 @@ onBeforeUnmount(() => {
 .strip-head,
 .country-item,
 .filter-check,
-.toggle-row {
+.toggle-row,
+.job-title-line,
+.job-actions {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -618,19 +608,17 @@ onBeforeUnmount(() => {
 .strip-head,
 .country-item,
 .filter-check,
-.toggle-row {
-  align-items: center;
-}
-
-.jobs-toolbar {
-  align-items: center;
-  padding-bottom: 1rem;
-  border-bottom: 0.0625rem solid var(--border-subtle);
+.toggle-row,
+.jobs-toolbar,
+.job-title-line,
+.job-actions {
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
 .results-banner {
   margin-bottom: 1rem;
-  padding: 0.95rem 1rem;
+  padding: 1rem 1.05rem;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
   background: linear-gradient(135deg, rgba(20, 184, 87, 0.09), rgba(255, 255, 255, 0.94)), var(--surface-secondary);
@@ -641,25 +629,37 @@ onBeforeUnmount(() => {
 .job-company,
 .job-location,
 .job-time,
-.sort-label {
+.sort-label span {
   color: var(--text-muted);
+}
+
+.jobs-toolbar {
+  padding-bottom: 1rem;
+  border-bottom: 0.0625rem solid var(--border-subtle);
 }
 
 .job-tabs,
 .toolbar-actions,
 .stack-options,
-.job-tags,
-.country-list,
-.country-cards {
+.job-tags {
   display: flex;
   gap: 0.75rem;
 }
 
 .job-tabs,
 .job-tags,
-.country-cards,
 .stack-options {
   flex-wrap: wrap;
+}
+
+.country-list,
+.country-cards {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.country-cards {
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
 }
 
 .tab-button,
@@ -689,15 +689,10 @@ onBeforeUnmount(() => {
   border-color: var(--brand-strong);
 }
 
-.sort-label select {
-  border: none;
-  background: transparent;
-  color: var(--brand-strong);
-  font: inherit;
-  font-weight: 700;
-  padding-right: 1.25rem;
-  appearance: none;
-  cursor: pointer;
+.sort-label {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
 }
 
 .notice {
@@ -748,13 +743,6 @@ onBeforeUnmount(() => {
   gap: 0.55rem;
 }
 
-.job-title-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: start;
-}
-
 .job-title-line h2,
 .sidebar-head h3,
 .strip-head h3,
@@ -773,7 +761,7 @@ onBeforeUnmount(() => {
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 1.85rem;
+  min-height: 1.9rem;
   padding: 0.35rem 0.7rem;
   border-radius: 999rem;
   font-size: 0.8rem;
@@ -792,20 +780,21 @@ onBeforeUnmount(() => {
 }
 
 .filter-chip--active {
-  border-color: var(--border-strong);
-  background: color-mix(in srgb, var(--brand-soft) 60%, white);
+  border-color: color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 62%, white);
   color: var(--brand-strong);
 }
 
-.job-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.job-salary {
+  color: var(--text-primary);
 }
 
 .save-button {
-  width: 2.8rem;
-  height: 2.8rem;
+  width: 2.9rem;
+  height: 2.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 0.9rem;
   background: var(--surface-secondary);
@@ -814,147 +803,118 @@ onBeforeUnmount(() => {
 }
 
 .save-button--active {
+  border-color: color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
   color: var(--brand-strong);
-  border-color: var(--border-strong);
-  background: color-mix(in srgb, var(--brand-soft) 64%, white);
+  background: color-mix(in srgb, var(--brand-soft) 62%, white);
 }
 
 .details-button {
-  min-width: 8rem;
+  min-width: 8.5rem;
+  min-height: 2.9rem;
+  padding-block: 0.75rem;
+  justify-content: center;
 }
 
-.country-list,
-.country-cards {
-  display: grid;
-}
-
-.country-list {
-  gap: 0.7rem;
-  margin-top: 1rem;
-}
-
-.sidebar-button {
-  width: 100%;
-  margin-top: 1rem;
-}
-
-.link-button {
-  color: var(--brand-strong);
-  font-weight: 700;
-}
-
-.filter-group {
-  padding-top: 1rem;
-  border-top: 0.0625rem solid var(--border-subtle);
-}
-
+.country-card,
+.country-item,
 .filter-check {
-  width: 100%;
-  padding: 0.15rem 0;
-  background: transparent;
-  border: none;
-  text-align: left;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.filter-check--active {
-  color: var(--brand-strong);
-}
-
-.toggle-row {
-  justify-content: flex-start;
-  gap: 0.65rem;
-  color: var(--text-primary);
-}
-
-.country-cards {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-top: 1rem;
-}
-
-.country-card {
-  padding: 1rem;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
   background: var(--surface-secondary);
 }
 
-.country-card strong,
-.country-card span {
-  display: block;
+.country-card {
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.25rem;
 }
 
-@media (max-width: 76rem) {
-  .content-grid,
-  .hero {
+.country-item,
+.filter-check {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 0.95rem;
+  border: 0.0625rem solid var(--border-subtle);
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.country-item:hover,
+.filter-check:hover,
+.filter-check--active {
+  border-color: color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 58%, white);
+  box-shadow: 0 0.625rem 1.25rem rgba(16, 24, 40, 0.06);
+}
+
+.sidebar-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.filter-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.toggle-row {
+  justify-content: start;
+  gap: 0.65rem;
+  color: var(--text-primary);
+}
+
+@media (max-width: 72rem) {
+  .hero,
+  .content-grid {
     grid-template-columns: 1fr;
   }
 
   .sidebar-column {
     position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .category-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .country-cards {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 58rem) {
-  .search-grid,
-  .job-row,
-  .sidebar-column,
-  .country-cards {
+@media (max-width: 56rem) {
+  .search-grid {
     grid-template-columns: 1fr;
   }
 
-  .results-banner,
-  .jobs-toolbar,
-  .job-title-line,
-  .job-actions {
-    align-items: start;
-    flex-direction: column;
-  }
-
   .category-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .company-logo {
-    width: 4rem;
-    height: 4rem;
+  .jobs-toolbar,
+  .results-banner,
+  .job-row,
+  .job-title-line,
+  .job-actions {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sort-label {
+    justify-items: stretch;
+  }
+
+  .sort-dropdown {
+    min-width: 0;
+  }
+
+  .job-row {
+    display: grid;
   }
 
   .details-button,
-  .search-button,
-  .results-reset {
+  .save-button {
     width: 100%;
   }
 }
-
-@media (max-width: 40rem) {
-  .page {
-    padding-top: 1.1rem;
-  }
-
-  .hero,
-  .search-shell,
-  .jobs-shell,
-  .countries-strip,
-  .map-card,
-  .filters-card {
-    padding: 1rem;
-  }
-
-  .category-row {
-    grid-template-columns: 1fr 1fr;
-  }
-}
 </style>
-

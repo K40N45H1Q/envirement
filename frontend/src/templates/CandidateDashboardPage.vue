@@ -50,7 +50,7 @@ const loadRecommendations = async () => {
     jobs.value = []
     applications.value = []
     profile.value = null
-    notice.value = 'Не удалось загрузить данные кабинета из backend.'
+    notice.value = 'Не удалось загрузить данные кабинета.'
   } finally {
     isLoading.value = false
   }
@@ -75,7 +75,7 @@ onMounted(loadRecommendations)
           <div>
             <p class="eyebrow">Личный кабинет соискателя</p>
             <h1>Привет, {{ userName }}</h1>
-            <p>Ваши вакансии и отклики теперь загружаются из backend без demo fallback.</p>
+            <p>Следите за откликами, обновляйте профиль и быстро возвращайтесь к подходящим вакансиям.</p>
           </div>
           <RouterLink to="/jobs" class="btn-primary">
             <i class="fas fa-magnifying-glass"></i>

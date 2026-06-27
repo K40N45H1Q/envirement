@@ -7,7 +7,7 @@ import { RouterLink } from 'vue-router'
     <h2 class="pupular-section-title">Популярные категории</h2>
     <div class="popular-grid">
       <RouterLink
-        to="/jobs?cat=Construction"
+        :to="{ path: '/jobs', query: { category: 'construction' } }"
         class="category-card"
       >
         <div class="card-icon-wrapper">
@@ -40,7 +40,7 @@ import { RouterLink } from 'vue-router'
       </RouterLink>
 
       <RouterLink
-        to="/jobs?cat=Manufacturing"
+        :to="{ path: '/jobs', query: { category: 'production' } }"
         class="category-card"
       >
         <div class="card-icon-wrapper">
@@ -93,7 +93,7 @@ import { RouterLink } from 'vue-router'
       </RouterLink>
 
       <RouterLink
-        to="/jobs?cat=Logistics"
+        :to="{ path: '/jobs', query: { category: 'logistics' } }"
         class="category-card"
       >
         <div class="card-icon-wrapper">
@@ -126,7 +126,7 @@ import { RouterLink } from 'vue-router'
       </RouterLink>
 
       <RouterLink
-        to="/jobs?cat=Engineering"
+        :to="{ path: '/jobs', query: { category: 'it' } }"
         class="category-card"
       >
         <div class="card-icon-wrapper">
@@ -158,7 +158,7 @@ import { RouterLink } from 'vue-router'
         <p class="card-vacancies">200 вакансий</p>
       </RouterLink>
 
-      <RouterLink to="/jobs?cat=Quality" class="category-card">
+      <RouterLink :to="{ path: '/jobs', query: { category: 'health' } }" class="category-card">
         <div class="card-icon-wrapper">
           <svg
             viewBox="0 0 64 57"
@@ -189,7 +189,7 @@ import { RouterLink } from 'vue-router'
       </RouterLink>
 
       <RouterLink
-        to="/jobs?cat=Management"
+        :to="{ path: '/jobs', query: { category: 'hospitality' } }"
         class="category-card"
       >
         <div class="card-icon-wrapper">

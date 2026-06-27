@@ -12,14 +12,17 @@
     </nav>
 
     <div class="actions">
-      <label class="language-switcher" for="navbar-language" aria-label="Выбор языка">
-        <i class="fas fa-globe"></i>
-        <select id="navbar-language" v-model="currentLanguage" @change="changeLanguage">
-          <option v-for="language in languageOptions" :key="language.value" :value="language.value">
-            {{ language.label }}
-          </option>
-        </select>
-      </label>
+      <BaseDropdown
+        v-model="currentLanguage"
+        class="language-switcher"
+        aria-label="Выбор языка"
+        icon-class="fas fa-globe"
+        :options="languageOptions"
+        size="sm"
+        align="right"
+        :show-selected-hint="false"
+        @change="changeLanguage"
+      />
 
       <template v-if="user">
         <div class="user-menu-wrapper">
@@ -71,13 +74,17 @@
           </RouterLink>
 
           <div class="mobile-auth-buttons">
-            <label class="mobile-language-switcher" for="mobile-navbar-language">
+            <label class="mobile-language-switcher">
               <span>Язык</span>
-              <select id="mobile-navbar-language" v-model="currentLanguage" @change="changeLanguage">
-                <option v-for="language in languageOptions" :key="language.value" :value="language.value">
-                  {{ language.label }}
-                </option>
-              </select>
+              <BaseDropdown
+                v-model="currentLanguage"
+                aria-label="Выбор языка"
+                :options="languageOptions"
+                full-width
+                align="right"
+                :show-selected-hint="false"
+                @change="changeLanguage"
+              />
             </label>
 
             <template v-if="user">
@@ -104,20 +111,25 @@
 
 <script>
 import { useAuth } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import { ACCOUNT_LABELS, defaultRouteForAccount } from '@/utils/auth'
+import BaseDropdown from './BaseDropdown.vue'
 import Logo from './Logo.vue'
 
 export default {
   emits: ['open-login', 'open-register'],
   components: {
+    BaseDropdown,
     Logo,
   },
 
   setup() {
     const { state, logout: logoutAuth } = useAuth()
+    const uiStore = useUiStore()
     return {
       authState: state,
       logoutAuth,
+      uiStore,
     }
   },
 
@@ -125,11 +137,10 @@ export default {
     return {
       isUserMenuOpen: false,
       isMenuOpen: false,
-      currentLanguage: localStorage.getItem('cvhold-language') || document?.documentElement?.lang || 'ru',
       languageOptions: [
-        { value: 'ru', label: 'RU' },
-        { value: 'en', label: 'EN' },
-        { value: 'lv', label: 'LV' },
+        { value: 'ru', label: 'RU', hint: 'Русский' },
+        { value: 'en', label: 'EN', hint: 'English' },
+        { value: 'lv', label: 'LV', hint: 'Latviešu' },
       ],
       navItems: [
         { label: 'Вакансии', to: '/jobs', icon: 'fas fa-briefcase' },
@@ -145,6 +156,14 @@ export default {
     user() {
       return this.authState.user
     },
+    currentLanguage: {
+      get() {
+        return this.uiStore.language
+      },
+      set(value) {
+        this.uiStore.setLanguage(value)
+      },
+    },
     dashboardRoute() {
       return defaultRouteForAccount(this.user?.account_type)
     },
@@ -155,8 +174,7 @@ export default {
 
   methods: {
     changeLanguage() {
-      document.documentElement.lang = this.currentLanguage
-      localStorage.setItem('cvhold-language', this.currentLanguage)
+      this.uiStore.setLanguage(this.currentLanguage)
     },
 
     toggleMenu() {
@@ -194,7 +212,7 @@ export default {
 
   mounted() {
     window.addEventListener('resize', this.handleResize)
-    this.changeLanguage()
+    this.uiStore.initialize()
   },
 
   beforeUnmount() {
@@ -284,26 +302,31 @@ export default {
   gap: 0.65rem;
 }
 
-.language-switcher,
-.mobile-language-switcher {
+.language-switcher {
+  min-width: 6.5rem;
+}
+
+.language-switcher:deep(.dropdown__trigger) {
   min-height: 2.75rem;
-  padding: 0 0.85rem;
-  border: 0.0625rem solid var(--border-subtle);
+  padding-inline: 0.85rem 0.8rem;
   border-radius: 999rem;
-  background: var(--surface-secondary);
+  border-color: color-mix(in srgb, var(--brand-base) 16%, var(--border-subtle));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 249, 245, 0.98));
+  box-shadow: 0 0.55rem 1.25rem rgba(16, 24, 40, 0.06);
 }
 
-.language-switcher select,
-.mobile-language-switcher select {
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
+.language-switcher:deep(.dropdown__content) {
+  gap: 0.05rem;
 }
 
-.language-switcher select:focus,
-.mobile-language-switcher select:focus {
-  outline: none;
+.language-switcher:deep(.dropdown__label) {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.language-switcher:deep(.dropdown__menu) {
+  min-width: 8.5rem;
 }
 
 .user-email,
@@ -321,9 +344,10 @@ export default {
 .user-email {
   display: grid;
   justify-items: end;
-  gap: 0.15rem;
+  gap: 0.22rem;
   border: none;
   background: transparent;
+  line-height: 1.2;
 }
 
 .user-email__meta {
@@ -391,12 +415,12 @@ export default {
 }
 
 .mobile-language-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  gap: 0.75rem;
   border-radius: 1rem;
   padding: 0.9rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: var(--surface-primary);
 }
 
 .mobile-auth-buttons .btn-primary,

@@ -1,7 +1,7 @@
 export const ACCOUNT_LABELS = {
-  user: 'Candidate',
-  employer: 'Employer',
-  admin: 'Platform admin',
+  user: 'Кандидат',
+  employer: 'Работодатель',
+  admin: 'Администратор',
 }
 
 export const isEmployerAccount = (accountType) => ['employer', 'admin'].includes(accountType)

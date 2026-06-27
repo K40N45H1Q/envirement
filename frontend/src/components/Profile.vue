@@ -69,7 +69,7 @@ const loadProfile = async () => {
   try {
     profile.value = await getProfile()
   } catch {
-    errorMessage.value = 'Не удалось загрузить профиль из backend.'
+    errorMessage.value = 'Не удалось загрузить профиль.'
   } finally {
     isLoading.value = false
   }
@@ -122,7 +122,7 @@ const saveProfileData = async () => {
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()
-    saveMessage.value = 'Профиль сохранён в backend.'
+    saveMessage.value = 'Профиль успешно сохранён.'
   } catch {
     errorMessage.value = 'Не удалось сохранить профиль.'
   } finally {
@@ -137,7 +137,7 @@ onBeforeUnmount(revokeAvatarPreview)
 <template>
   <main class="page">
     <div v-if="!user" class="not-auth">
-      Пользователь не авторизован
+      Войдите в аккаунт, чтобы заполнить профиль кандидата.
     </div>
 
     <template v-else>
@@ -270,7 +270,7 @@ onBeforeUnmount(revokeAvatarPreview)
                 />
 
                 <div class="drop-title">
-                  {{ profile.resume_name || 'Загрузите резюме в backend' }}
+                  {{ profile.resume_name || 'Загрузите резюме или сертификаты' }}
                 </div>
                 <span>PDF, DOC, DOCX. Можно перетащить файл в эту область.</span>
               </label>

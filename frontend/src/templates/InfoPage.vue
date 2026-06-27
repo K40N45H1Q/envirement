@@ -54,7 +54,7 @@ const page = computed(() => pages[route.meta.page] || pages.about)
         <article v-for="card in page.cards" :key="card">
           <i class="fas fa-check-circle"></i>
           <h2>{{ card }}</h2>
-          <p>Раздел подготовлен как рабочая страница интерфейса и готов к подключению к backend.</p>
+          <p>Раздел оформлен как полноценная часть платформы и поддерживает единый стиль интерфейса CVHOLD.</p>
         </article>
       </section>
     </main>
