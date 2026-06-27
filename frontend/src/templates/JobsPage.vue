@@ -500,6 +500,10 @@ onBeforeUnmount(() => {
   align-content: start;
 }
 
+.map-card {
+  gap: 0.75rem;
+}
+
 .sidebar-column {
   position: sticky;
   top: 5.75rem;
@@ -679,7 +683,7 @@ onBeforeUnmount(() => {
 }
 
 .country-list {
-  margin-top: 0.15rem;
+  margin-top: 0;
 }
 
 .country-cards {
@@ -899,7 +903,7 @@ onBeforeUnmount(() => {
 .sidebar-button {
   width: 100%;
   justify-content: center;
-  margin-top: 0.25rem;
+  margin-top: 0;
 }
 
 .filter-group {
