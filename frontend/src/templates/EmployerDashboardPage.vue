@@ -394,32 +394,6 @@ onBeforeUnmount(revokeLogoPreview)
               </div>
             </article>
 
-            <article class="panel compact-panel">
-              <div class="panel-heading panel-heading--stack">
-                <div>
-                  <p class="eyebrow compact">Публикации</p>
-                  <h2>Текущий пакет</h2>
-                </div>
-                <span class="summary-pill">Standard · 5 слотов</span>
-              </div>
-
-              <div class="plan-lines">
-                <div class="plan-line">
-                  <span>Использовано</span>
-                  <strong>{{ jobs.length }} / 5</strong>
-                </div>
-                <div class="plan-line">
-                  <span>Отклики</span>
-                  <strong>{{ responsesHint }}</strong>
-                </div>
-                <div class="plan-line">
-                  <span>Активные диалоги</span>
-                  <strong>{{ unreadConversations }}</strong>
-                </div>
-              </div>
-
-              <button class="btn-primary" type="button" @click="setSection('pricing')">Открыть тарифы</button>
-            </article>
           </div>
         </section>
 
@@ -665,7 +639,6 @@ onBeforeUnmount(revokeLogoPreview)
 .form-content,
 .quick-grid,
 .list-grid,
-.plan-lines,
 .upload-grid,
 .attribute-grid {
   display: grid;
@@ -874,8 +847,7 @@ h3 {
   gap: 0.2rem;
 }
 
-.quick-panel,
-.compact-panel {
+.quick-panel {
   gap: 1.1rem;
 }
 
@@ -898,35 +870,6 @@ h3 {
 
 .quick-action__button {
   color: var(--brand-strong);
-}
-
-.summary-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
-  color: var(--brand-strong);
-  font-weight: 700;
-}
-
-.plan-lines {
-  gap: 0.85rem;
-}
-
-.plan-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
-}
-
-.plan-line strong {
-  color: var(--text-primary);
 }
 
 .form-panel {
