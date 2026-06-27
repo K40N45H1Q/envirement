@@ -651,7 +651,7 @@ onBeforeUnmount(revokeLogoPreview)
 }
 
 .workspace--jobs {
-  grid-template-columns: minmax(21rem, 0.86fr) minmax(26rem, 1.14fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -1095,20 +1095,20 @@ textarea {
 
 .job-row {
   display: grid;
-  grid-template-columns: 5.25rem minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1.1rem;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 1rem;
   background: color-mix(in srgb, var(--surface-secondary) 90%, transparent);
 }
 
 .job-logo {
-  width: 5.25rem;
-  height: 5.25rem;
+  width: 4.5rem;
+  height: 4.5rem;
   display: grid;
   place-items: center;
-  border-radius: 1rem;
+  border-radius: 0.9rem;
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 800;
   overflow: hidden;
 }
@@ -1122,12 +1122,16 @@ textarea {
 .job-body {
   min-width: 0;
   display: grid;
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .job-heading h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1.2rem;
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+}
+
+.job-heading p {
+  font-size: 0.88rem;
 }
 
 .job-actions {
@@ -1139,7 +1143,7 @@ textarea {
 
 .job-buttons {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.45rem;
   flex-wrap: nowrap;
   justify-content: end;
   align-items: center;
@@ -1147,20 +1151,20 @@ textarea {
 
 .job-meta {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 2.15rem;
-  padding: 0.35rem 0.75rem;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
   border-radius: 999rem;
   background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
   color: var(--brand-strong);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -1170,7 +1174,7 @@ textarea {
 
 .job-salary {
   color: var(--text-primary);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
@@ -1178,12 +1182,12 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.65rem;
-  padding: 0.58rem 0.82rem;
-  border-radius: 0.8rem;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
   background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
   color: var(--brand-strong);
-  font-size: 0.94rem;
+  font-size: 0.88rem;
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
@@ -1198,10 +1202,10 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.2rem;
-  padding: 0.35rem 0.8rem;
+  min-height: 2.1rem;
+  padding: 0.3rem 0.7rem;
   border-radius: 999rem;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1285,8 +1289,8 @@ textarea {
   }
 
   .job-logo {
-    width: 4.5rem;
-    height: 4.5rem;
+    width: 4rem;
+    height: 4rem;
   }
 
   .btn-primary,
