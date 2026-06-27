@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
@@ -29,11 +29,11 @@ const blankForm = () => ({
 })
 
 const sections = [
-  { id: 'overview', label: 'Кабинет', icon: 'fas fa-table-columns' },
-  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase' },
-  { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check' },
-  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message' },
-  { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card' },
+  { id: 'overview', label: 'Кабинет', icon: 'fas fa-table-columns', to: '/employer-dashboard' },
+  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/employer-dashboard?section=jobs' },
+  { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/employer-dashboard?section=responses' },
+  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/employer-dashboard?section=messages' },
+  { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/employer-dashboard?section=pricing' },
 ]
 
 const jobs = ref([])
@@ -64,6 +64,44 @@ const shellStats = computed(() => ([
   { value: approvedCount.value, label: 'Опубликовано' },
   { value: responsesHint.value, label: 'Откликов' },
   { value: unreadConversations.value, label: 'Диалогов' },
+]))
+
+const responseConversion = computed(() => {
+  if (!jobs.value.length) return '0%'
+  return `${Math.round((responses.value.length / jobs.value.length) * 100)}%`
+})
+
+const moderationState = computed(() => {
+  if (pendingCount.value) return 'На модерации'
+  if (rejectedCount.value) return 'Нужна доработка'
+  return 'Поток активен'
+})
+
+const moderationTone = computed(() => {
+  if (pendingCount.value) return 'warm'
+  if (rejectedCount.value) return 'danger'
+  return 'success'
+})
+
+const quickActions = computed(() => ([
+  {
+    title: 'Создать публикацию',
+    text: 'Добавьте новую вакансию и сразу проверьте карточку на живой витрине.',
+    button: 'Новая вакансия',
+    section: 'jobs',
+  },
+  {
+    title: 'Разобрать отклики',
+    text: 'Перейдите к списку кандидатов и откройте диалог без лишних переходов.',
+    button: 'Открыть отклики',
+    section: 'responses',
+  },
+  {
+    title: 'Продолжить переписку',
+    text: 'Следите за новыми сообщениями и быстро возвращайтесь к активным диалогам.',
+    button: 'К сообщениям',
+    section: 'messages',
+  },
 ]))
 
 const pricingPlans = [
@@ -212,6 +250,22 @@ const removeJob = async (job) => {
   }
 }
 
+watch(
+  () => route.query.section,
+  (section) => {
+    activeSection.value = typeof section === 'string' ? section : 'overview'
+  },
+)
+
+watch(
+  () => form.value.logo_url,
+  (value) => {
+    if (!form.value.logo) {
+      logoPreview.value = value || ''
+    }
+  },
+)
+
 onMounted(loadDashboard)
 onBeforeUnmount(revokeLogoPreview)
 </script>
@@ -228,7 +282,7 @@ onBeforeUnmount(revokeLogoPreview)
       @select-section="setSection"
     >
       <template #actions>
-        <button class="btn-secondary" type="button" @click="setSection('jobs')">
+        <button class="btn-secondary dashboard-cta" type="button" @click="setSection('jobs')">
           <i class="fas fa-plus"></i>
           Новая вакансия
         </button>
@@ -240,23 +294,44 @@ onBeforeUnmount(revokeLogoPreview)
 
       <template v-if="!isLoading">
         <section v-if="activeSection === 'overview'" class="workspace workspace--overview">
-          <div class="panel">
-            <div class="panel-title">
+          <div class="panel overview-main">
+            <div class="panel-heading">
               <div>
                 <p class="eyebrow compact">Сводка</p>
                 <h2>Что происходит сейчас</h2>
               </div>
+              <span class="overview-state" :class="`overview-state--${moderationTone}`">{{ moderationState }}</span>
             </div>
 
-            <div class="summary-row">
-              <span class="summary-pill">Опубликовано: {{ approvedCount }}</span>
-              <span class="summary-pill summary-pill--warm">На модерации: {{ pendingCount }}</span>
-              <span v-if="rejectedCount" class="summary-pill summary-pill--danger">Отклонено: {{ rejectedCount }}</span>
+            <div class="health-grid">
+              <article class="health-card health-card--success">
+                <span class="health-card__label">Опубликовано</span>
+                <strong>{{ approvedCount }}</strong>
+                <p>Активные вакансии уже доступны кандидатам.</p>
+              </article>
+              <article class="health-card health-card--warm">
+                <span class="health-card__label">На модерации</span>
+                <strong>{{ pendingCount }}</strong>
+                <p>Проверяются карточки, которые ещё не вышли в выдачу.</p>
+              </article>
+              <article v-if="rejectedCount" class="health-card health-card--danger">
+                <span class="health-card__label">Нужна доработка</span>
+                <strong>{{ rejectedCount }}</strong>
+                <p>У этих публикаций стоит проверить описание и медиа.</p>
+              </article>
+              <article class="health-card">
+                <span class="health-card__label">Конверсия в отклик</span>
+                <strong>{{ responseConversion }}</strong>
+                <p>Соотношение откликов к числу ваших вакансий.</p>
+              </article>
             </div>
 
-            <div class="overview-grid">
+            <div class="activity-grid">
               <article class="mini-card">
-                <h3>Последние отклики</h3>
+                <div class="mini-card__head">
+                  <h3>Последние отклики</h3>
+                  <button class="mini-link" type="button" @click="setSection('responses')">Все отклики</button>
+                </div>
                 <p v-if="!latestResponses.length" class="muted">Пока откликов нет.</p>
                 <RouterLink
                   v-for="item in latestResponses"
@@ -264,13 +339,19 @@ onBeforeUnmount(revokeLogoPreview)
                   :to="`/messages?application=${item.id}`"
                   class="inline-item"
                 >
-                  <strong>{{ item.name }} {{ item.surname }}</strong>
-                  <span>{{ item.job_title }}</span>
+                  <span class="inline-item__copy">
+                    <strong>{{ item.name }} {{ item.surname }}</strong>
+                    <small>{{ item.job_title }}</small>
+                  </span>
+                  <i class="fas fa-arrow-right"></i>
                 </RouterLink>
               </article>
 
               <article class="mini-card">
-                <h3>Последние диалоги</h3>
+                <div class="mini-card__head">
+                  <h3>Последние диалоги</h3>
+                  <button class="mini-link" type="button" @click="setSection('messages')">Все сообщения</button>
+                </div>
                 <p v-if="!latestConversations.length" class="muted">Сообщений пока нет.</p>
                 <RouterLink
                   v-for="conversation in latestConversations"
@@ -278,17 +359,73 @@ onBeforeUnmount(revokeLogoPreview)
                   :to="`/messages?application=${conversation.application_id}`"
                   class="inline-item"
                 >
-                  <strong>{{ conversation.counterparty_name }}</strong>
-                  <span>{{ conversation.job_title }}</span>
+                  <span class="inline-item__copy">
+                    <strong>{{ conversation.counterparty_name }}</strong>
+                    <small>{{ conversation.job_title }}</small>
+                  </span>
+                  <i class="fas fa-arrow-right"></i>
                 </RouterLink>
               </article>
             </div>
           </div>
+
+          <div class="overview-side">
+            <article class="panel quick-panel">
+              <div class="panel-heading panel-heading--stack">
+                <div>
+                  <p class="eyebrow compact">Быстрые действия</p>
+                  <h2>Рабочий ритм</h2>
+                </div>
+                <p class="muted">Все основные задачи под рукой без переходов по разным кабинетам.</p>
+              </div>
+
+              <div class="quick-grid">
+                <button
+                  v-for="action in quickActions"
+                  :key="action.title"
+                  class="quick-action"
+                  type="button"
+                  @click="setSection(action.section)"
+                >
+                  <span class="quick-action__title">{{ action.title }}</span>
+                  <span class="quick-action__text">{{ action.text }}</span>
+                  <span class="quick-action__button">{{ action.button }}</span>
+                </button>
+              </div>
+            </article>
+
+            <article class="panel compact-panel">
+              <div class="panel-heading panel-heading--stack">
+                <div>
+                  <p class="eyebrow compact">Публикации</p>
+                  <h2>Текущий пакет</h2>
+                </div>
+                <span class="summary-pill">Standard · 5 слотов</span>
+              </div>
+
+              <div class="plan-lines">
+                <div class="plan-line">
+                  <span>Использовано</span>
+                  <strong>{{ jobs.length }} / 5</strong>
+                </div>
+                <div class="plan-line">
+                  <span>Отклики</span>
+                  <strong>{{ responsesHint }}</strong>
+                </div>
+                <div class="plan-line">
+                  <span>Активные диалоги</span>
+                  <strong>{{ unreadConversations }}</strong>
+                </div>
+              </div>
+
+              <button class="btn-primary" type="button" @click="setSection('pricing')">Открыть тарифы</button>
+            </article>
+          </div>
         </section>
 
-        <section v-if="activeSection === 'jobs'" class="workspace">
+        <section v-if="activeSection === 'jobs'" class="workspace workspace--jobs">
           <form class="panel form-panel" @submit.prevent="submitJob">
-            <div class="panel-header">
+            <div class="panel-heading">
               <div>
                 <p class="eyebrow compact">{{ isEditing ? 'Редактирование' : 'Новая вакансия' }}</p>
                 <h2>{{ isEditing ? 'Обновить вакансию' : 'Создать вакансию' }}</h2>
@@ -300,36 +437,80 @@ onBeforeUnmount(revokeLogoPreview)
 
             <div class="form-content">
               <div class="field-grid">
-                <label>Название<input v-model="form.title" required placeholder="Электрик" /></label>
-                <label>Компания<input v-model="form.company" required placeholder="Build Solutions GmbH" /></label>
+                <label>
+                  Название
+                  <input v-model="form.title" required placeholder="Электрик" />
+                </label>
+                <label>
+                  Компания
+                  <input v-model="form.company" required placeholder="Build Solutions GmbH" />
+                </label>
               </div>
+
               <div class="field-grid">
-                <label>Зарплата<input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" /></label>
-                <label>Локация<input v-model="form.location" required placeholder="Берлин, Германия" /></label>
+                <label>
+                  Зарплата
+                  <input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" />
+                </label>
+                <label>
+                  Локация
+                  <input v-model="form.location" required placeholder="Берлин, Германия" />
+                </label>
               </div>
-              <div class="field-grid">
-                <label class="upload-field">
-                  Фото вакансии
+
+              <div class="upload-grid">
+                <label class="upload-card">
+                  <span class="upload-card__label">Фото вакансии</span>
+                  <span class="upload-card__hint">PNG, JPG или WEBP для карточки вакансии</span>
                   <input type="file" accept="image/*" @change="onLogoChange" />
+                  <span class="upload-card__button">Выбрать файл</span>
                 </label>
-                <label>Или ссылка на изображение<input v-model="form.logo_url" placeholder="https://example.com/logo.png" /></label>
+
+                <div class="preview-card">
+                  <span class="upload-card__label">Превью</span>
+                  <div class="logo-preview">
+                    <img v-if="logoPreview || form.logo_url" :src="logoPreview || form.logo_url" alt="Превью фото вакансии" />
+                    <div v-else class="logo-preview__empty">
+                      <i class="fas fa-image"></i>
+                      <span>Изображение появится здесь</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="field-grid">
-                <label class="checkbox-field">
+
+              <label>
+                Резервная ссылка на изображение
+                <input v-model="form.logo_url" placeholder="https://example.com/logo.png" />
+              </label>
+
+              <div class="attribute-grid">
+                <label class="attribute-card" :class="{ 'attribute-card--active': form.has_housing }">
                   <input v-model="form.has_housing" type="checkbox" />
-                  <span>Есть жильё</span>
+                  <i class="fas fa-house"></i>
+                  <span>
+                    <strong>Есть жильё</strong>
+                    <small>Показывать фильтр проживания в карточке вакансии</small>
+                  </span>
                 </label>
-                <label class="checkbox-field">
+
+                <label class="attribute-card" :class="{ 'attribute-card--active': form.has_transport }">
                   <input v-model="form.has_transport" type="checkbox" />
-                  <span>Есть транспорт</span>
+                  <i class="fas fa-van-shuttle"></i>
+                  <span>
+                    <strong>Есть транспорт</strong>
+                    <small>Указывать наличие трансфера или служебного транспорта</small>
+                  </span>
                 </label>
               </div>
-              <div v-if="logoPreview || form.logo_url" class="logo-preview">
-                <img :src="logoPreview || form.logo_url" alt="Превью фото вакансии" />
-              </div>
+
               <label>
                 Описание
-                <textarea v-model="form.description" required rows="7" placeholder="Обязанности, требования, условия работы и график"></textarea>
+                <textarea
+                  v-model="form.description"
+                  required
+                  rows="7"
+                  placeholder="Обязанности, требования, условия работы и график"
+                ></textarea>
               </label>
             </div>
 
@@ -340,7 +521,7 @@ onBeforeUnmount(revokeLogoPreview)
           </form>
 
           <div class="panel jobs-panel">
-            <div class="panel-header">
+            <div class="panel-heading">
               <div>
                 <p class="eyebrow compact">Публикации</p>
                 <h2>Мои вакансии</h2>
@@ -350,7 +531,7 @@ onBeforeUnmount(revokeLogoPreview)
               </button>
             </div>
 
-            <div class="jobs-list">
+            <div v-if="jobs.length" class="jobs-list">
               <article v-for="job in jobs" :key="job.id" class="job-row">
                 <div class="job-logo" :style="{ background: job.color }">
                   <img v-if="job.logo" :src="job.logo" :alt="job.company" />
@@ -367,11 +548,13 @@ onBeforeUnmount(revokeLogoPreview)
                   </div>
 
                   <div class="job-meta">
-                    <span class="summary-pill" :class="{ 'summary-pill--muted': !job.has_housing }">
-                      {{ job.has_housing ? 'С жильём' : 'Без жилья' }}
+                    <span class="meta-chip" :class="{ 'meta-chip--muted': !job.has_housing }">
+                      <i class="fas fa-house"></i>
+                      {{ job.has_housing ? 'Есть жильё' : 'Без жилья' }}
                     </span>
-                    <span class="summary-pill" :class="{ 'summary-pill--muted': !job.has_transport }">
-                      {{ job.has_transport ? 'С транспортом' : 'Без транспорта' }}
+                    <span class="meta-chip" :class="{ 'meta-chip--muted': !job.has_transport }">
+                      <i class="fas fa-van-shuttle"></i>
+                      {{ job.has_transport ? 'Есть транспорт' : 'Без транспорта' }}
                     </span>
                   </div>
 
@@ -391,50 +574,54 @@ onBeforeUnmount(revokeLogoPreview)
               </article>
             </div>
 
-            <p v-if="!jobs.length" class="state">Вакансий пока нет.</p>
+            <p v-else class="state">Вакансий пока нет.</p>
           </div>
         </section>
 
         <section v-if="activeSection === 'responses'" class="panel">
-          <div class="panel-title">
+          <div class="panel-heading">
             <div>
               <p class="eyebrow compact">Кандидаты</p>
               <h2>Все отклики</h2>
             </div>
           </div>
 
-          <article v-for="item in responses" :key="item.id" class="response-row">
-            <div>
-              <strong>{{ item.name }} {{ item.surname }}</strong>
-              <p>{{ item.job_title }} · {{ item.job_company }}</p>
-            </div>
-            <RouterLink :to="`/messages?application=${item.id}`" class="text-button">Открыть диалог</RouterLink>
-          </article>
+          <div class="list-grid">
+            <article v-for="item in responses" :key="item.id" class="response-row">
+              <div>
+                <strong>{{ item.name }} {{ item.surname }}</strong>
+                <p>{{ item.job_title }} · {{ item.job_company }}</p>
+              </div>
+              <RouterLink :to="`/messages?application=${item.id}`" class="text-button">Открыть диалог</RouterLink>
+            </article>
+          </div>
 
           <p v-if="!responses.length" class="state">Откликов пока нет.</p>
         </section>
 
         <section v-if="activeSection === 'messages'" class="panel">
-          <div class="panel-title">
+          <div class="panel-heading">
             <div>
               <p class="eyebrow compact">Переписка</p>
               <h2>Диалоги с кандидатами</h2>
             </div>
           </div>
 
-          <article v-for="conversation in conversations" :key="conversation.application_id" class="response-row">
-            <div>
-              <strong>{{ conversation.counterparty_name }}</strong>
-              <p>{{ conversation.job_title }} · {{ conversation.last_message }}</p>
-            </div>
-            <RouterLink :to="`/messages?application=${conversation.application_id}`" class="text-button">Открыть</RouterLink>
-          </article>
+          <div class="list-grid">
+            <article v-for="conversation in conversations" :key="conversation.application_id" class="response-row">
+              <div>
+                <strong>{{ conversation.counterparty_name }}</strong>
+                <p>{{ conversation.job_title }} · {{ conversation.last_message }}</p>
+              </div>
+              <RouterLink :to="`/messages?application=${conversation.application_id}`" class="text-button">Открыть</RouterLink>
+            </article>
+          </div>
 
           <p v-if="!conversations.length" class="state">Диалогов пока нет.</p>
         </section>
 
         <section v-if="activeSection === 'pricing'" class="panel">
-          <div class="panel-title">
+          <div class="panel-heading">
             <div>
               <p class="eyebrow compact">Тарифы</p>
               <h2>Пакеты для публикации</h2>
@@ -442,7 +629,7 @@ onBeforeUnmount(revokeLogoPreview)
           </div>
 
           <div class="pricing-grid">
-            <article v-for="plan in pricingPlans" :key="plan.name" class="mini-card">
+            <article v-for="plan in pricingPlans" :key="plan.name" class="mini-card plan-card">
               <strong class="plan-name">{{ plan.name }}</strong>
               <h3>{{ plan.price }}</h3>
               <p class="muted">{{ plan.features }}</p>
@@ -458,26 +645,48 @@ onBeforeUnmount(revokeLogoPreview)
 .workspace,
 .panel,
 .mini-card,
-.btn-secondary {
+.btn-secondary,
+.job-row,
+.health-card,
+.quick-action,
+.response-row {
   border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   background: var(--surface-primary);
   box-shadow: var(--shadow-soft);
 }
 
 .workspace,
-.workspace--overview {
+.overview-side,
+.health-grid,
+.activity-grid,
+.pricing-grid,
+.field-grid,
+.form-content,
+.quick-grid,
+.list-grid,
+.plan-lines,
+.upload-grid,
+.attribute-grid {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
-.workspace {
-  grid-template-columns: 1fr 1fr;
-  align-items: stretch;
+.workspace--overview {
+  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.85fr);
+  align-items: start;
+}
+
+.workspace--jobs {
+  grid-template-columns: minmax(21rem, 0.86fr) minmax(26rem, 1.14fr);
+  align-items: start;
 }
 
 .panel,
-.mini-card {
+.mini-card,
+.health-card,
+.quick-action,
+.response-row {
   padding: 1.5rem;
 }
 
@@ -485,41 +694,42 @@ onBeforeUnmount(revokeLogoPreview)
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 92%, transparent), var(--surface-primary)), var(--surface-primary);
+  background:
+    radial-gradient(circle at top right, rgba(26, 177, 111, 0.08), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 96%, transparent), var(--surface-primary));
 }
 
-.form-content,
-.summary-row,
-.overview-grid,
-.pricing-grid,
-.field-grid {
-  display: grid;
-  gap: 1rem;
+.overview-main,
+.jobs-panel {
+  min-height: 100%;
 }
 
-.overview-grid,
-.pricing-grid,
-.field-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.overview-side {
+  align-content: start;
 }
 
-.panel-header,
-.panel-title,
+.panel-heading,
 .job-top,
 .job-actions,
+.form-actions,
 .response-row,
-.form-actions {
+.mini-card__head {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
 }
 
+.panel-heading--stack {
+  display: grid;
+}
+
 .eyebrow {
   margin: 0 0 0.45rem;
   color: var(--brand-strong);
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .compact {
@@ -533,15 +743,195 @@ p {
 }
 
 h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+h3 {
+  font-size: 1.02rem;
   color: var(--text-primary);
 }
 
 .muted,
 .job-description,
-.job-heading p {
+.job-heading p,
+.quick-action__text,
+.upload-card__hint,
+.plan-line span,
+.inline-item small {
   color: var(--text-muted);
+}
+
+.dashboard-cta {
+  min-width: 13.5rem;
+}
+
+.overview-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.overview-state--success {
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
+}
+
+.overview-state--warm {
+  background: rgba(180, 83, 9, 0.12);
+  color: #92400e;
+}
+
+.overview-state--danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.health-grid {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.health-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--surface-secondary) 86%, transparent);
+}
+
+.health-card strong {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.health-card__label {
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.health-card--success {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08), rgba(255, 255, 255, 0.98));
+}
+
+.health-card--warm {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.09), rgba(255, 255, 255, 0.98));
+}
+
+.health-card--danger {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.08), rgba(255, 255, 255, 0.98));
+}
+
+.activity-grid,
+.pricing-grid,
+.field-grid,
+.upload-grid,
+.attribute-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mini-card {
+  display: grid;
+  gap: 0.85rem;
+  background: color-mix(in srgb, var(--surface-secondary) 90%, transparent);
+}
+
+.mini-card__head {
+  align-items: center;
+}
+
+.mini-link {
+  border: none;
+  background: transparent;
+  color: var(--brand-strong);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.inline-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.8);
+  border: 0.0625rem solid var(--border-subtle);
+}
+
+.inline-item__copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.quick-panel,
+.compact-panel {
+  gap: 1.1rem;
+}
+
+.quick-action {
+  display: grid;
+  gap: 0.55rem;
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
+}
+
+.quick-action__title,
+.quick-action__button {
+  font-weight: 800;
+}
+
+.quick-action__title {
+  color: var(--text-primary);
+}
+
+.quick-action__button {
+  color: var(--brand-strong);
+}
+
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999rem;
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
+.plan-lines {
+  gap: 0.85rem;
+}
+
+.plan-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
+}
+
+.plan-line strong {
+  color: var(--text-primary);
+}
+
+.form-panel {
+  position: sticky;
+  top: 5.5rem;
 }
 
 .field-grid label,
@@ -555,13 +945,20 @@ label {
 input,
 textarea {
   width: 100%;
-  min-height: 3.15rem;
-  padding: 0.9rem 1rem;
+  min-height: 3.2rem;
+  padding: 0.92rem 1rem;
   border: 0.0625rem solid var(--border-subtle);
-  border-radius: 0.875rem;
+  border-radius: 0.95rem;
   background: var(--surface-secondary);
   color: var(--text-primary);
   font: inherit;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--brand-base);
+  box-shadow: 0 0 0 0.1875rem rgba(16, 185, 129, 0.12);
 }
 
 textarea {
@@ -569,11 +966,128 @@ textarea {
   min-height: 10rem;
 }
 
+.upload-card,
+.preview-card,
+.attribute-card {
+  min-height: 100%;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
+}
+
+.upload-card,
+.preview-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+}
+
+.upload-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-card input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-card__label {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.upload-card__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.85rem;
+  width: fit-content;
+  padding: 0.65rem 1rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--brand-soft) 78%, transparent);
+  color: var(--brand-strong);
+  font-weight: 800;
+}
+
+.preview-card {
+  align-content: start;
+}
+
+.logo-preview {
+  width: 100%;
+  min-height: 13rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 0.0625rem solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(243, 246, 244, 0.85), rgba(233, 244, 238, 0.96));
+}
+
+.logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-preview__empty {
+  min-height: 13rem;
+  display: grid;
+  place-items: center;
+  gap: 0.55rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.attribute-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.attribute-card input {
+  width: 1rem;
+  min-height: 1rem;
+  margin: 0;
+  padding: 0;
+}
+
+.attribute-card i {
+  color: var(--brand-strong);
+}
+
+.attribute-card span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.attribute-card strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.attribute-card small {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.attribute-card--active {
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08), rgba(255, 255, 255, 0.98));
+  transform: translateY(-0.0625rem);
+}
+
 .btn-primary,
 .btn-secondary,
 .icon-button,
 .text-button {
-  border: 0;
+  border: none;
   font: inherit;
   cursor: pointer;
 }
@@ -585,38 +1099,37 @@ textarea {
   justify-content: center;
   gap: 0.5rem;
   min-height: 3rem;
-  padding: 0.75rem 1.1rem;
-  border-radius: 0.875rem;
+  padding: 0.8rem 1.15rem;
+  border-radius: 0.95rem;
   text-decoration: none;
+  font-weight: 800;
 }
 
 .btn-primary {
   background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
   color: #fff;
-  font-weight: 800;
 }
 
 .btn-secondary {
   background: var(--surface-secondary);
   color: var(--brand-strong);
-  font-weight: 800;
 }
 
 .icon-button {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 2.9rem;
+  height: 2.9rem;
   display: grid;
   place-items: center;
+  border-radius: 0.85rem;
   border: 0.0625rem solid var(--border-strong);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--brand-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
   color: var(--brand-strong);
 }
 
 .status,
 .state {
   padding: 0.95rem 1rem;
-  border-radius: 0.875rem;
+  border-radius: 0.95rem;
 }
 
 .success,
@@ -632,72 +1145,6 @@ textarea {
   color: #b91c1c;
 }
 
-.summary-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
-  color: var(--brand-strong);
-  font-weight: 700;
-}
-
-.summary-pill--warm {
-  background: rgba(180, 83, 9, 0.1);
-  color: #92400e;
-}
-
-.summary-pill--danger {
-  background: rgba(220, 38, 38, 0.1);
-  color: #b91c1c;
-}
-
-.summary-pill--muted {
-  opacity: 0.75;
-}
-
-.upload-field input[type='file'] {
-  padding: 0.75rem;
-}
-
-.checkbox-field {
-  display: flex !important;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 3.15rem;
-  padding: 0 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 0.875rem;
-  background: var(--surface-secondary);
-}
-
-.checkbox-field input {
-  width: 1rem;
-  min-height: 1rem;
-  padding: 0;
-}
-
-.logo-preview {
-  width: 100%;
-  max-width: 10rem;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  background: var(--surface-secondary);
-}
-
-.logo-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.jobs-panel {
-  min-height: 0;
-}
-
 .jobs-list {
   display: grid;
   gap: 1rem;
@@ -705,22 +1152,20 @@ textarea {
 
 .job-row {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: 5.25rem minmax(0, 1fr);
   gap: 1rem;
-  padding: 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface-secondary) 84%, transparent);
+  padding: 1.1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 90%, transparent);
 }
 
 .job-logo {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 5.25rem;
+  height: 5.25rem;
   display: grid;
   place-items: center;
   border-radius: 1rem;
   color: #fff;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 800;
   overflow: hidden;
 }
@@ -734,38 +1179,70 @@ textarea {
 .job-body {
   min-width: 0;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .job-heading h3 {
   margin: 0 0 0.25rem;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
 }
 
-.job-meta,
+.job-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+}
+
 .job-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  flex-wrap: nowrap;
+  justify-content: end;
+  align-items: center;
+}
+
+.job-meta {
+  display: flex;
+  gap: 0.6rem;
   flex-wrap: wrap;
 }
 
-.job-salary {
-  font-weight: 800;
-  color: var(--brand-strong);
-}
-
-.text-button,
-.inline-item {
+.meta-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: 0.75rem;
+  gap: 0.45rem;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999rem;
   background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
   color: var(--brand-strong);
+  font-size: 0.82rem;
   font-weight: 700;
+}
+
+.meta-chip--muted {
+  opacity: 0.72;
+}
+
+.job-salary {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.65rem;
+  padding: 0.58rem 0.82rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
+  font-size: 0.94rem;
+  font-weight: 800;
   text-decoration: none;
-  border: none;
   white-space: nowrap;
 }
 
@@ -774,48 +1251,99 @@ textarea {
   color: #b91c1c;
 }
 
-.inline-item {
-  display: flex;
-  justify-content: space-between;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.2rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.inline-item span {
-  color: var(--text-muted);
+.badge.approved {
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
 }
 
-.mini-card,
+.badge.pending {
+  background: rgba(180, 83, 9, 0.1);
+  color: #92400e;
+}
+
+.badge.rejected {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.list-grid {
+  gap: 0.85rem;
+}
+
 .response-row {
   background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
 }
 
-.response-row {
-  padding: 1rem;
+.plan-card h3 {
+  font-size: 1.65rem;
 }
 
 .plan-name {
   color: var(--brand-strong);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-@media (max-width: 72rem) {
-  .workspace {
+@media (max-width: 78rem) {
+  .workspace--overview,
+  .workspace--jobs {
     grid-template-columns: 1fr;
+  }
+
+  .form-panel {
+    position: static;
   }
 }
 
 @media (max-width: 48rem) {
-  .overview-grid,
+  .activity-grid,
   .pricing-grid,
   .field-grid,
-  .panel-header,
-  .panel-title,
+  .upload-grid,
+  .attribute-grid,
+  .panel-heading,
   .job-top,
   .job-actions,
+  .form-actions,
   .response-row,
-  .form-actions {
+  .mini-card__head {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .overview-state {
+    width: fit-content;
+  }
+
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attribute-card {
+    grid-template-columns: auto auto 1fr;
+  }
+
+  .job-row {
+    grid-template-columns: 1fr;
+  }
+
+  .job-logo {
+    width: 4.5rem;
+    height: 4.5rem;
   }
 
   .btn-primary,
@@ -826,6 +1354,7 @@ textarea {
 
   .job-buttons {
     flex-direction: column;
+    flex-wrap: nowrap;
   }
 }
 </style>

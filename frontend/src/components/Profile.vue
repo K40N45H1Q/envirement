@@ -740,15 +740,6 @@ label {
   }
 
   .sidebar {
-    position: static;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(10.5rem, 1fr);
-    overflow-x: auto;
-    padding-bottom: 0.9rem;
-    scrollbar-width: none;
-  }
-
-  .sidebar::-webkit-scrollbar {
     display: none;
   }
 }
@@ -760,10 +751,6 @@ label {
   .avatar-row {
     grid-template-columns: 1fr;
     display: grid;
-  }
-
-  .sidebar {
-    grid-auto-columns: minmax(12rem, 1fr);
   }
 
   .page {

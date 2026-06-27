@@ -54,14 +54,16 @@ html, body, #root {
 
 html {
   background:
-    radial-gradient(circle at top left, rgba(29, 168, 107, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(44, 197, 129, 0.08), transparent 20%),
+    radial-gradient(circle at top left, rgba(29, 168, 107, 0.08), transparent 20%),
+    radial-gradient(circle at 100% 0, rgba(44, 197, 129, 0.05), transparent 18%),
+    radial-gradient(circle at 0 100%, rgba(29, 168, 107, 0.05), transparent 18%),
     var(--surface-app);
 }
 
 body {
   color: var(--text-primary);
-  background: transparent;
+  background:
+    linear-gradient(180deg, rgba(244, 247, 244, 0.96), rgba(244, 247, 244, 0.98));
 }
 
 a,

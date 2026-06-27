@@ -37,48 +37,55 @@ watch(() => route.query, syncFromRoute)
 </script>
 
 <template>
-  <section class="search-shell surface-card">
-    <form class="search-grid" @submit.prevent="submit">
-      <label>
-        <span>Я ищу</span>
-        <div class="input-wrap">
-          <input v-model="query" type="text" placeholder="Должность, ключевое слово" />
-          <i class="fas fa-magnifying-glass"></i>
-        </div>
-      </label>
+  <section class="search-frame">
+    <div class="search-shell surface-card">
+      <form class="search-grid" @submit.prevent="submit">
+        <label>
+          <span>Я ищу</span>
+          <div class="input-wrap">
+            <input v-model="query" type="text" placeholder="Должность, ключевое слово" />
+            <i class="fas fa-magnifying-glass"></i>
+          </div>
+        </label>
 
-      <label>
-        <span>Где</span>
-        <div class="input-wrap">
-          <input v-model="location" type="text" placeholder="Страна, город или регион" />
-          <i class="fas fa-location-dot"></i>
-        </div>
-      </label>
+        <label>
+          <span>Где</span>
+          <div class="input-wrap">
+            <input v-model="location" type="text" placeholder="Страна, город или регион" />
+            <i class="fas fa-location-dot"></i>
+          </div>
+        </label>
 
-      <label>
-        <span>Категория</span>
-        <BaseDropdown
-          v-model="category"
-          aria-label="Категория"
-          class="search-dropdown"
-          :options="categoryOptions"
-          full-width
-          :show-selected-hint="false"
-        />
-      </label>
+        <label>
+          <span>Категория</span>
+          <BaseDropdown
+            v-model="category"
+            aria-label="Категория"
+            class="search-dropdown"
+            :options="categoryOptions"
+            full-width
+            :show-selected-hint="false"
+          />
+        </label>
 
-      <button type="submit" class="btn-primary search-button">
-        Найти вакансии
-      </button>
-    </form>
+        <button type="submit" class="btn-primary search-button">
+          Найти вакансии
+        </button>
+      </form>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.search-shell {
+.search-frame {
   width: min(100%, var(--shell-max-width));
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 0 var(--shell-gutter);
+}
+
+.search-shell {
+  padding: 1.15rem;
+  border-radius: 1.5rem;
 }
 
 .search-grid {

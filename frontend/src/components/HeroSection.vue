@@ -1,198 +1,214 @@
+<script setup>
+import { RouterLink } from 'vue-router'
+import Match from './Match.vue'
+</script>
+
 <template>
-  <section class="hero">
-    <div class="hero-content">
-      <div class="badge">НАШЕ ПРЕИМУЩЕСТВО</div>
-      <h1>
-        Умный подбор.<br />
-        Прозрачные отклики.<br />
-        <span class="accent">Точный результат.</span>
-      </h1>
-      <p class="hero-description">
-        Каждый кандидат получает Score по вашим требованиям.<br />
-        Вы видите только тех, кто действительно подходит.
-      </p>
-      <div class="hero-buttons">
-        <RouterLink to="/jobs" class="btn-primary">
-          <i class="fas fa-magnifying-glass"></i>
-          Найти сотрудника
-        </RouterLink>
-        <RouterLink to="/employer-dashboard" class="btn-secondary">
-          Разместить вакансию
-          <i class="fas fa-plus"></i>
-        </RouterLink>
+  <section class="hero-shell">
+    <div class="hero surface-card">
+      <div class="hero-copy">
+        <p class="hero-eyebrow">Наше преимущество</p>
+        <h1>
+          Умный подбор.
+          <br />
+          Прозрачные отклики.
+          <br />
+          <span>Точный результат.</span>
+        </h1>
+        <p class="hero-description">
+          Каждый кандидат получает Score по вашим требованиям.
+          Вы видите только тех, кто действительно подходит.
+        </p>
+
+        <div class="hero-actions">
+          <RouterLink to="/jobs" class="btn-primary">
+            <i class="fas fa-magnifying-glass"></i>
+            Найти сотрудника
+          </RouterLink>
+          <RouterLink to="/employer-dashboard" class="btn-secondary">
+            Разместить вакансию
+            <i class="fas fa-plus"></i>
+          </RouterLink>
+        </div>
+
+        <div class="hero-features">
+          <article class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-chart-bar"></i>
+            </div>
+            <div>
+              <h3>Match Score</h3>
+              <p>По каждому отклику</p>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <div>
+              <h3>Сравнение</h3>
+              <p>Кандидатов side-by-side</p>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+              <h3>Аналитика</h3>
+              <p>По всем этапам подбора</p>
+            </div>
+          </article>
+        </div>
       </div>
-      <div class="features">
-        <div class="feature">
-          <div class="feature-icon">
-            <i class="fas fa-chart-bar"></i>
-          </div>
-          <div class="feature-text">
-            <h4>Match Score</h4>
-            <p>по каждому отклику</p>
-          </div>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <i class="fas fa-users"></i>
-          </div>
-          <div class="feature-text">
-            <h4>Сравнение</h4>
-            <p>кандидатов side-by-side</p>
-          </div>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <i class="fas fa-chart-line"></i>
-          </div>
-          <div class="feature-text">
-            <h4>Аналитика</h4>
-            <p>по всем этапам подбора</p>
-          </div>
-        </div>
+
+      <div class="hero-score">
+        <Match />
       </div>
     </div>
-
-    <Match />
   </section>
 </template>
 
 <style scoped>
-.hero {
-  --s: clamp(0.75rem, 1.7vw, 0.875rem);
-
-  padding: calc(var(--s) * 3.75) 0;
-  display: grid;
-  grid-template-columns: 1fr 40%;
-  gap: calc(var(--s) * 3.75);
-  align-items: start;
-  max-width: 100rem;
+.hero-shell {
+  width: min(100%, var(--shell-max-width));
   margin: 0 auto;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding: 1.25rem var(--shell-gutter) 0;
 }
 
-.badge {
-  display: inline-block;
-  padding: calc(var(--s) * 0.375) calc(var(--s) * 1);
-  color: #19785a;
-  border: 0.15rem solid rgba(25, 120, 90, 0.7);
-  border-radius: calc(var(--s) * 1.25);
-  font-size: calc(var(--s) * 1);
-  font-weight: 600;
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 31rem);
+  gap: 1.75rem;
+  align-items: start;
+  padding: 1.75rem;
+  border-radius: 1.6rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background:
+    radial-gradient(circle at top left, rgba(26, 177, 111, 0.12), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.06), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-copy {
+  display: grid;
+  gap: 1.3rem;
+  align-content: start;
+}
+
+.hero-eyebrow {
+  margin: 0;
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: calc(var(--s) * 1.5);
 }
 
 h1 {
-  font-size: clamp(1.75rem, 5vw, 3rem);
-  line-height: 1.1;
-  margin: 0 0 calc(var(--s) * 1.25);
-  font-weight: 700;
-  color: #1e2326;
+  margin: 0;
+  font-size: clamp(2.2rem, 4.8vw, 4rem);
+  line-height: 0.98;
+  color: var(--text-primary);
 }
 
-.accent {
-  color: #19785a;
+h1 span {
+  color: var(--brand-strong);
 }
 
 .hero-description {
-  font-size: var(--s);
-  color: #666;
-  margin: 0 0 calc(var(--s) * 2);
-  line-height: 1.6;
-}
-
-.hero-buttons {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: calc(var(--s) * 1.5);
-  margin-bottom: calc(var(--s) * 2.5);
-}
-
-.features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: calc(var(--s) * 2.5);
-  align-items: start;
-}
-
-.feature {
-  display: grid;
-  grid-template-columns: calc(var(--s) * 3) 1fr;
-  gap: calc(var(--s) * 0.5);
-  min-width: 0;
-  align-items: start;
-}
-
-.feature-icon {
-  width: calc(var(--s) * 3);
-  height: calc(var(--s) * 3);
-  min-width: calc(var(--s) * 3);
-  background: #e6f0ec;
-  border-radius: calc(var(--s) * 0.5);
-  display: grid;
-  place-items: center;
-  color: #19785a;
-  font-size: calc(var(--s) * 1.125);
-}
-
-.feature-text h4 {
-  font-size: calc(var(--s) * 1);
-  margin: 0 0 calc(var(--s) * 0.25);
-  color: #1e2326;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  line-height: 1.3;
-}
-
-.feature-text p {
-  font-size: calc(var(--s) * 0.9);
-  color: #999;
+  max-width: 40rem;
   margin: 0;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  line-height: 1.3;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
 }
 
 .btn-primary,
 .btn-secondary {
-  height: 3.5rem;
-  font-size: clamp(0.8125rem, 1.5vw, 1rem);
+  min-height: 3.4rem;
+  min-width: 13rem;
+  padding-inline: 1.35rem;
+  border-radius: 1rem;
 }
 
-@media (max-width: 62rem) {
+.hero-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.feature-card {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 1rem;
+  border-radius: 1.1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.feature-icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.9rem;
+  color: var(--brand-strong);
+  background: color-mix(in srgb, var(--brand-soft) 76%, transparent);
+}
+
+.feature-card h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.98rem;
+  color: var(--text-primary);
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.hero-score {
+  min-width: 0;
+}
+
+@media (max-width: 74rem) {
   .hero {
     grid-template-columns: 1fr;
   }
-  .hero-buttons {
+}
+
+@media (max-width: 56rem) {
+  .hero-features {
     grid-template-columns: 1fr;
   }
-  .features {
-    place-items: start center;
+}
+
+@media (max-width: 40rem) {
+  .hero {
+    padding: 1.25rem;
   }
 
-  .feature {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: calc(var(--s) * 0.75);
+  .hero-actions {
+    display: grid;
   }
 
-  .feature-icon {
-    width: calc(var(--s) * 3.5);
-    height: calc(var(--s) * 3.5);
-    min-width: unset;
-    font-size: calc(var(--s) * 1.5);
-  }
-
-  .feature-text {
-    text-align: center;
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
   }
 }
 </style>
-
-<script setup>
-import { RouterLink } from 'vue-router';
-import Match from './Match.vue';
-</script>

@@ -89,8 +89,15 @@
 
             <template v-if="user">
               <span class="mobile-user-email">{{ user.email }}</span>
-              <RouterLink to="/profile" class="btn-primary" @click="closeMenu">Профиль</RouterLink>
-              <RouterLink :to="dashboardRoute" class="btn-secondary" @click="closeMenu">Кабинет</RouterLink>
+              <RouterLink
+                v-for="item in mobileAccountLinks"
+                :key="item.to"
+                :to="item.to"
+                :class="item.primary ? 'btn-primary' : 'btn-secondary'"
+                @click="closeMenu"
+              >
+                {{ item.label }}
+              </RouterLink>
               <button type="button" class="btn-secondary" @click="logout">Выйти</button>
             </template>
 
@@ -169,6 +176,28 @@ export default {
     },
     accountTypeLabel() {
       return ACCOUNT_LABELS[this.user?.account_type] || 'Account'
+    },
+    mobileAccountLinks() {
+      if (!this.user) return []
+
+      if (this.user.account_type === 'user') {
+        return [
+          { label: 'Профиль', to: '/profile', primary: true },
+          { label: 'Дашборд', to: '/dashboard' },
+          { label: 'Резюме', to: '/resume-builder' },
+          { label: 'Сообщения', to: '/messages' },
+          { label: 'Вакансии', to: '/jobs' },
+        ]
+      }
+
+      return [
+        { label: 'Кабинет', to: '/employer-dashboard', primary: true },
+        { label: 'Мои вакансии', to: '/employer-dashboard?section=jobs' },
+        { label: 'Отклики', to: '/employer-dashboard?section=responses' },
+        { label: 'Сообщения', to: '/employer-dashboard?section=messages' },
+        { label: 'Тарифы', to: '/employer-dashboard?section=pricing' },
+        { label: 'Профиль', to: '/profile' },
+      ]
     },
   },
 
