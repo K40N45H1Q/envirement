@@ -21,7 +21,7 @@ const {
   countries,
   filteredJobs,
   hotCount,
-  newCount,
+  bookmarkedCount,
   resultsLabel,
   employmentOptions,
 } = storeToRefs(jobsStore)
@@ -49,6 +49,7 @@ const selectCountry = async (value) => {
 
 const selectTab = async (value) => {
   jobsStore.setFilter('selectedTab', value)
+  jobsStore.setFilter('onlyBookmarked', value === 'favorites')
   await syncRoute()
 }
 
@@ -231,11 +232,11 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="tab-button"
-                  :class="{ 'tab-button--active': filters.selectedTab === 'new' }"
-                  @click="selectTab('new')"
+                  :class="{ 'tab-button--active': filters.selectedTab === 'favorites' }"
+                  @click="selectTab('favorites')"
                 >
-                  Новые вакансии
-                  <span>{{ newCount }}</span>
+                  Избранные
+                  <span>{{ bookmarkedCount }}</span>
                 </button>
               </div>
 
@@ -293,7 +294,7 @@ onBeforeUnmount(() => {
                     type="button"
                     class="save-button"
                     :class="{ 'save-button--active': job.isBookmarked }"
-                    :aria-label="job.isBookmarked ? 'Убрать из сохраненных' : 'Сохранить вакансию'"
+                    :aria-label="job.isBookmarked ? 'Убрать из избранного' : 'Добавить в избранное'"
                     @click="jobsStore.toggleBookmark(job.id)"
                   >
                     <i :class="job.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
@@ -317,10 +318,17 @@ onBeforeUnmount(() => {
             </header>
 
             <div class="country-cards">
-              <article v-for="country in featuredCountries" :key="country.key" class="country-card">
+              <button
+                v-for="country in featuredCountries"
+                :key="country.key"
+                type="button"
+                class="country-card"
+                :class="{ 'country-card--active': filters.selectedCountry === country.key }"
+                @click="selectCountry(country.key)"
+              >
                 <strong>{{ country.flag }} {{ country.label }}</strong>
                 <span>{{ country.count }} вакансий</span>
-              </article>
+              </button>
             </div>
           </section>
         </div>
@@ -485,6 +493,13 @@ onBeforeUnmount(() => {
   padding: 1.25rem;
 }
 
+.map-card,
+.filters-card {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
 .sidebar-column {
   position: sticky;
   top: 5.75rem;
@@ -612,7 +627,7 @@ onBeforeUnmount(() => {
 .jobs-toolbar,
 .job-title-line,
 .job-actions {
-  align-items: stretch;
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -631,6 +646,11 @@ onBeforeUnmount(() => {
 .job-time,
 .sort-label span {
   color: var(--text-muted);
+}
+
+.sidebar-head {
+  padding-bottom: 0.9rem;
+  border-bottom: 0.0625rem solid var(--border-subtle);
 }
 
 .jobs-toolbar {
@@ -656,6 +676,10 @@ onBeforeUnmount(() => {
 .country-cards {
   display: grid;
   gap: 0.75rem;
+}
+
+.country-list {
+  margin-top: 0.15rem;
 }
 
 .country-cards {
@@ -810,8 +834,8 @@ onBeforeUnmount(() => {
 
 .details-button {
   min-width: 8.5rem;
-  min-height: 2.9rem;
-  padding-block: 0.75rem;
+  height: 2.9rem;
+  padding-block: 0;
   justify-content: center;
 }
 
@@ -824,9 +848,28 @@ onBeforeUnmount(() => {
 }
 
 .country-card {
+  appearance: none;
   padding: 0.9rem 1rem;
   display: grid;
   gap: 0.25rem;
+  min-height: 5rem;
+  align-content: center;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.country-card:hover,
+.country-card--active {
+  border-color: color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 58%, white);
+  box-shadow: 0 0.625rem 1.25rem rgba(16, 24, 40, 0.06);
+}
+
+.country-card--active strong {
+  color: var(--brand-strong);
 }
 
 .country-item,
@@ -856,12 +899,19 @@ onBeforeUnmount(() => {
 .sidebar-button {
   width: 100%;
   justify-content: center;
-  margin-top: 1rem;
+  margin-top: 0.25rem;
 }
 
 .filter-group {
   display: grid;
   gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 0.0625rem solid var(--border-subtle);
+}
+
+.filter-group:first-of-type {
+  padding-top: 0;
+  border-top: none;
 }
 
 .toggle-row {

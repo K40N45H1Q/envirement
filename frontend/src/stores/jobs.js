@@ -35,7 +35,7 @@ const readBookmarks = () => {
   try {
     const raw = localStorage.getItem(BOOKMARKS_STORAGE_KEY)
     const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed.map((value) => String(value)) : []
   } catch {
     return []
   }
@@ -148,7 +148,7 @@ export const useJobsStore = defineStore('jobs', {
           hasHousing: inferHousing(job),
           hasTransport: inferTransport(job),
           employmentType: inferEmployment(job),
-          isBookmarked: state.bookmarks.includes(job.id),
+          isBookmarked: state.bookmarks.includes(String(job.id)),
           tags: [
             inferHousing(job) ? 'Жильё' : 'Без жилья',
             inferTransport(job) ? 'Транспорт' : 'Самостоятельный доезд',
@@ -232,8 +232,8 @@ export const useJobsStore = defineStore('jobs', {
         result = result.filter((job) => job.isHot)
       }
 
-      if (this.filters.selectedTab === 'new') {
-        result = result.filter((job) => job.isNew)
+      if (this.filters.selectedTab === 'favorites') {
+        result = result.filter((job) => job.isBookmarked)
       }
 
       if (this.filters.selectedSort === 'salary') {
@@ -249,8 +249,8 @@ export const useJobsStore = defineStore('jobs', {
       return this.enrichedJobs.filter((job) => job.isHot).length
     },
 
-    newCount() {
-      return this.enrichedJobs.filter((job) => job.isNew).length
+    bookmarkedCount() {
+      return this.enrichedJobs.filter((job) => job.isBookmarked).length
     },
 
     resultsLabel() {
@@ -341,10 +341,16 @@ export const useJobsStore = defineStore('jobs', {
     },
 
     toggleBookmark(jobId) {
-      if (this.bookmarks.includes(jobId)) {
-        this.bookmarks = this.bookmarks.filter((id) => id !== jobId)
+      const normalizedJobId = String(jobId)
+
+      if (this.bookmarks.includes(normalizedJobId)) {
+        this.bookmarks = this.bookmarks.filter((id) => id !== normalizedJobId)
       } else {
-        this.bookmarks = [...this.bookmarks, jobId]
+        this.bookmarks = [...this.bookmarks, normalizedJobId]
+      }
+
+      if (this.filters.selectedTab === 'favorites') {
+        this.filters.onlyBookmarked = true
       }
 
       persistBookmarks(this.bookmarks)
