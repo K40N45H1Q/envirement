@@ -25,7 +25,6 @@ const applicationsRefreshTimer = ref(null)
 const activeSection = ref(typeof route.query.section === 'string' ? route.query.section : 'dashboard')
 
 const shellSections = [
-  { id: 'dashboard', label: 'Дашборд', icon: 'fas fa-table-columns', to: '/dashboard' },
   { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'profile', label: 'Профиль', icon: 'fas fa-user', to: '/profile' },
   { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/jobs' },
@@ -48,7 +47,12 @@ const userName = computed(() => {
 })
 
 const appliedJobIds = computed(() => new Set(applications.value.map((item) => item.job_id)))
-const recommendedJobs = computed(() => jobs.value.filter((job) => !appliedJobIds.value.has(job.id)).slice(0, 3))
+
+const availableJobs = computed(() => (
+  jobs.value.filter((job) => !appliedJobIds.value.has(job.id))
+))
+
+const recommendedJobs = computed(() => availableJobs.value.slice(0, 3))
 
 const profileScore = computed(() => {
   const fields = [profile.value?.first_name, profile.value?.last_name, profile.value?.phone, profile.value?.resume_name]
@@ -59,6 +63,7 @@ const shellStats = computed(() => ([
   { value: `${profileScore.value}%`, label: 'Заполнение профиля' },
   { value: applications.value.length, label: 'Моих откликов' },
   { value: conversations.value.length, label: 'Диалогов' },
+  { value: availableJobs.value.length, label: 'Рекомендаций' },
 ]))
 
 const getSettledValue = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback)
@@ -101,7 +106,9 @@ const loadRecommendations = async () => {
       await messaging.loadConversations(route.query.application, { silent: true })
     }
 
-    const hasCandidateDataError = isCandidateAccount.value && (applicationsResult.status === 'rejected' || profileResult.status === 'rejected')
+    const hasCandidateDataError = isCandidateAccount.value && (
+      applicationsResult.status === 'rejected' || profileResult.status === 'rejected'
+    )
 
     if (!isCandidateAccount.value && state.user) {
       notice.value = 'Этот кабинет доступен только кандидату.'
@@ -133,11 +140,14 @@ const loadRecommendations = async () => {
 
 const refreshApplicationsSilently = async () => {
   if (!isCandidateAccount.value || isRefreshingApplications.value) return
+
   isRefreshingApplications.value = true
+
   try {
     const applicationsData = await getMyApplications()
     applications.value = Array.isArray(applicationsData) ? applicationsData : []
   } catch {
+    // Silent refresh should not break the dashboard UI.
   } finally {
     isRefreshingApplications.value = false
   }
@@ -145,6 +155,7 @@ const refreshApplicationsSilently = async () => {
 
 const startApplicationsRealtime = () => {
   if (applicationsRefreshTimer.value || !isCandidateAccount.value) return
+
   applicationsRefreshTimer.value = window.setInterval(() => {
     refreshApplicationsSilently()
   }, 5000)
@@ -152,6 +163,7 @@ const startApplicationsRealtime = () => {
 
 const stopApplicationsRealtime = () => {
   if (!applicationsRefreshTimer.value) return
+
   window.clearInterval(applicationsRefreshTimer.value)
   applicationsRefreshTimer.value = null
 }
@@ -162,8 +174,10 @@ watch(() => route.query.section, (section) => {
 
 watch(() => route.query.application, async (application) => {
   if (activeSection.value !== 'messages') return
+
   const applicationId = Number(application)
   if (!applicationId || applicationId === messaging.activeApplicationId) return
+
   const exists = messaging.conversations.some((item) => item.application_id === applicationId)
   if (exists) {
     await messaging.openConversation(applicationId)
@@ -185,6 +199,7 @@ onBeforeUnmount(() => {
 <template>
   <AppLayout>
     <DashboardShell
+      class="candidate-dashboard-shell"
       :sections="shellSections"
       :active-section="activeSection"
       eyebrow="Личный кабинет соискателя"
@@ -207,6 +222,7 @@ onBeforeUnmount(() => {
               <p class="eyebrow compact">Рекомендации</p>
               <h2>Вакансии для отклика</h2>
             </div>
+
             <button class="icon-button" type="button" aria-label="Обновить" @click="loadRecommendations">
               <i class="fas fa-rotate-right"></i>
             </button>
@@ -226,11 +242,13 @@ onBeforeUnmount(() => {
                 <img v-if="job.logo" :src="job.logo" :alt="job.company" />
                 <span v-else>{{ job.initials }}</span>
               </div>
+
               <div class="job-info">
                 <h3>{{ job.title }}</h3>
                 <p>{{ job.company }} · {{ job.location }}</p>
                 <strong>{{ job.salary }}</strong>
               </div>
+
               <span class="job-action">Откликнуться</span>
             </RouterLink>
           </div>
@@ -255,6 +273,7 @@ onBeforeUnmount(() => {
               @click="application.chat_approved ? openDashboardConversation(application.id) : router.push('/jobs')"
             >
               <i class="fas fa-message"></i>
+
               <div class="activity-info">
                 <span class="activity-title">{{ application.job_title }}</span>
                 <span class="activity-company">
@@ -297,6 +316,9 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(0, 1fr) 22rem;
   gap: 1.5rem;
   align-items: stretch;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .panel {
@@ -478,9 +500,37 @@ h2 {
   padding: 1.5rem 1rem;
 }
 
+/* Верхняя сетка статистики внутри DashboardShell: 4 карточки в ряд */
+.candidate-dashboard-shell :deep(.shell-stats),
+.candidate-dashboard-shell :deep(.dashboard-stats),
+.candidate-dashboard-shell :deep(.dashboard-shell-stats),
+.candidate-dashboard-shell :deep(.dashboard-shell__stats),
+.candidate-dashboard-shell :deep(.stats-grid) {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 1rem !important;
+  align-items: stretch;
+}
+
+.candidate-dashboard-shell :deep(.shell-stat),
+.candidate-dashboard-shell :deep(.dashboard-stat),
+.candidate-dashboard-shell :deep(.stat-card),
+.candidate-dashboard-shell :deep(.stats-card) {
+  min-width: 0;
+  width: 100%;
+}
+
 @media (max-width: 72rem) {
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .candidate-dashboard-shell :deep(.shell-stats),
+  .candidate-dashboard-shell :deep(.dashboard-stats),
+  .candidate-dashboard-shell :deep(.dashboard-shell-stats),
+  .candidate-dashboard-shell :deep(.dashboard-shell__stats),
+  .candidate-dashboard-shell :deep(.stats-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
@@ -496,6 +546,14 @@ h2 {
   .panel,
   .btn-primary {
     padding: 1.25rem;
+  }
+
+  .candidate-dashboard-shell :deep(.shell-stats),
+  .candidate-dashboard-shell :deep(.dashboard-stats),
+  .candidate-dashboard-shell :deep(.dashboard-shell-stats),
+  .candidate-dashboard-shell :deep(.dashboard-shell__stats),
+  .candidate-dashboard-shell :deep(.stats-grid) {
+    grid-template-columns: 1fr !important;
   }
 }
 </style>

@@ -483,6 +483,7 @@ onBeforeUnmount(() => {
 .sidebar-column {
   display: grid;
   gap: 1.25rem;
+  height: 100%;
 }
 
 .search-shell,

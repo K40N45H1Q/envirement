@@ -406,12 +406,6 @@ onBeforeUnmount(() => {
       :stats="shellStats"
       @select-section="setSection"
     >
-      <template #actions>
-        <button v-if="showHeaderAction" class="btn-secondary dashboard-cta" type="button" @click="setSection('jobs')">
-          <i class="fas fa-plus"></i>
-          Новая вакансия
-        </button>
-      </template>
 
       <p v-if="status" class="status success">{{ status }}</p>
       <p v-if="error" class="status danger">{{ error }}</p>
@@ -1145,7 +1139,7 @@ textarea {
   flex: 0 0 4.25rem;
   border: 0.1875rem solid rgba(255, 255, 255, 0.95);
   border-radius: 50%;
-  background: #0f766e;
+  background: #16a34a;
   color: #fff;
   font-family: Arial, sans-serif;
   font-size: 1.05rem;

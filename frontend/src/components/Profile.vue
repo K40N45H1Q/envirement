@@ -181,11 +181,10 @@ onBeforeUnmount(revokeAvatarPreview)
 
     <template v-else>
       <aside v-if="!props.embedded" class="sidebar">
-        <RouterLink to="/dashboard"><i class="fas fa-table-columns"></i> Дэшборд</RouterLink>
+        <RouterLink to="/messages"><i class="fas fa-message"></i> Сообщения</RouterLink>
         <RouterLink to="/profile"><i class="fas fa-user"></i> Профиль</RouterLink>
         <RouterLink to="/jobs"><i class="fas fa-briefcase"></i> Вакансии</RouterLink>
         <RouterLink to="/resume-builder"><i class="fas fa-file-lines"></i> Резюме</RouterLink>
-        <RouterLink to="/messages"><i class="fas fa-message"></i> Сообщения</RouterLink>
       </aside>
 
       <section class="content">
