@@ -1,14 +1,19 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
+import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { getJobs, getMyApplications } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { useAuth } from '@/stores/auth'
+import { useMessagingStore } from '@/stores/messaging'
 import { normalizeJob } from '@/utils/jobs'
 
+const route = useRoute()
+const router = useRouter()
 const { state } = useAuth()
+const messaging = useMessagingStore()
 
 const jobs = ref([])
 const applications = ref([])
@@ -17,13 +22,14 @@ const isLoading = ref(false)
 const isRefreshingApplications = ref(false)
 const notice = ref('')
 const applicationsRefreshTimer = ref(null)
+const activeSection = ref(typeof route.query.section === 'string' ? route.query.section : 'dashboard')
 
 const shellSections = [
   { id: 'dashboard', label: 'Дашборд', icon: 'fas fa-table-columns', to: '/dashboard' },
+  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'profile', label: 'Профиль', icon: 'fas fa-user', to: '/profile' },
   { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/jobs' },
   { id: 'resume', label: 'Резюме', icon: 'fas fa-file-lines', to: '/resume-builder' },
-  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/messages' },
 ]
 
 const normalizeAccountType = (accountType) => {
@@ -33,15 +39,11 @@ const normalizeAccountType = (accountType) => {
 
 const currentAccountType = computed(() => normalizeAccountType(state.user?.account_type))
 const isCandidateAccount = computed(() => currentAccountType.value === 'candidate')
+const conversations = computed(() => messaging.conversations)
 
 const userName = computed(() => {
-  const profileName = [profile.value?.first_name, profile.value?.last_name]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
+  const profileName = [profile.value?.first_name, profile.value?.last_name].filter(Boolean).join(' ').trim()
   if (profileName) return profileName
-
   return state.user?.email?.split('@')[0] || 'кандидат'
 })
 
@@ -49,30 +51,31 @@ const appliedJobIds = computed(() => new Set(applications.value.map((item) => it
 const recommendedJobs = computed(() => jobs.value.filter((job) => !appliedJobIds.value.has(job.id)).slice(0, 3))
 
 const profileScore = computed(() => {
-  const fields = [
-    profile.value?.first_name,
-    profile.value?.last_name,
-    profile.value?.phone,
-    profile.value?.resume_name,
-  ]
-
+  const fields = [profile.value?.first_name, profile.value?.last_name, profile.value?.phone, profile.value?.resume_name]
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 })
 
-const activeApplications = computed(() => applications.value.length)
-
 const shellStats = computed(() => ([
   { value: `${profileScore.value}%`, label: 'Заполнение профиля' },
-  { value: activeApplications.value, label: 'Моих откликов' },
-  { value: recommendedJobs.value.length, label: 'Новых вакансий' },
+  { value: applications.value.length, label: 'Моих откликов' },
+  { value: conversations.value.length, label: 'Диалогов' },
 ]))
 
-const getSettledValue = (result, fallback) => {
-  if (result.status === 'fulfilled') {
-    return result.value
-  }
+const getSettledValue = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback)
 
-  return fallback
+const setSection = async (sectionId) => {
+  activeSection.value = sectionId
+  await router.replace({
+    path: '/dashboard',
+    query: sectionId === 'dashboard' ? {} : { section: sectionId },
+  })
+}
+
+const openDashboardConversation = async (applicationId) => {
+  await router.replace({
+    path: '/dashboard',
+    query: { section: 'messages', application: String(applicationId) },
+  })
 }
 
 const loadRecommendations = async () => {
@@ -94,9 +97,11 @@ const loadRecommendations = async () => {
     applications.value = Array.isArray(applicationsData) ? applicationsData : []
     profile.value = profileData && typeof profileData === 'object' ? profileData : null
 
-    const hasCandidateDataError =
-      isCandidateAccount.value &&
-      (applicationsResult.status === 'rejected' || profileResult.status === 'rejected')
+    if (isCandidateAccount.value) {
+      await messaging.loadConversations(route.query.application, { silent: true })
+    }
+
+    const hasCandidateDataError = isCandidateAccount.value && (applicationsResult.status === 'rejected' || profileResult.status === 'rejected')
 
     if (!isCandidateAccount.value && state.user) {
       notice.value = 'Этот кабинет доступен только кандидату.'
@@ -109,11 +114,11 @@ const loadRecommendations = async () => {
     }
 
     if (hasCandidateDataError) {
-      notice.value = 'Часть данных профиля не загрузилась. Проверьте, что тип аккаунта кандидата установлен как candidate.'
+      notice.value = 'Часть данных профиля не загрузилась. Проверьте тип аккаунта кандидата.'
       return
     }
 
-    if (!jobs.value.length) {
+    if (!jobs.value.length && activeSection.value === 'dashboard') {
       notice.value = 'Пока опубликованных вакансий нет.'
     }
   } catch {
@@ -128,14 +133,11 @@ const loadRecommendations = async () => {
 
 const refreshApplicationsSilently = async () => {
   if (!isCandidateAccount.value || isRefreshingApplications.value) return
-
   isRefreshingApplications.value = true
-
   try {
     const applicationsData = await getMyApplications()
     applications.value = Array.isArray(applicationsData) ? applicationsData : []
   } catch {
-    // Не показываем ошибку при фоновом обновлении, чтобы не мешать пользователю.
   } finally {
     isRefreshingApplications.value = false
   }
@@ -143,7 +145,6 @@ const refreshApplicationsSilently = async () => {
 
 const startApplicationsRealtime = () => {
   if (applicationsRefreshTimer.value || !isCandidateAccount.value) return
-
   applicationsRefreshTimer.value = window.setInterval(() => {
     refreshApplicationsSilently()
   }, 5000)
@@ -151,18 +152,33 @@ const startApplicationsRealtime = () => {
 
 const stopApplicationsRealtime = () => {
   if (!applicationsRefreshTimer.value) return
-
   window.clearInterval(applicationsRefreshTimer.value)
   applicationsRefreshTimer.value = null
 }
 
+watch(() => route.query.section, (section) => {
+  activeSection.value = typeof section === 'string' ? section : 'dashboard'
+})
+
+watch(() => route.query.application, async (application) => {
+  if (activeSection.value !== 'messages') return
+  const applicationId = Number(application)
+  if (!applicationId || applicationId === messaging.activeApplicationId) return
+  const exists = messaging.conversations.some((item) => item.application_id === applicationId)
+  if (exists) {
+    await messaging.openConversation(applicationId)
+  }
+})
+
 onMounted(async () => {
   await loadRecommendations()
   startApplicationsRealtime()
+  messaging.startRealtime()
 })
 
 onBeforeUnmount(() => {
   stopApplicationsRealtime()
+  messaging.stopRealtime()
 })
 </script>
 
@@ -170,20 +186,21 @@ onBeforeUnmount(() => {
   <AppLayout>
     <DashboardShell
       :sections="shellSections"
-      active-section="dashboard"
+      :active-section="activeSection"
       eyebrow="Личный кабинет соискателя"
-      :title="`Привет, ${userName}`"
-      description="Следите за откликами, обновляйте профиль и быстро возвращайтесь к подходящим вакансиям."
+      :title="activeSection === 'messages' ? 'Сообщения' : `Привет, ${userName}`"
+      description="Следите за откликами, обновляйте профиль и держите переписку внутри одного кабинета."
       :stats="shellStats"
+      @select-section="setSection"
     >
       <template #actions>
-        <RouterLink to="/jobs" class="btn-primary">
+        <RouterLink v-if="activeSection === 'dashboard'" to="/jobs" class="btn-primary">
           <i class="fas fa-magnifying-glass"></i>
           Найти работу
         </RouterLink>
       </template>
 
-      <section class="workspace">
+      <section v-if="activeSection === 'dashboard'" class="workspace">
         <div class="panel">
           <div class="panel-header">
             <div>
@@ -230,11 +247,12 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="activity-list">
-            <RouterLink
+            <button
               v-for="application in applications.slice(0, 3)"
               :key="application.id"
-              :to="application.chat_approved ? `/messages?application=${application.id}` : '/jobs'"
+              type="button"
               class="activity-item"
+              @click="application.chat_approved ? openDashboardConversation(application.id) : router.push('/jobs')"
             >
               <i class="fas fa-message"></i>
               <div class="activity-info">
@@ -243,7 +261,7 @@ onBeforeUnmount(() => {
                   {{ application.job_company }}{{ application.chat_approved ? '' : ' · Чат ждёт подтверждения' }}
                 </span>
               </div>
-            </RouterLink>
+            </button>
 
             <RouterLink v-if="!applications.length" to="/profile" class="activity-item empty">
               <i class="fas fa-user-pen"></i>
@@ -251,6 +269,14 @@ onBeforeUnmount(() => {
             </RouterLink>
           </div>
         </div>
+      </section>
+
+      <section v-else class="message-shell">
+        <MessagesPanel
+          embedded
+          hint="Все активные диалоги по подтверждённым откликам"
+          @open="openDashboardConversation"
+        />
       </section>
     </DashboardShell>
   </AppLayout>
@@ -347,7 +373,8 @@ h2 {
 }
 
 .jobs-list,
-.activity-list {
+.activity-list,
+.message-shell {
   display: grid;
   gap: 0.85rem;
 }
@@ -418,6 +445,8 @@ h2 {
   background: color-mix(in srgb, var(--surface-secondary) 86%, transparent);
   color: var(--text-primary);
   text-decoration: none;
+  font: inherit;
+  cursor: pointer;
 }
 
 .activity-item i {
@@ -431,6 +460,7 @@ h2 {
 .activity-info {
   display: grid;
   gap: 0.15rem;
+  text-align: left;
 }
 
 .activity-title {

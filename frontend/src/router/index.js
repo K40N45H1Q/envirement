@@ -121,6 +121,16 @@ router.beforeEach(async (to) => {
       return true
     }
 
+    if (to.path === '/messages' && normalizedType === 'candidate') {
+      return {
+        path: '/dashboard',
+        query: {
+          section: 'messages',
+          ...(typeof to.query.application === 'string' ? { application: to.query.application } : {}),
+        },
+      }
+    }
+
     if (!canAccessRoute(normalizedType, to.meta.accountTypes || [])) {
       const target = defaultRouteForAccount(normalizedType)
 

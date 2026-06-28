@@ -222,7 +222,7 @@ export default {
           { label: 'Профиль', to: '/profile', primary: true },
           { label: 'Дашборд', to: '/dashboard' },
           { label: 'Резюме', to: '/resume-builder' },
-          { label: 'Сообщения', to: '/messages' },
+          { label: 'Сообщения', to: '/dashboard?section=messages' },
           { label: 'Вакансии', to: '/jobs' },
         ]
       }
