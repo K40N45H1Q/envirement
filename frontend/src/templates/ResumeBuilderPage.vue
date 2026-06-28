@@ -1754,28 +1754,6 @@ onBeforeUnmount(() => {
 
           <template v-else>
             <div class="final-tools no-print">
-              <div class="upload-grid">
-                <label class="upload-card avatar-upload" :class="{ 'upload-card--error': errors.avatar }">
-                  <span class="upload-card__title">Аватар кандидата</span>
-
-                  <div class="avatar">
-                    <img v-if="avatarPreview" class="avatar__image" :src="avatarPreview" alt="Аватар кандидата" />
-                    <span v-else>{{ avatarInitials }}</span>
-                  </div>
-
-                  <small>JPG, PNG или WEBP до 5 MB</small>
-                  <span v-if="errors.avatar" class="field-error">{{ errors.avatar }}</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onAvatarChange" />
-                </label>
-
-                <label class="upload-card" :class="{ 'upload-card--error': errors.resume }">
-                  <span class="upload-card__title">CV / документы</span>
-                  <strong>{{ profile.resume_name || 'Файл ещё не загружен' }}</strong>
-                  <small>PDF, DOC, DOCX до 10 MB</small>
-                  <span v-if="errors.resume" class="field-error">{{ errors.resume }}</span>
-                  <input type="file" accept=".pdf,.doc,.docx" hidden @change="onResumeChange" />
-                </label>
-              </div>
 
               <div class="review-card">
                 <div>
@@ -1801,7 +1779,6 @@ onBeforeUnmount(() => {
                 <header class="cv-header">
                   <div class="cv-brand" aria-label="CVHOLD">
                     <Logo class="cv-brand__logo" aria-hidden="true" />
-                    <small>WORKFORCE PLATFORM</small>
                   </div>
 
                   <div class="cv-verified">
@@ -2370,6 +2347,8 @@ textarea:focus {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  
 }
 
 .final-tools {
