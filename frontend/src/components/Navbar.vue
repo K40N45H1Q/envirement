@@ -5,7 +5,14 @@
     </RouterLink>
 
     <nav class="desktop-nav">
-      <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
+      <RouterLink
+        v-for="item in navItems"
+        :key="item.label"
+        :to="item.to"
+        class="nav-link"
+        :class="{ 'nav-link--active': isNavItemActive(item), 'nav-link--hash': item.hash }"
+        @click="handleNavClick(item, $event)"
+      >
         <i :class="item.icon"></i>
         <span>{{ item.label }}</span>
       </RouterLink>
@@ -64,10 +71,11 @@
         <aside class="mobile-menu" @click.stop>
           <RouterLink
             v-for="item in navItems"
-            :key="item.to"
+            :key="item.label"
             :to="item.to"
             class="mobile-nav-link"
-            @click="closeMenu"
+            :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
+            @click="handleMobileNavClick(item, $event)"
           >
             <i :class="item.icon"></i>
             <span>{{ item.label }}</span>
@@ -180,10 +188,10 @@ export default {
       ],
       navItems: [
         { label: 'Вакансии', to: '/jobs', icon: 'fas fa-briefcase' },
-        { label: 'Работодателям', to: '/employers', icon: 'fas fa-users' },
+        { label: 'Работодателям', to: '/', icon: 'fas fa-users' },
         { label: 'Резюме', to: '/resume-builder', icon: 'fas fa-file-lines' },
         { label: 'О платформе', to: '/about', icon: 'fas fa-circle-info' },
-        { label: 'Цены', to: '/pricing', icon: 'fas fa-tags' },
+        { label: 'Цены', to: '/#pricing', icon: 'fas fa-tags', hash: '#pricing' },
       ],
     }
   },
@@ -248,6 +256,64 @@ export default {
   },
 
   methods: {
+    isNavItemActive(item) {
+      if (item.hash) return false
+      return this.$route.path === item.to
+    },
+
+    scrollToHash(hash, duration = 1100) {
+      const target = document.querySelector(hash)
+      if (!target) return
+
+      const navbar = document.querySelector('.navbar')
+      const offset = navbar ? navbar.offsetHeight + 20 : 96
+      const startY = window.scrollY
+      const targetTop = target.getBoundingClientRect().top + window.scrollY - offset
+      const distance = targetTop - startY
+      const startTime = performance.now()
+
+      const easeInOutCubic = (progress) => {
+        return progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2
+      }
+
+      const step = (currentTime) => {
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const easedProgress = easeInOutCubic(progress)
+
+        window.scrollTo({
+          top: startY + distance * easedProgress,
+          behavior: 'auto',
+        })
+
+        if (progress < 1) {
+          window.requestAnimationFrame(step)
+        }
+      }
+
+      window.requestAnimationFrame(step)
+    },
+
+    handleNavClick(item, event) {
+      if (!item.hash || this.$route.path !== '/') return
+
+      event.preventDefault()
+
+      if (this.$route.hash !== item.hash) {
+        this.$router.push({ path: '/', hash: item.hash })
+        return
+      }
+
+      this.scrollToHash(item.hash)
+    },
+
+    handleMobileNavClick(item, event) {
+      this.closeMenu()
+      this.handleNavClick(item, event)
+    },
+
     changeLanguage() {
       this.uiStore.setLanguage(this.currentLanguage)
     },
@@ -362,13 +428,23 @@ export default {
 }
 
 .nav-link:hover,
-.nav-link.router-link-active {
+.nav-link.router-link-active,
+.nav-link--active {
   color: var(--brand-strong);
 }
 
 .nav-link:hover::after,
-.nav-link.router-link-active::after {
+.nav-link.router-link-active::after,
+.nav-link--active::after {
   transform: scaleX(1);
+}
+
+.nav-link--hash.router-link-active {
+  color: var(--text-primary);
+}
+
+.nav-link--hash.router-link-active::after {
+  transform: scaleX(0);
 }
 
 .actions {
@@ -475,9 +551,15 @@ export default {
   border-radius: 0.5rem;
 }
 
-.mobile-nav-link.router-link-active {
+.mobile-nav-link.router-link-active,
+.mobile-nav-link--active {
   color: var(--brand-strong);
   background: var(--brand-soft);
+}
+
+.mobile-nav-link--hash.router-link-active {
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .mobile-auth-buttons {

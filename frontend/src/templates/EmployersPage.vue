@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import ServicePricingCard from '@/components/ServicePricingCard.vue'
 </script>
 
 <template>
@@ -41,6 +42,10 @@ import AppLayout from '@/components/AppLayout.vue'
           <p>Match Score помогает быстрее принимать решения.</p>
         </article>
       </section>
+
+      <section class="pricing-section">
+        <ServicePricingCard />
+      </section>
     </main>
   </AppLayout>
 </template>
@@ -65,7 +70,7 @@ import AppLayout from '@/components/AppLayout.vue'
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: #19785a;
+  color: var(--brand-strong);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -103,7 +108,7 @@ p {
 
 .stats strong {
   display: block;
-  color: #19785a;
+  color: var(--brand-strong);
   font-size: 2rem;
 }
 
@@ -115,12 +120,16 @@ p {
 }
 
 .steps i {
-  color: #19785a;
+  color: var(--brand-strong);
   font-size: 1.5rem;
 }
 
 .steps h2 {
   margin-bottom: 0.4rem;
+}
+
+.pricing-section {
+  margin-top: 1rem;
 }
 
 @media (max-width: 56rem) {

@@ -15,13 +15,13 @@ const categoryConfigs = [
 ]
 
 const countryMeta = [
-  { key: 'germany', label: 'Германия', flag: 'DE' },
-  { key: 'netherlands', label: 'Нидерланды', flag: 'NL' },
-  { key: 'poland', label: 'Польша', flag: 'PL' },
-  { key: 'belgium', label: 'Бельгия', flag: 'BE' },
-  { key: 'france', label: 'Франция', flag: 'FR' },
-  { key: 'latvia', label: 'Латвия', flag: 'LV' },
-  { key: 'estonia', label: 'Эстония', flag: 'EE' },
+  { key: 'germany', label: 'Германия', flagCode: 'de' },
+  { key: 'netherlands', label: 'Нидерланды', flagCode: 'nl' },
+  { key: 'poland', label: 'Польша', flagCode: 'pl' },
+  { key: 'belgium', label: 'Бельгия', flagCode: 'be' },
+  { key: 'france', label: 'Франция', flagCode: 'fr' },
+  { key: 'latvia', label: 'Латвия', flagCode: 'lv' },
+  { key: 'estonia', label: 'Эстония', flagCode: 'ee' },
 ]
 
 const employmentOptions = [
@@ -140,7 +140,7 @@ export const useJobsStore = defineStore('jobs', {
           category,
           countryKey,
           countryLabel: country?.label || 'Европа',
-          countryFlag: country?.flag || 'EU',
+          countryFlagCode: country?.flagCode || 'eu',
           timeLabel: timeLabel(job.created_at),
           isHot: index < 2,
           isNew: index < 3,

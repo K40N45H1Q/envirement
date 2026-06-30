@@ -67,6 +67,7 @@ onBeforeUnmount(() => {
 .app-layout {
   min-height: 100%;
   display: flex;
+  overflow: clip;
   flex-direction: column;
   background: transparent;
   transition: filter 0.2s ease, transform 0.2s ease;

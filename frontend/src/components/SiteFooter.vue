@@ -21,7 +21,7 @@
 
         <div class="footer-column">
           <h2>Работодателям</h2>
-          <RouterLink to="/employers">Решения</RouterLink>
+          <RouterLink to="/">Решения</RouterLink>
           <RouterLink to="/pricing">Тарифы</RouterLink>
           <RouterLink to="/employer-dashboard">Кабинет</RouterLink>
         </div>
@@ -36,7 +36,7 @@
     </div>
 
     <div class="footer-meta">
-      <span>&copy; 2026 CVHOLD. Все права защищены.</span>
+      <span>&copy; {{ currentYear }} CVHOLD. Все права защищены.</span>
       <span>Платформа для поиска работы и найма в Латвии, Литве, Эстонии и по всей Европе.</span>
     </div>
   </footer>
@@ -45,6 +45,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import Logo from '@/components/Logo.vue'
+const currentYear = new Date().getFullYear()
 </script>
 
 <style scoped>

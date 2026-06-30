@@ -2,8 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import AppFlag from '@/components/AppFlag.vue'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
+import HeroBannerCarousel from '@/components/HeroBannerCarousel.vue'
 import JobLocationsMap from '@/components/JobLocationsMap.vue'
 import { useJobsStore } from '@/stores/jobs'
 
@@ -135,12 +137,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="hero-map">
-          <JobLocationsMap
-            :jobs="filteredJobs"
-            :selected-country="filters.selectedCountry"
-            height="15rem"
-            @select-job="focusJob"
-          />
+          <HeroBannerCarousel />
         </div>
       </section>
 
@@ -276,7 +273,7 @@ onBeforeUnmount(() => {
                   <div class="job-company">{{ job.company }}</div>
 
                   <div class="job-location">
-                    <span>{{ job.countryFlag }}</span>
+                    <AppFlag :code="job.countryFlagCode" :alt="job.countryLabel" />
                     <span>{{ job.countryLabel }}, {{ job.location }}</span>
                   </div>
 
@@ -326,7 +323,7 @@ onBeforeUnmount(() => {
                 :class="{ 'country-card--active': filters.selectedCountry === country.key }"
                 @click="selectCountry(country.key)"
               >
-                <strong>{{ country.flag }} {{ country.label }}</strong>
+                <strong><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</strong>
                 <span>{{ country.count }} вакансий</span>
               </button>
             </div>
@@ -340,6 +337,7 @@ onBeforeUnmount(() => {
             </header>
 
             <JobLocationsMap
+              class="map"
               :jobs="filteredJobs"
               :selected-country="filters.selectedCountry"
               height="18rem"
@@ -354,7 +352,7 @@ onBeforeUnmount(() => {
                 class="country-item"
                 @click="selectCountry(country.key)"
               >
-                <span>{{ country.flag }} {{ country.label }}</span>
+                <span><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</span>
                 <strong>{{ country.count }}</strong>
               </button>
             </div>
@@ -382,7 +380,7 @@ onBeforeUnmount(() => {
                 :class="{ 'filter-check--active': filters.selectedCountry === country.key }"
                 @click="selectCountry(filters.selectedCountry === country.key ? 'all' : country.key)"
               >
-                <span>{{ country.flag }} {{ country.label }}</span>
+                <span><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</span>
                 <strong>{{ country.count }}</strong>
               </button>
             </div>
@@ -466,10 +464,7 @@ onBeforeUnmount(() => {
 
 .hero-map {
   min-height: 15rem;
-  overflow: hidden;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1.25rem;
-  background: linear-gradient(180deg, rgba(232, 249, 238, 0.9), rgba(255, 255, 255, 0.96));
+  display: flex;
 }
 
 .content-grid {
@@ -483,7 +478,7 @@ onBeforeUnmount(() => {
 .sidebar-column {
   display: grid;
   gap: 1.25rem;
-  height: 100%;
+  align-content: start;
 }
 
 .search-shell,
@@ -503,6 +498,11 @@ onBeforeUnmount(() => {
 
 .map-card {
   gap: 0.75rem;
+}
+
+.map {
+  border: 4px solid rgb(31, 201, 127, 0.4);
+  background: transparent;
 }
 
 .sidebar-column {

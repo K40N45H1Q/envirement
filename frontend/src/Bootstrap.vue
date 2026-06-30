@@ -62,6 +62,7 @@ html {
 
 body {
   color: var(--text-primary);
+  overflow: auto;
   background:
     linear-gradient(180deg, rgba(244, 247, 244, 0.96), rgba(244, 247, 244, 0.98));
 }
