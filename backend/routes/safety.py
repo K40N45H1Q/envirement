@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from os import getenv
-
+from dotenv import load_dotenv
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlmodel import Session, select
@@ -17,7 +17,9 @@ from database.models import (
     get_session,
 )
 
+load_dotenv()
 router = APIRouter()
+
 
 SECRET_KEY = getenv("SECRET_KEY") or secrets.token_hex(32)
 ALGORITHM = "HS256"
