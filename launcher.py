@@ -1,38 +1,64 @@
-import time
-from sys import argv
+import os, sys, time, shutil
 from pathlib import Path
-from subprocess import Popen
+from subprocess import Popen, run, check_output
+
 
 class Runner:
-    BASE_DIR = Path(__file__).parent
+    BASE = Path(__file__).resolve().parent
+    VENV = BASE / ".venv"
+    PY = VENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    NPM = "npm.cmd" if os.name == "nt" else "npm"
+    PY_ERR = "Python 3.13 not found. Install Python 3.13: https://www.python.org/downloads/"
+    NPM_ERR = "NPM not found. Install Node.js LTS: https://nodejs.org/"
 
-    @staticmethod
-    def start():
-        commands = [
-            (["python", "run.py"], Runner.BASE_DIR / "backend"),
-            (["npm.cmd", "run", "dev"], Runner.BASE_DIR / "frontend"),
+    @classmethod
+    def start(cls):
+        if "--install" in sys.argv:
+            if not shutil.which("py"):
+                print(cls.PY_ERR); return
+            if not shutil.which(cls.NPM):
+                print(cls.NPM_ERR); return
+
+            ver = check_output([cls.PY, "-c", "import sys;print(f'{sys.version_info.major}.{sys.version_info.minor}')"], text=True).strip() if cls.PY.exists() else ""
+
+            if ver != "3.13":
+                shutil.rmtree(cls.VENV, ignore_errors=True)
+                if run(["py", "-3.13", "-m", "venv", cls.VENV]).returncode:
+                    print(cls.PY_ERR); return
+
+            for cmd, cwd in [
+                ([cls.PY, "-m", "pip", "install", "--upgrade", "pip"], cls.BASE),
+                ([cls.PY, "-m", "pip", "install", "-r", "requirements.txt"], cls.BASE),
+                ([cls.NPM, "install"], cls.BASE / "frontend"),
+            ]:
+                if run(cmd, cwd=cwd).returncode:
+                    return
+
+        if not shutil.which(cls.NPM):
+            print(cls.NPM_ERR); return
+
+        cmds = [
+            ([cls.PY if cls.PY.exists() else sys.executable, "run.py"], cls.BASE / "backend"),
+            ([cls.NPM, "run", "dev"], cls.BASE / "frontend"),
         ]
 
-        if "--tun" in argv:
-            commands.append(
-                (["cloudflared", "tunnel", "--url", "http://localhost:5173"], Runner.BASE_DIR)
-            )
+        if "--tun" in sys.argv:
+            cmds.append((["cloudflared", "tunnel", "--url", "http://localhost:5173"], cls.BASE))
 
-        processes = [
-            Popen(cmd, cwd=cwd)
-            for cmd, cwd in commands
-            if cwd.exists()
-        ]
+        procs = [Popen(cmd, cwd=cwd) for cmd, cwd in cmds if cwd.exists()]
 
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            for p in processes:
+            for p in procs:
                 p.terminate()
-            for p in processes:
+            for p in procs:
                 p.wait()
+        finally:
             time.sleep(3)
             print("\033[2J\033[3J\033[H", end="", flush=True)
 
-Runner.start()
+
+if __name__ == "__main__":
+    Runner.start()
