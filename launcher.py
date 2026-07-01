@@ -18,6 +18,12 @@ class Runner:
                 print(cls.PY_ERR); return
             if not shutil.which(cls.NPM):
                 print(cls.NPM_ERR); return
+            if os.name == "nt" and not shutil.which("cloudflared"):
+                if not shutil.which("winget"):
+                    print("winget not found. Install App Installer from Microsoft Store."); return
+                if run(["winget", "install", "-e", "--id", "Cloudflare.cloudflared",
+                        "--accept-package-agreements", "--accept-source-agreements"]).returncode:
+                    print("cloudflared install failed"); return
 
             ver = check_output([cls.PY, "-c", "import sys;print(f'{sys.version_info.major}.{sys.version_info.minor}')"], text=True).strip() if cls.PY.exists() else ""
 
@@ -36,14 +42,13 @@ class Runner:
 
         if not shutil.which(cls.NPM):
             print(cls.NPM_ERR); return
+        if "--tun" in sys.argv and not shutil.which("cloudflared"):
+            print("cloudflared not found. Run with --install first."); return
 
         cmds = [
             ([cls.PY if cls.PY.exists() else sys.executable, "run.py"], cls.BASE / "backend"),
             ([cls.NPM, "run", "dev"], cls.BASE / "frontend"),
-        ]
-
-        if "--tun" in sys.argv:
-            cmds.append((["cloudflared", "tunnel", "--url", "http://localhost:5173"], cls.BASE))
+        ] + ([(["cloudflared", "tunnel", "--url", "http://localhost:5173"], cls.BASE)] if "--tun" in sys.argv else [])
 
         procs = [Popen(cmd, cwd=cwd) for cmd, cwd in cmds if cwd.exists()]
 
@@ -51,10 +56,8 @@ class Runner:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            for p in procs:
-                p.terminate()
-            for p in procs:
-                p.wait()
+            for p in procs: p.terminate()
+            for p in procs: p.wait()
         finally:
             time.sleep(3)
             print("\033[2J\033[3J\033[H", end="", flush=True)
