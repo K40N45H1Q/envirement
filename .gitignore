@@ -15,3 +15,5 @@ dist
 **/**pycache**/
 *.py[cod]
 *$py.class
+
+AGENT_STATE.md
