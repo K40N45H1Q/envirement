@@ -46,51 +46,24 @@ onBeforeUnmount(() => {
 @import url(
   'https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
 
-:root {
-  color-scheme: light;
-  --shell-max-width: 100rem;
-  --shell-gutter: clamp(1rem, 2vw, 1.5rem);
-  --brand-strong: #169b61;
-  --brand-base: #1da86b;
-  --brand-soft: #e9f8ef;
-  --surface-app: #f4f7f4;
-  --surface-primary: rgba(255, 255, 255, 0.94);
-  --surface-secondary: #ffffff;
-  --surface-elevated: rgba(255, 255, 255, 0.88);
-  --border-subtle: rgba(27, 42, 35, 0.1);
-  --border-strong: rgba(22, 155, 97, 0.22);
-  --text-primary: #15201b;
-  --text-muted: rgba(21, 32, 27, 0.68);
-  --shadow-soft: 0 1rem 2.5rem rgba(21, 32, 27, 0.08);
-  --shadow-strong: 0 1.25rem 3rem rgba(18, 45, 31, 0.14);
-}
 
 * {
   margin: 0;
   padding: 0;
   font-style: normal;
   box-sizing: border-box;
-  font-optical-sizing: auto;
-  font-family: "Google Sans", sans-serif;
 }
 
 html, body, #root {
   height: 100%;
 }
 
-html {
-  background:
-    radial-gradient(circle at top left, rgba(29, 168, 107, 0.08), transparent 20%),
-    radial-gradient(circle at 100% 0, rgba(44, 197, 129, 0.05), transparent 18%),
-    radial-gradient(circle at 0 100%, rgba(29, 168, 107, 0.05), transparent 18%),
-    var(--surface-app);
-}
-
 body {
-  color: var(--text-primary);
   overflow: auto;
-  background:
-    linear-gradient(180deg, rgba(244, 247, 244, 0.96), rgba(244, 247, 244, 0.98));
+  color: var(--text-primary);
+  background: linear-gradient(
+    180deg, rgba(244, 247, 244, 0.96), rgba(244, 247, 244, 0.98)
+  );
 }
 
 a,

@@ -137,9 +137,7 @@ onBeforeUnmount(() => {
           <p>{{ t('jobsPage.heroDescription') }}</p>
         </div>
 
-        <div class="hero-map">
-          <HeroBannerCarousel />
-        </div>
+        <HeroBannerCarousel />
       </section>
 
       <section class="content-grid">
@@ -344,23 +342,6 @@ onBeforeUnmount(() => {
               height="18rem"
               @select-job="focusJob"
             />
-
-            <div class="country-list">
-              <button
-                v-for="country in featuredCountries"
-                :key="country.key"
-                type="button"
-                class="country-item"
-                @click="selectCountry(country.key)"
-              >
-                <span><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</span>
-                <strong>{{ country.count }}</strong>
-              </button>
-            </div>
-
-            <button type="button" class="btn-secondary sidebar-button" @click="selectCountry('all')">
-              {{ t('jobsPage.viewAllCountries') }}
-            </button>
           </section>
 
           <section class="filters-card surface-card">
@@ -924,6 +905,11 @@ onBeforeUnmount(() => {
   justify-content: start;
   gap: 0.65rem;
   color: var(--text-primary);
+}
+
+.toggle-row input[type='checkbox'] {
+  cursor: pointer;
+  accent-color: var(--brand-base);
 }
 
 @media (max-width: 72rem) {

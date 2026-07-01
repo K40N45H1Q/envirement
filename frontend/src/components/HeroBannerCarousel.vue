@@ -136,7 +136,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .hero-banner {
-  flex: 1 1 auto;
   width: 100%;
   position: relative;
   min-height: 15rem;

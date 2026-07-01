@@ -42,9 +42,6 @@
             <RouterLink class="dropdown-item" to="/profile" @click="isUserMenuOpen = false">
               {{ t('navbar.profile') }}
             </RouterLink>
-            <RouterLink class="dropdown-item" :to="dashboardRoute" @click="isUserMenuOpen = false">
-              {{ t('navbar.dashboard') }}
-            </RouterLink>
             <button class="dropdown-item dropdown-item--danger" type="button" @click="logout">
               {{ t('common.logout') }}
             </button>
@@ -67,7 +64,7 @@
     </button>
 
     <transition name="menu-fade">
-      <div v-if="isMenuOpen" class="mobile-menu-overlay" @click="closeMenu">
+      <div v-if="isMenuOpen" class="mobile-menu-overlay">
         <aside class="mobile-menu" @click.stop>
           <div class="mobile-menu-links">
             <RouterLink
@@ -207,7 +204,7 @@ export default {
         { label: this.t('navbar.jobs'), to: '/jobs', icon: 'fas fa-briefcase' },
         { label: this.t('navbar.employers'), to: '/', icon: 'fas fa-users' },
         { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
-        { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
+        // { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
         { label: this.t('navbar.pricing'), to: '/#pricing', icon: 'fas fa-tags', hash: '#pricing' },
       ]
     },
@@ -404,7 +401,7 @@ export default {
 
 .desktop-nav {
   flex: 1;
-  gap: 1rem;
+  gap: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -530,9 +527,9 @@ export default {
 .mobile-menu-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(247, 250, 248, 0.32);
+  background: transparent;
+  height: 100vh;
   z-index: 1000;
-  backdrop-filter: none;
 }
 
 .mobile-menu {

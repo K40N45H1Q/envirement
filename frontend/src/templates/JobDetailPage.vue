@@ -257,22 +257,6 @@ watch(() => route.params.id, loadJob)
                   </div>
                 </article>
               </div>
-
-              <div class="content-blocks">
-                <article class="content-card">
-                  <h3>Требования</h3>
-                  <ul>
-                    <li v-for="item in requirementList" :key="item">{{ item }}</li>
-                  </ul>
-                </article>
-
-                <article class="content-card">
-                  <h3>Что вы получите</h3>
-                  <ul>
-                    <li v-for="feature in featureList" :key="feature">{{ feature }}</li>
-                  </ul>
-                </article>
-              </div>
             </section>
 
             <section class="panel company-panel">
@@ -297,29 +281,14 @@ watch(() => route.params.id, loadJob)
                   <strong>Публичная вакансия</strong>
                 </div>
               </div>
-
-              <div class="company-note">
-                <i class="fas fa-shield-check"></i>
-                <p>Публикация активна на платформе и доступна кандидатам для прямого отклика без лишних шагов.</p>
-              </div>
             </section>
           </div>
 
           <form class="panel apply-form" @submit.prevent="submitApplication">
             <div class="panel-head">
               <div>
-                <p class="section-eyebrow compact">Отклик</p>
                 <h2>Откликнуться</h2>
               </div>
-            </div>
-
-            <p class="form-note">
-              Данные сразу попадут в отклики работодателя. После подтверждения он сможет открыть чат.
-            </p>
-
-            <div class="form-chip">
-              <i class="fas fa-sparkles"></i>
-              <span>Отклик связывается с вашим аккаунтом и вакансией без ручных шагов.</span>
             </div>
 
             <input v-model="form.name" required placeholder="Имя" />
@@ -556,13 +525,6 @@ watch(() => route.params.id, loadJob)
   font-weight: 700;
 }
 
-.content-blocks {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 1.25rem;
-}
-
 .content-card {
   padding: 1rem;
   border: 0.0625rem solid var(--border-subtle);
@@ -607,45 +569,13 @@ watch(() => route.params.id, loadJob)
   color: var(--text-primary);
 }
 
-.company-note {
-  display: flex;
-  gap: 0.7rem;
-  align-items: start;
-  margin-top: 1rem;
-  padding: 0.95rem 1rem;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--brand-soft) 68%, white);
-  color: var(--brand-strong);
-}
-
-.company-note p {
-  margin: 0;
-  line-height: 1.55;
-}
-
 .apply-form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.8rem;
   position: sticky;
   top: 5.6rem;
-}
-
-.form-note {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.form-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 0.9rem;
-  background: color-mix(in srgb, var(--brand-soft) 66%, white);
-  color: var(--brand-strong);
-  font-weight: 600;
-  line-height: 1.45;
+  height: 100%;
 }
 
 .apply-form input,
@@ -688,7 +618,6 @@ watch(() => route.params.id, loadJob)
   .facts-grid,
   .content-grid,
   .requirements-summary,
-  .content-blocks,
   .company-grid {
     grid-template-columns: 1fr;
   }

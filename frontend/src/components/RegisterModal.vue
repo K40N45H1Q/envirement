@@ -7,7 +7,6 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="register-title"
-        @click.self="close"
       >
         <form class="register-card" novalidate @submit.prevent="handleSubmit">
           <button type="button" class="modal-close" :aria-label="t('common.closeRegister')" @click="close">

@@ -109,7 +109,7 @@ const copy = computed(() => (
       selectedCountry: 'Selected country',
       notSelected: 'Not selected',
       vacancyPhoto: 'Vacancy photo',
-      vacancyPhotoHint: 'PNG, JPG, or WEBP for the vacancy card',
+      vacancyPhotoHint: 'PNG, JPG, or WEBP',
       chooseFile: 'Choose file',
       noFileSelected: 'No file selected',
       vacancyPreview: 'Vacancy preview',
@@ -208,7 +208,7 @@ const copy = computed(() => (
       selectedCountry: 'Выбранная страна',
       notSelected: 'Не выбрана',
       vacancyPhoto: 'Фото вакансии',
-      vacancyPhotoHint: 'PNG, JPG или WEBP для карточки вакансии',
+      vacancyPhotoHint: 'PNG, JPG или WEBP',
       chooseFile: 'Выбрать файл',
       noFileSelected: 'Файл не выбран',
       vacancyPreview: 'Превью вакансии',
@@ -1470,6 +1470,12 @@ textarea {
   align-content: start;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 248, 0.98));
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  border: 2px dashed rgb(31, 201, 127, 0.4);
 }
 
 .upload-card input {
@@ -1482,6 +1488,11 @@ textarea {
 .upload-title,
 .attribute-card strong {
   color: var(--text-primary);
+}
+
+.upload-copy {
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .upload-copy,
@@ -1516,7 +1527,6 @@ textarea {
 .upload-button {
   width: fit-content;
   min-height: 2.8rem;
-  margin-top: auto;
   padding: 0.72rem 1rem;
   border-radius: 0.95rem;
   background: color-mix(in srgb, var(--brand-soft) 70%, white);
@@ -1589,6 +1599,7 @@ textarea {
   background: color-mix(in srgb, var(--surface-secondary) 92%, transparent);
 }
 
+
 .company-logo {
   width: 4.75rem;
   height: 4.75rem;
@@ -1633,12 +1644,16 @@ textarea {
   font-weight: 700;
 }
 
+
 .job-description {
   line-height: 1.45;
   display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
 
 .job-footer {
   padding-top: 0.65rem;
