@@ -1,44 +1,88 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 
 const route = useRoute()
+const { language } = useI18n()
 
-const pages = {
-  blog: {
-    eyebrow: 'Блог',
-    title: 'Полезные материалы о работе в Европе',
-    text: 'Подборки вакансий, советы по резюме и подготовке к интервью.',
-    cards: ['Как подготовиться к работе за границей', 'Какие документы нужны кандидату', 'Как повысить Match Score'],
-  },
-  about: {
-    eyebrow: 'О платформе',
-    title: 'CVHOLD — платформа для рынка труда Европы',
-    text: 'Мы соединяем кандидатов и работодателей через прозрачные отклики, профили и удобные кабинеты.',
-    cards: ['50 000+ кандидатов', '15 000+ откликов', '99% прозрачности'],
-  },
-  contacts: {
-    eyebrow: 'Контакты',
-    title: 'Свяжитесь с нами',
-    text: 'Команда CVHOLD отвечает на вопросы кандидатов и работодателей.',
-    cards: ['support@cvhold.example', '+371 00 000 000', 'Riga, Latvia'],
-  },
-  faq: {
-    eyebrow: 'FAQ',
-    title: 'Часто задаваемые вопросы',
-    text: 'Ответы на основные вопросы о регистрации, вакансиях, откликах и кабинетах.',
-    cards: ['Как создать аккаунт?', 'Как откликнуться?', 'Как разместить вакансию?'],
-  },
-  terms: {
-    eyebrow: 'Условия',
-    title: 'Правила использования платформы',
-    text: 'Основные положения для кандидатов, работодателей и обработки данных.',
-    cards: ['Пользовательское соглашение', 'Политика конфиденциальности', 'Правила публикации вакансий'],
-  },
-}
+const isEnglish = computed(() => language.value === 'en')
+const cardDescription = computed(() => (
+  isEnglish.value
+    ? 'This section is designed as a full part of the platform and follows the same CVHOLD interface style.'
+    : 'Раздел оформлен как полноценная часть платформы и поддерживает единый стиль интерфейса CVHOLD.'
+))
 
-const page = computed(() => pages[route.meta.page] || pages.about)
+const pages = computed(() => (
+  isEnglish.value
+    ? {
+      blog: {
+        eyebrow: 'Blog',
+        title: 'Useful materials about working in Europe',
+        text: 'Vacancy roundups, resume tips, and interview preparation guides.',
+        cards: ['How to prepare for work abroad', 'Which documents a candidate needs', 'How to improve your Match Score'],
+      },
+      about: {
+        eyebrow: 'About the platform',
+        title: 'CVHOLD is a platform for the European labour market',
+        text: 'We connect candidates and employers through transparent applications, clear profiles, and convenient dashboards.',
+        cards: ['50,000+ candidates', '15,000+ applications', '99% transparency'],
+      },
+      contacts: {
+        eyebrow: 'Contacts',
+        title: 'Get in touch with us',
+        text: 'The CVHOLD team answers questions from both candidates and employers.',
+        cards: ['support@cvhold.example', '+371 00 000 000', 'Riga, Latvia'],
+      },
+      faq: {
+        eyebrow: 'FAQ',
+        title: 'Frequently asked questions',
+        text: 'Answers to common questions about registration, vacancies, applications, and dashboards.',
+        cards: ['How do I create an account?', 'How do I apply?', 'How do I post a vacancy?'],
+      },
+      terms: {
+        eyebrow: 'Terms',
+        title: 'Platform terms of use',
+        text: 'Core terms for candidates, employers, and data processing.',
+        cards: ['User agreement', 'Privacy policy', 'Vacancy publishing rules'],
+      },
+    }
+    : {
+      blog: {
+        eyebrow: 'Блог',
+        title: 'Полезные материалы о работе в Европе',
+        text: 'Подборки вакансий, советы по резюме и подготовке к интервью.',
+        cards: ['Как подготовиться к работе за границей', 'Какие документы нужны кандидату', 'Как повысить Match Score'],
+      },
+      about: {
+        eyebrow: 'О платформе',
+        title: 'CVHOLD — платформа для рынка труда Европы',
+        text: 'Мы соединяем кандидатов и работодателей через прозрачные отклики, профили и удобные кабинеты.',
+        cards: ['50 000+ кандидатов', '15 000+ откликов', '99% прозрачности'],
+      },
+      contacts: {
+        eyebrow: 'Контакты',
+        title: 'Свяжитесь с нами',
+        text: 'Команда CVHOLD отвечает на вопросы кандидатов и работодателей.',
+        cards: ['support@cvhold.example', '+371 00 000 000', 'Riga, Latvia'],
+      },
+      faq: {
+        eyebrow: 'FAQ',
+        title: 'Часто задаваемые вопросы',
+        text: 'Ответы на основные вопросы о регистрации, вакансиях, откликах и кабинетах.',
+        cards: ['Как создать аккаунт?', 'Как откликнуться?', 'Как разместить вакансию?'],
+      },
+      terms: {
+        eyebrow: 'Условия',
+        title: 'Правила использования платформы',
+        text: 'Основные положения для кандидатов, работодателей и обработки данных.',
+        cards: ['Пользовательское соглашение', 'Политика конфиденциальности', 'Правила публикации вакансий'],
+      },
+    }
+))
+
+const page = computed(() => pages.value[route.meta.page] || pages.value.about)
 </script>
 
 <template>
@@ -54,7 +98,7 @@ const page = computed(() => pages[route.meta.page] || pages.about)
         <article v-for="card in page.cards" :key="card">
           <i class="fas fa-check-circle"></i>
           <h2>{{ card }}</h2>
-          <p>Раздел оформлен как полноценная часть платформы и поддерживает единый стиль интерфейса CVHOLD.</p>
+          <p>{{ cardDescription }}</p>
         </article>
       </section>
     </main>

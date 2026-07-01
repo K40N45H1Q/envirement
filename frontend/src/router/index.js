@@ -11,8 +11,12 @@ import ResponsesPage from '@/templates/ResponsesPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
+import UnauthorizedPage from '@/templates/UnauthorizedPage.vue'
+import { normalizeLanguage } from '@/i18n'
 import { getAuthToken } from '@/api/client'
 import { useAuth } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
+import { getLocaleFromPath, hasLocalePrefix, localizeFullPath, stripLocaleFromPath, withLocale } from './locale'
 
 const smoothScrollToElement = (selector, duration = 1100) => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return
@@ -68,48 +72,67 @@ const canAccessRoute = (accountType, allowedTypes = []) => {
 const defaultRouteForAccount = (accountType) => {
   const normalizedType = normalizeAccountType(accountType)
 
-  if (normalizedType === 'candidate') {
-    return '/dashboard'
-  }
-
-  if (normalizedType === 'employer') {
-    return '/employer-dashboard'
-  }
-
-  if (normalizedType === 'admin') {
-    return '/employer-dashboard'
-  }
+  if (normalizedType === 'candidate') return '/dashboard'
+  if (normalizedType === 'employer') return '/employer-dashboard'
+  if (normalizedType === 'admin') return '/employer-dashboard'
 
   return '/'
 }
 
-const shouldRedirect = (to, target) => {
+const localizeRouteLocation = (target, locale = 'ru') => {
+  if (typeof target === 'string') {
+    return localizeFullPath(target, locale)
+  }
+
+  return {
+    ...target,
+    path: withLocale(target.path || '/', locale),
+  }
+}
+
+const shouldRedirect = (logicalPath, target) => {
   if (!target) return false
 
   const targetPath = typeof target === 'string'
-    ? target.split('?')[0]
-    : target.path
+    ? stripLocaleFromPath(target.split('?')[0])
+    : stripLocaleFromPath(target.path)
 
-  return targetPath && targetPath !== to.path
+  return targetPath && targetPath !== logicalPath
 }
 
+const localizedChildren = [
+  { path: '', component: HomePage, meta: { logicalPath: '/' } },
+  { path: 'jobs', component: JobsPage, meta: { logicalPath: '/jobs' } },
+  { path: 'jobs/:id', component: JobDetailPage, meta: { logicalPath: '/jobs/:id' } },
+  { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
+  { path: 'resume-builder', component: ResumeBuilderPage, meta: { logicalPath: '/resume-builder' } },
+  { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
+  { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
+  { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
+  { path: 'dashboard', component: CandidateDashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate'] } },
+  { path: 'employer-dashboard', component: EmployerDashboardPage, meta: { logicalPath: '/employer-dashboard', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
+  { path: 'responses', component: ResponsesPage, meta: { logicalPath: '/responses', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
+  { path: 'messages', component: MessagesPage, meta: { logicalPath: '/messages', requiresAuth: true } },
+  { path: 'blog', component: InfoPage, meta: { logicalPath: '/blog', page: 'blog' } },
+  { path: 'about', component: InfoPage, meta: { logicalPath: '/about', page: 'about' } },
+  { path: 'contacts', component: InfoPage, meta: { logicalPath: '/contacts', page: 'contacts' } },
+  { path: 'faq', component: InfoPage, meta: { logicalPath: '/faq', page: 'faq' } },
+  { path: 'terms', component: InfoPage, meta: { logicalPath: '/terms', page: 'terms' } },
+]
+
 const routes = [
-  { path: '/', component: HomePage },
-  { path: '/jobs', component: JobsPage },
-  { path: '/jobs/:id', component: JobDetailPage },
-  { path: '/pricing', component: PricingPage },
-  { path: '/resume-builder', component: ResumeBuilderPage, meta: { requiresAuth: true, accountTypes: ['candidate'] } },
-  { path: '/signin', component: SignInPage },
-  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
-  { path: '/dashboard', component: CandidateDashboardPage, meta: { requiresAuth: true, accountTypes: ['candidate'] } },
-  { path: '/employer-dashboard', component: EmployerDashboardPage, meta: { requiresAuth: true, accountTypes: ['employer', 'admin'] } },
-  { path: '/responses', component: ResponsesPage, meta: { requiresAuth: true, accountTypes: ['employer', 'admin'] } },
-  { path: '/messages', component: MessagesPage, meta: { requiresAuth: true } },
-  { path: '/blog', component: InfoPage, meta: { page: 'blog' } },
-  { path: '/about', component: InfoPage, meta: { page: 'about' } },
-  { path: '/contacts', component: InfoPage, meta: { page: 'contacts' } },
-  { path: '/faq', component: InfoPage, meta: { page: 'faq' } },
-  { path: '/terms', component: InfoPage, meta: { page: 'terms' } },
+  {
+    path: '/:locale(ru|en)',
+    children: localizedChildren,
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: (to) => {
+      const uiStore = useUiStore()
+      const locale = normalizeLanguage(uiStore.language)
+      return localizeFullPath(to.fullPath || '/', locale)
+    },
+  },
 ]
 
 const router = createRouter({
@@ -137,36 +160,58 @@ router.afterEach((to) => {
 })
 
 router.beforeEach(async (to) => {
-  const { state, initialize } = useAuth()
+  const auth = useAuth()
+  const uiStore = useUiStore()
   const token = getAuthToken()
+  const locale = hasLocalePrefix(to.path)
+    ? getLocaleFromPath(to.path)
+    : normalizeLanguage(uiStore.language)
+  const logicalPath = stripLocaleFromPath(to.path)
+
+  if (!hasLocalePrefix(to.path)) {
+    return localizeFullPath(to.fullPath, locale)
+  }
+
+  if (uiStore.language !== locale) {
+    uiStore.setLanguage(locale)
+  }
 
   if (to.meta.requiresAuth) {
     if (!token) {
-      return {
+      return localizeRouteLocation({
         path: '/signin',
         query: {
           auth: 'login',
           redirect: to.fullPath,
         },
-      }
+      }, locale)
     }
 
-    await initialize()
+    await auth.initialize()
 
-    if (!state.user) {
-      return {
+    if (!auth.state.user) {
+      if (auth.state.sessionExpired) {
+        return localizeRouteLocation({
+          path: '/unauthorized',
+          query: {
+            redirect: to.fullPath,
+          },
+        }, locale)
+      }
+
+      return localizeRouteLocation({
         path: '/signin',
         query: {
           auth: 'login',
           redirect: to.fullPath,
         },
-      }
+      }, locale)
     }
 
-    const normalizedType = normalizeAccountType(state.user.account_type)
+    const normalizedType = normalizeAccountType(auth.state.user.account_type)
 
-    if (to.path === '/profile' && ['employer', 'admin'].includes(normalizedType)) {
-      const target = '/employer-dashboard?section=profile'
+    if (logicalPath === '/profile' && ['employer', 'admin'].includes(normalizedType)) {
+      const target = localizeFullPath('/employer-dashboard?section=profile', locale)
 
       if (to.fullPath !== target) {
         return target
@@ -175,37 +220,37 @@ router.beforeEach(async (to) => {
       return true
     }
 
-    if (to.path === '/messages' && normalizedType === 'candidate') {
-      return {
+    if (logicalPath === '/messages' && normalizedType === 'candidate') {
+      return localizeRouteLocation({
         path: '/dashboard',
         query: {
           section: 'messages',
           ...(typeof to.query.application === 'string' ? { application: to.query.application } : {}),
         },
-      }
+      }, locale)
     }
 
     if (!canAccessRoute(normalizedType, to.meta.accountTypes || [])) {
       const target = defaultRouteForAccount(normalizedType)
 
-      if (shouldRedirect(to, target)) {
-        return target
+      if (shouldRedirect(logicalPath, target)) {
+        return localizeRouteLocation(target, locale)
       }
 
       return true
     }
   }
 
-  if (to.path === '/signin' && token) {
-    await initialize()
+  if (logicalPath === '/signin' && token) {
+    await auth.initialize()
 
-    if (state.user) {
+    if (auth.state.user) {
       const target = typeof to.query.redirect === 'string'
         ? to.query.redirect
-        : defaultRouteForAccount(state.user.account_type)
+        : withLocale(defaultRouteForAccount(auth.state.user.account_type), locale)
 
-      if (shouldRedirect(to, target)) {
-        return target
+      if (shouldRedirect(logicalPath, target)) {
+        return typeof target === 'string' ? target : localizeRouteLocation(target, locale)
       }
     }
   }

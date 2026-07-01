@@ -22,7 +22,7 @@
       <BaseDropdown
         v-model="currentLanguage"
         class="language-switcher"
-        aria-label="Выбор языка"
+        :aria-label="t('common.language')"
         icon-class="fas fa-globe"
         :options="languageOptions"
         size="sm"
@@ -40,13 +40,13 @@
 
           <div v-if="isUserMenuOpen" class="user-dropdown">
             <RouterLink class="dropdown-item" to="/profile" @click="isUserMenuOpen = false">
-              Профиль
+              {{ t('navbar.profile') }}
             </RouterLink>
             <RouterLink class="dropdown-item" :to="dashboardRoute" @click="isUserMenuOpen = false">
-              Кабинет
+              {{ t('navbar.dashboard') }}
             </RouterLink>
             <button class="dropdown-item dropdown-item--danger" type="button" @click="logout">
-              Выйти
+              {{ t('common.logout') }}
             </button>
           </div>
         </div>
@@ -54,10 +54,10 @@
 
       <template v-else>
         <button type="button" class="btn-secondary" @click="$emit('open-login')">
-          Войти
+          {{ t('common.login') }}
         </button>
         <button type="button" class="btn-primary" @click="$emit('open-register')">
-          Регистрация
+          {{ t('common.register') }}
         </button>
       </template>
     </div>
@@ -69,24 +69,36 @@
     <transition name="menu-fade">
       <div v-if="isMenuOpen" class="mobile-menu-overlay" @click="closeMenu">
         <aside class="mobile-menu" @click.stop>
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.label"
-            :to="item.to"
-            class="mobile-nav-link"
-            :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
-            @click="handleMobileNavClick(item, $event)"
-          >
-            <i :class="item.icon"></i>
-            <span>{{ item.label }}</span>
-          </RouterLink>
+          <div class="mobile-menu-links">
+            <RouterLink
+              v-for="item in navItems"
+              :key="item.label"
+              :to="item.to"
+              class="mobile-nav-link"
+              :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
+              @click="handleMobileNavClick(item, $event)"
+            >
+              <i :class="item.icon"></i>
+              <span>{{ item.label }}</span>
+            </RouterLink>
+
+            <RouterLink
+              v-for="item in mobileSecondaryLinks"
+              :key="item.to"
+              :to="item.to"
+              class="mobile-nav-link mobile-nav-link--secondary"
+              @click="closeMenu"
+            >
+              <span>{{ item.label }}</span>
+            </RouterLink>
+          </div>
 
           <div class="mobile-auth-buttons">
             <label class="mobile-language-switcher">
-              <span>Язык</span>
+              <span>{{ t('common.language') }}</span>
               <BaseDropdown
                 v-model="currentLanguage"
-                aria-label="Выбор языка"
+                :aria-label="t('common.language')"
                 :options="languageOptions"
                 full-width
                 align="right"
@@ -97,24 +109,18 @@
 
             <template v-if="user">
               <span class="mobile-user-email">{{ user.email }}</span>
-              <RouterLink
-                v-for="item in mobileAccountLinks"
-                :key="item.to"
-                :to="item.to"
-                :class="item.primary ? 'btn-primary' : 'btn-secondary'"
-                @click="closeMenu"
-              >
-                {{ item.label }}
+              <RouterLink v-if="mobilePrimaryLink" class="btn-primary" :to="mobilePrimaryLink.to" @click="closeMenu">
+                {{ mobilePrimaryLink.label }}
               </RouterLink>
-              <button type="button" class="btn-secondary" @click="logout">Выйти</button>
+              <button type="button" class="btn-secondary" @click="logout">{{ t('common.logout') }}</button>
             </template>
 
             <template v-else>
               <button type="button" class="btn-secondary" @click="openLoginFromMenu">
-                Войти
+                {{ t('common.login') }}
               </button>
               <button type="button" class="btn-primary" @click="openRegisterFromMenu">
-                Регистрация
+                {{ t('common.register') }}
               </button>
             </template>
           </div>
@@ -127,15 +133,10 @@
 <script>
 import { useAuth } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useI18n } from '@/i18n'
+import { localizeFullPath } from '@/router/locale'
 import BaseDropdown from './BaseDropdown.vue'
 import Logo from './Logo.vue'
-
-const ACCOUNT_LABELS = {
-  candidate: 'Кандидат',
-  user: 'Кандидат',
-  employer: 'Работодатель',
-  admin: 'Администратор',
-}
 
 function normalizeAccountType(accountType) {
   if (accountType === 'user') return 'candidate'
@@ -145,17 +146,9 @@ function normalizeAccountType(accountType) {
 function routeForAccount(accountType) {
   const normalizedType = normalizeAccountType(accountType)
 
-  if (normalizedType === 'candidate') {
-    return '/dashboard'
-  }
-
-  if (normalizedType === 'employer') {
-    return '/employer-dashboard'
-  }
-
-  if (normalizedType === 'admin') {
-    return '/admin'
-  }
+  if (normalizedType === 'candidate') return '/dashboard'
+  if (normalizedType === 'employer') return '/employer-dashboard'
+  if (normalizedType === 'admin') return '/admin'
 
   return '/'
 }
@@ -170,10 +163,13 @@ export default {
   setup() {
     const { state, logout: logoutAuth } = useAuth()
     const uiStore = useUiStore()
+    const { t } = useI18n()
+
     return {
       authState: state,
       logoutAuth,
       uiStore,
+      t,
     }
   },
 
@@ -184,14 +180,6 @@ export default {
       languageOptions: [
         { value: 'ru', label: 'RU', hint: 'Русский' },
         { value: 'en', label: 'EN', hint: 'English' },
-        { value: 'lv', label: 'LV', hint: 'Latviešu' },
-      ],
-      navItems: [
-        { label: 'Вакансии', to: '/jobs', icon: 'fas fa-briefcase' },
-        { label: 'Работодателям', to: '/', icon: 'fas fa-users' },
-        { label: 'Резюме', to: '/resume-builder', icon: 'fas fa-file-lines' },
-        { label: 'О платформе', to: '/about', icon: 'fas fa-circle-info' },
-        { label: 'Цены', to: '/#pricing', icon: 'fas fa-tags', hash: '#pricing' },
       ],
     }
   },
@@ -214,44 +202,59 @@ export default {
       },
     },
 
+    navItems() {
+      return [
+        { label: this.t('navbar.jobs'), to: '/jobs', icon: 'fas fa-briefcase' },
+        { label: this.t('navbar.employers'), to: '/', icon: 'fas fa-users' },
+        { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
+        { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
+        { label: this.t('navbar.pricing'), to: '/#pricing', icon: 'fas fa-tags', hash: '#pricing' },
+      ]
+    },
+
     dashboardRoute() {
       return routeForAccount(this.user?.account_type)
     },
 
     accountTypeLabel() {
-      return ACCOUNT_LABELS[this.user?.account_type] || ACCOUNT_LABELS[this.normalizedAccountType] || 'Account'
+      if (this.normalizedAccountType === 'candidate') return this.t('navbar.accountCandidate')
+      if (this.normalizedAccountType === 'employer') return this.t('navbar.accountEmployer')
+      if (this.normalizedAccountType === 'admin') return this.t('navbar.accountAdmin')
+      return 'Account'
     },
 
     mobileAccountLinks() {
       if (!this.user) return []
 
       if (this.normalizedAccountType === 'candidate') {
-        return [
-          { label: 'Профиль', to: '/profile', primary: true },
-          { label: 'Дашборд', to: '/dashboard' },
-          { label: 'Резюме', to: '/resume-builder' },
-          { label: 'Сообщения', to: '/dashboard?section=messages' },
-          { label: 'Вакансии', to: '/jobs' },
-        ]
+        return [{ label: this.t('navbar.profile'), to: '/profile', primary: true }]
       }
 
       if (this.normalizedAccountType === 'admin') {
         return [
-          { label: 'Админ-панель', to: '/admin', primary: true },
-          { label: 'Кабинет работодателя', to: '/employer-dashboard' },
-          { label: 'Вакансии', to: '/admin?section=jobs' },
-          { label: 'Профиль', to: '/profile' },
+          { label: this.t('navbar.adminPanel'), to: '/admin', primary: true },
+          { label: this.t('navbar.employerDashboard'), to: '/employer-dashboard' },
+          { label: this.t('navbar.jobs'), to: '/admin?section=jobs' },
+          { label: this.t('navbar.profile'), to: '/profile' },
         ]
       }
 
       return [
-        { label: 'Кабинет', to: '/employer-dashboard', primary: true },
-        { label: 'Мои вакансии', to: '/employer-dashboard?section=jobs' },
-        { label: 'Отклики', to: '/employer-dashboard?section=responses' },
-        { label: 'Сообщения', to: '/employer-dashboard?section=messages' },
-        { label: 'Тарифы', to: '/employer-dashboard?section=pricing' },
-        { label: 'Профиль', to: '/profile' },
+        { label: this.t('navbar.dashboard'), to: '/employer-dashboard', primary: true },
+        { label: this.t('navbar.myJobs'), to: '/employer-dashboard?section=jobs' },
+        { label: this.t('navbar.responses'), to: '/employer-dashboard?section=responses' },
+        { label: this.t('navbar.messages'), to: '/employer-dashboard?section=messages' },
+        { label: this.t('navbar.plans'), to: '/employer-dashboard?section=pricing' },
+        { label: this.t('navbar.profile'), to: '/profile' },
       ]
+    },
+
+    mobilePrimaryLink() {
+      return this.mobileAccountLinks.find((item) => item.to === '/profile') || null
+    },
+
+    mobileSecondaryLinks() {
+      return this.mobileAccountLinks.filter((item) => item.to !== '/profile')
     },
   },
 
@@ -316,6 +319,10 @@ export default {
 
     changeLanguage() {
       this.uiStore.setLanguage(this.currentLanguage)
+      const nextPath = localizeFullPath(this.$route.fullPath, this.currentLanguage)
+      if (nextPath !== this.$route.fullPath) {
+        this.$router.replace(nextPath)
+      }
     },
 
     toggleMenu() {
@@ -342,6 +349,7 @@ export default {
       this.closeMenu()
       this.logoutAuth()
       this.isUserMenuOpen = false
+      this.$router.replace(localizeFullPath('/', this.currentLanguage))
     },
 
     handleResize() {
@@ -522,9 +530,9 @@ export default {
 .mobile-menu-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(247, 250, 248, 0.32);
   z-index: 1000;
-  backdrop-filter: blur(0.25rem);
+  backdrop-filter: none;
 }
 
 .mobile-menu {
@@ -534,11 +542,16 @@ export default {
   width: 75vw;
   max-width: 22rem;
   height: 100vh;
-  background: var(--surface-secondary);
-  box-shadow: -0.25rem 0 0.625rem rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--surface-primary) 96%, white);
+  box-shadow: -1rem 0 2rem rgba(17, 24, 39, 0.08);
   padding: 5rem 1.5rem 2rem;
   overflow-y: auto;
   animation: slideIn 0.3s ease-out;
+}
+
+.mobile-menu-links {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .mobile-nav-link {
@@ -560,6 +573,12 @@ export default {
 .mobile-nav-link--hash.router-link-active {
   color: var(--text-primary);
   background: transparent;
+}
+
+.mobile-nav-link--secondary {
+  padding-left: 2.75rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: var(--surface-primary);
 }
 
 .mobile-auth-buttons {

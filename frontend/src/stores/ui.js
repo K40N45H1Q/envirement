@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { normalizeLanguage } from '@/i18n'
 
 const LANGUAGE_STORAGE_KEY = 'cvhold-language'
 
@@ -7,16 +8,18 @@ const resolveInitialLanguage = () => {
     return 'ru'
   }
 
-  return localStorage.getItem(LANGUAGE_STORAGE_KEY) || document.documentElement.lang || 'ru'
+  return normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY) || document.documentElement.lang || 'ru')
 }
 
 const applyLanguage = (language) => {
+  const normalizedLanguage = normalizeLanguage(language)
+
   if (typeof document !== 'undefined') {
-    document.documentElement.lang = language
+    document.documentElement.lang = normalizedLanguage
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, normalizedLanguage)
   }
 }
 
@@ -31,7 +34,7 @@ export const useUiStore = defineStore('ui', {
     },
 
     setLanguage(language) {
-      this.language = language || 'ru'
+      this.language = normalizeLanguage(language || 'ru')
       applyLanguage(this.language)
     },
   },

@@ -1,142 +1,115 @@
+<script setup>
+import { computed } from 'vue'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
+
+const metrics = computed(() => [
+  { label: t('match.experience'), width: '92%', color: '#19785a' },
+  { label: t('match.language'), width: '95%', color: '#19785a' },
+  { label: t('match.skills'), width: '88%', color: '#19785a' },
+  { label: t('match.motivation'), width: '90%', color: '#19785a' },
+])
+
+const metricsTwo = computed(() => [
+  { label: t('match.experience'), width: '75%', color: '#4a90e2' },
+  { label: t('match.language'), width: '80%', color: '#4a90e2' },
+  { label: t('match.skills'), width: '72%', color: '#4a90e2' },
+  { label: t('match.motivation'), width: '78%', color: '#4a90e2' },
+])
+
+const metricsThree = computed(() => [
+  { label: t('match.experience'), width: '40%', color: '#f5a623' },
+  { label: t('match.language'), width: '50%', color: '#f5a623' },
+  { label: t('match.skills'), width: '45%', color: '#f5a623' },
+  { label: t('match.motivation'), width: '55%', color: '#f5a623' },
+])
+</script>
+
 <template>
   <div class="match-score-section">
-    <div class="match-score-title">Match Score — умный найм</div>
+    <div class="match-score-title">{{ t('match.title') }}</div>
 
     <div class="candidate-row">
       <div class="candidate-main">
-        <div class="avatar" style="background: #19785a">АВ</div>
+        <div class="avatar" style="background: #19785a">AV</div>
         <div class="candidate-details">
-          <div class="name">Андрей В.</div>
-          <div class="role">CE · 8 лет · Рига · LAT, RUS, ENG</div>
+          <div class="name">{{ t('match.candidate1Name') }}</div>
+          <div class="role">{{ t('match.candidate1Role') }}</div>
         </div>
       </div>
       <div class="score-block">
         <div class="score-value" style="color: #19785a">91</div>
         <div class="score-badge" style="background: #e6f0ec; color: #19785a">
-          Strong match
+          {{ t('match.candidate1Badge') }}
         </div>
       </div>
     </div>
     <div class="progress-bars">
-      <div class="progress-item">
-        <span class="label">Опыт</span>
+      <div v-for="metric in metrics" :key="metric.label" class="progress-item">
+        <span class="label">{{ metric.label }}</span>
         <div class="track">
-          <div class="fill" style="width: 92%; background: #19785a"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Язык</span>
-        <div class="track">
-          <div class="fill" style="width: 95%; background: #19785a"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Навыки</span>
-        <div class="track">
-          <div class="fill" style="width: 88%; background: #19785a"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Мотивация</span>
-        <div class="track">
-          <div class="fill" style="width: 90%; background: #19785a"></div>
+          <div class="fill" :style="{ width: metric.width, background: metric.color }"></div>
         </div>
       </div>
     </div>
 
     <div class="candidate-row">
       <div class="candidate-main">
-        <div class="avatar" style="background: #4a90e2">МК</div>
+        <div class="avatar" style="background: #4a90e2">MK</div>
         <div class="candidate-details">
-          <div class="name">Марис К.</div>
-          <div class="role">CE · 5 лет · Елгава · LAT, RUS</div>
+          <div class="name">{{ t('match.candidate2Name') }}</div>
+          <div class="role">{{ t('match.candidate2Role') }}</div>
         </div>
       </div>
       <div class="score-block">
         <div class="score-value" style="color: #4a90e2">77</div>
         <div class="score-badge" style="background: #e8f0fe; color: #4a90e2">
-          Good match
+          {{ t('match.candidate2Badge') }}
         </div>
       </div>
     </div>
     <div class="progress-bars">
-      <div class="progress-item">
-        <span class="label">Опыт</span>
+      <div v-for="metric in metricsTwo" :key="metric.label" class="progress-item">
+        <span class="label">{{ metric.label }}</span>
         <div class="track">
-          <div class="fill" style="width: 75%; background: #4a90e2"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Язык</span>
-        <div class="track">
-          <div class="fill" style="width: 80%; background: #4a90e2"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Навыки</span>
-        <div class="track">
-          <div class="fill" style="width: 72%; background: #4a90e2"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Мотивация</span>
-        <div class="track">
-          <div class="fill" style="width: 78%; background: #4a90e2"></div>
+          <div class="fill" :style="{ width: metric.width, background: metric.color }"></div>
         </div>
       </div>
     </div>
 
     <div class="candidate-row">
       <div class="candidate-main">
-        <div class="avatar" style="background: #f5a623">ДП</div>
+        <div class="avatar" style="background: #f5a623">DP</div>
         <div class="candidate-details">
-          <div class="name">Дмитрий П.</div>
-          <div class="role">B · 2 года · Даугавпилс · RUS</div>
+          <div class="name">{{ t('match.candidate3Name') }}</div>
+          <div class="role">{{ t('match.candidate3Role') }}</div>
         </div>
       </div>
       <div class="score-block">
         <div class="score-value" style="color: #f5a623">48</div>
         <div class="score-badge" style="background: #fef3e2; color: #f5a623">
-          Partial match
+          {{ t('match.candidate3Badge') }}
         </div>
       </div>
     </div>
     <div class="progress-bars">
-      <div class="progress-item">
-        <span class="label">Опыт</span>
+      <div v-for="metric in metricsThree" :key="metric.label" class="progress-item">
+        <span class="label">{{ metric.label }}</span>
         <div class="track">
-          <div class="fill" style="width: 40%; background: #f5a623"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Язык</span>
-        <div class="track">
-          <div class="fill" style="width: 50%; background: #f5a623"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Навыки</span>
-        <div class="track">
-          <div class="fill" style="width: 45%; background: #f5a623"></div>
-        </div>
-      </div>
-      <div class="progress-item">
-        <span class="label">Мотивация</span>
-        <div class="track">
-          <div class="fill" style="width: 55%; background: #f5a623"></div>
+          <div class="fill" :style="{ width: metric.width, background: metric.color }"></div>
         </div>
       </div>
     </div>
 
     <div class="stats">
       <div class="stats-avatars">
-        <div class="avatar" style="background: #19785a">АВ</div>
-        <div class="avatar" style="background: #4a90e2">МК</div>
-        <div class="avatar" style="background: #f5a623">ДП</div>
+        <div class="avatar" style="background: #19785a">AV</div>
+        <div class="avatar" style="background: #4a90e2">MK</div>
+        <div class="avatar" style="background: #f5a623">DP</div>
       </div>
       <div class="stats-text">
-        <strong>50 000+</strong> работодателей <br />
-        уже нанимают точнее
+        <strong>50 000+</strong> {{ t('match.stats') }}
       </div>
     </div>
   </div>

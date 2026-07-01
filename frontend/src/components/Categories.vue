@@ -1,14 +1,18 @@
 <script setup>
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from '@/i18n'
 
-const cards = [
-  { title: 'Строительство', jobs: '200 вакансий', category: 'construction', icon: 'fas fa-building' },
-  { title: 'Производство', jobs: '200 вакансий', category: 'production', icon: 'fas fa-industry' },
-  { title: 'Логистика', jobs: '200 вакансий', category: 'logistics', icon: 'fas fa-truck-fast' },
-  { title: 'IT и технологии', jobs: '200 вакансий', category: 'it', icon: 'fas fa-desktop' },
-  { title: 'Медицина', jobs: '200 вакансий', category: 'health', icon: 'fas fa-briefcase-medical' },
-  { title: 'Гостиничный бизнес', jobs: '200 вакансий', category: 'hospitality', icon: 'fas fa-hotel' },
-]
+const { t } = useI18n()
+
+const cards = computed(() => [
+  { title: t('categories.construction'), jobs: t('categories.jobsCount', { count: 200 }), category: 'construction', icon: 'fas fa-building' },
+  { title: t('categories.production'), jobs: t('categories.jobsCount', { count: 200 }), category: 'production', icon: 'fas fa-industry' },
+  { title: t('categories.logistics'), jobs: t('categories.jobsCount', { count: 200 }), category: 'logistics', icon: 'fas fa-truck-fast' },
+  { title: t('categories.it'), jobs: t('categories.jobsCount', { count: 200 }), category: 'it', icon: 'fas fa-desktop' },
+  { title: t('categories.health'), jobs: t('categories.jobsCount', { count: 200 }), category: 'health', icon: 'fas fa-briefcase-medical' },
+  { title: t('categories.hospitality'), jobs: t('categories.jobsCount', { count: 200 }), category: 'hospitality', icon: 'fas fa-hotel' },
+])
 </script>
 
 <template>
@@ -16,10 +20,10 @@ const cards = [
     <div class="categories-card">
       <div class="categories-head">
         <div>
-          <p class="section-eyebrow">Категории</p>
-          <h2>Популярные категории</h2>
+          <p class="section-eyebrow">{{ t('categories.eyebrow') }}</p>
+          <h2>{{ t('categories.title') }}</h2>
         </div>
-        <RouterLink :to="{ path: '/jobs' }" class="all-link">Все вакансии</RouterLink>
+        <RouterLink :to="{ path: '/jobs' }" class="all-link">{{ t('categories.allJobs') }}</RouterLink>
       </div>
 
       <div class="popular-grid">

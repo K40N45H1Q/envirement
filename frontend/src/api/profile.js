@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export const getProfile = () => apiRequest('/api/profile')
+export const getProfile = () => apiRequest('/api/profile', { requireAuth: true })
 
 export const updateProfile = (payload) => {
   const formData = new FormData()
@@ -19,5 +19,6 @@ export const updateProfile = (payload) => {
   return apiRequest('/api/profile', {
     method: 'PUT',
     body: formData,
+    requireAuth: true,
   })
 }

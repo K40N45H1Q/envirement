@@ -1,5 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -12,11 +15,11 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: 'Выберите',
+    default: '',
   },
   ariaLabel: {
     type: String,
-    default: 'Список выбора',
+    default: '',
   },
   iconClass: {
     type: String,
@@ -76,7 +79,9 @@ const selectedOption = computed(() => (
   normalizedOptions.value.find((option) => option.value === props.modelValue) || null
 ))
 
-const buttonLabel = computed(() => selectedOption.value?.label || props.placeholder)
+const resolvedPlaceholder = computed(() => props.placeholder || t('common.choose'))
+const resolvedAriaLabel = computed(() => props.ariaLabel || t('common.selectionList'))
+const buttonLabel = computed(() => selectedOption.value?.label || resolvedPlaceholder.value)
 
 const close = () => {
   if (!isOpen.value) return
@@ -202,7 +207,7 @@ onBeforeUnmount(() => {
       type="button"
       class="dropdown__trigger"
       :aria-expanded="isOpen"
-      :aria-label="ariaLabel"
+      :aria-label="resolvedAriaLabel"
       :disabled="disabled"
       @click="toggle"
       @keydown="onKeydown"

@@ -139,6 +139,9 @@ def ensure_mvp_seed_data():
                 "company": "Enercom SIA",
                 "salary": "2 500 - 3 500 EUR",
                 "location": "Riga, Latvia",
+                "country_key": "latvia",
+                "country_label": "Латвия",
+                "country_flag_code": "lv",
                 "description": (
                     "Maintenance of wind turbines, preventive inspections, work at height, "
                     "service trips across the Baltics, accommodation support and company transport."
@@ -152,6 +155,9 @@ def ensure_mvp_seed_data():
                 "company": "Enercom SIA",
                 "salary": "2 200 - 2 800 EUR",
                 "location": "Liepaja, Latvia",
+                "country_key": "latvia",
+                "country_label": "Латвия",
+                "country_flag_code": "lv",
                 "description": (
                     "High-voltage cable work, switchgear servicing, commissioning, shift work, "
                     "safety procedures, transport to project sites included."
@@ -165,6 +171,9 @@ def ensure_mvp_seed_data():
                 "company": "SteelBuild GmbH",
                 "salary": "3 200 - 3 800 EUR",
                 "location": "Berlin, Germany",
+                "country_key": "germany",
+                "country_label": "Германия",
+                "country_flag_code": "de",
                 "description": (
                     "Welding of metal constructions, reading technical drawings, quality control, "
                     "official employment, accommodation support."
@@ -178,6 +187,9 @@ def ensure_mvp_seed_data():
                 "company": "Nordex Baltic",
                 "salary": "2 900 - 3 400 EUR",
                 "location": "Tallinn, Estonia",
+                "country_key": "estonia",
+                "country_label": "Эстония",
+                "country_flag_code": "ee",
                 "description": (
                     "Composite repairs on wind turbine blades, inspection reports, rope access "
                     "preferred, project-based rotations."
@@ -191,6 +203,9 @@ def ensure_mvp_seed_data():
                 "company": "LogiMove Europe",
                 "salary": "3 000 - 3 300 EUR",
                 "location": "Warsaw, Poland",
+                "country_key": "poland",
+                "country_label": "Польша",
+                "country_flag_code": "pl",
                 "description": (
                     "International transport routes, modern fleet, stable contract, company transport "
                     "card, housing support during onboarding."
@@ -223,6 +238,9 @@ def ensure_mvp_seed_data():
                 job.status = "approved"
                 job.salary = job_data["salary"]
                 job.location = job_data["location"]
+                job.country_key = job_data["country_key"]
+                job.country_label = job_data["country_label"]
+                job.country_flag_code = job_data["country_flag_code"]
                 job.description = job_data["description"]
                 job.logo = job_data["logo"]
                 job.has_housing = job_data["has_housing"]
@@ -347,9 +365,11 @@ def require_account_types(user: User, *allowed_types: str) -> User:
 
 
 def get_current_user(
-    authorization: str = Header(...),
+    authorization: str | None = Header(None),
     session=Depends(get_session),
 ) -> User:
+    if not authorization:
+        error("unauthorized", 401)
     if not authorization.startswith("Bearer "):
         error("unauthorized", 401)
     token = authorization.replace("Bearer ", "")

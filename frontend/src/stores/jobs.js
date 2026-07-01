@@ -1,35 +1,64 @@
-﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { getJobs } from '@/api/jobs'
+import { translate } from '@/i18n'
+import { useUiStore } from '@/stores/ui'
 import { normalizeJob } from '@/utils/jobs'
 
 const BOOKMARKS_STORAGE_KEY = 'cvhold-job-bookmarks'
 
 const categoryConfigs = [
-  { id: 'all', label: 'Все категории', icon: 'fas fa-border-all' },
-  { id: 'construction', label: 'Строительство', icon: 'fas fa-hard-hat' },
-  { id: 'production', label: 'Производство', icon: 'fas fa-industry' },
-  { id: 'logistics', label: 'Логистика', icon: 'fas fa-truck-fast' },
-  { id: 'it', label: 'IT и технологии', icon: 'fas fa-laptop-code' },
-  { id: 'health', label: 'Медицина', icon: 'fas fa-heart-pulse' },
-  { id: 'hospitality', label: 'Гостиничный бизнес', icon: 'fas fa-bell-concierge' },
+  { id: 'all', labelKey: 'jobsStore.allCategories', icon: 'fas fa-border-all' },
+  { id: 'construction', labelKey: 'categories.construction', icon: 'fas fa-hard-hat' },
+  { id: 'production', labelKey: 'categories.production', icon: 'fas fa-industry' },
+  { id: 'logistics', labelKey: 'categories.logistics', icon: 'fas fa-truck-fast' },
+  { id: 'it', labelKey: 'categories.it', icon: 'fas fa-laptop-code' },
+  { id: 'health', labelKey: 'categories.health', icon: 'fas fa-heart-pulse' },
+  { id: 'hospitality', labelKey: 'categories.hospitality', icon: 'fas fa-bell-concierge' },
 ]
 
 const countryMeta = [
-  { key: 'germany', label: 'Германия', flagCode: 'de' },
-  { key: 'netherlands', label: 'Нидерланды', flagCode: 'nl' },
-  { key: 'poland', label: 'Польша', flagCode: 'pl' },
-  { key: 'belgium', label: 'Бельгия', flagCode: 'be' },
-  { key: 'france', label: 'Франция', flagCode: 'fr' },
-  { key: 'latvia', label: 'Латвия', flagCode: 'lv' },
-  { key: 'estonia', label: 'Эстония', flagCode: 'ee' },
+  { key: 'germany', labelKey: 'jobsStore.germany', flagCode: 'de' },
+  { key: 'finland', labelKey: 'jobsStore.finland', flagCode: 'fi' },
+  { key: 'czechia', labelKey: 'jobsStore.czechia', flagCode: 'cz' },
+  { key: 'netherlands', labelKey: 'jobsStore.netherlands', flagCode: 'nl' },
+  { key: 'poland', labelKey: 'jobsStore.poland', flagCode: 'pl' },
+  { key: 'belgium', labelKey: 'jobsStore.belgium', flagCode: 'be' },
+  { key: 'france', labelKey: 'jobsStore.france', flagCode: 'fr' },
+  { key: 'latvia', labelKey: 'jobsStore.latvia', flagCode: 'lv' },
+  { key: 'estonia', labelKey: 'jobsStore.estonia', flagCode: 'ee' },
 ]
 
 const employmentOptions = [
-  { id: 'all', label: 'Любой тип' },
-  { id: 'full-time', label: 'Полная занятость' },
-  { id: 'shift', label: 'Сменный график' },
-  { id: 'contract', label: 'Проект / контракт' },
+  { id: 'all', labelKey: 'jobsStore.anyType' },
+  { id: 'full-time', labelKey: 'jobsStore.fullTime' },
+  { id: 'shift', labelKey: 'jobsStore.shift' },
+  { id: 'contract', labelKey: 'jobsStore.contract' },
 ]
+
+const getLanguage = () => {
+  try {
+    return useUiStore().language
+  } catch {
+    return 'ru'
+  }
+}
+
+const t = (key, params = {}) => translate(key, params, getLanguage())
+
+const localizeCategoryConfigs = () => categoryConfigs.map((category) => ({
+  ...category,
+  label: t(category.labelKey),
+}))
+
+const localizeCountryMeta = () => countryMeta.map((country) => ({
+  ...country,
+  label: t(country.labelKey),
+}))
+
+const localizeEmploymentOptions = () => employmentOptions.map((option) => ({
+  ...option,
+  label: t(option.labelKey),
+}))
 
 const readBookmarks = () => {
   try {
@@ -60,6 +89,8 @@ const inferCategory = (job) => {
 const inferCountry = (location = '') => {
   const value = location.toLowerCase()
   if (value.includes('герман') || value.includes('germany') || value.includes('berlin')) return 'germany'
+  if (value.includes('финля') || value.includes('finland') || value.includes('tampere')) return 'finland'
+  if (value.includes('чех') || value.includes('czech') || value.includes('prague') || value.includes('praha')) return 'czechia'
   if (value.includes('нидер') || value.includes('netherlands') || value.includes('rotterdam')) return 'netherlands'
   if (value.includes('польш') || value.includes('poland') || value.includes('warsaw')) return 'poland'
   if (value.includes('бельг') || value.includes('belgium') || value.includes('antwerp')) return 'belgium'
@@ -88,15 +119,15 @@ const inferEmployment = (job) => {
 }
 
 const timeLabel = (createdAt) => {
-  if (!createdAt) return 'Недавно'
+  if (!createdAt) return t('jobsStore.recent')
   const date = new Date(createdAt)
   const now = new Date()
   const diff = Math.max(0, now.getTime() - date.getTime())
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days <= 0) return 'Сегодня'
-  if (days === 1) return 'Вчера'
-  if (days < 7) return `${days} дн. назад`
-  return date.toLocaleDateString('ru-RU')
+  if (days <= 0) return t('jobsStore.today')
+  if (days === 1) return t('jobsStore.yesterday')
+  if (days < 7) return t('jobsStore.daysAgo', { count: days })
+  return date.toLocaleDateString(getLanguage() === 'en' ? 'en-GB' : 'ru-RU')
 }
 
 const defaultFilters = () => ({
@@ -125,21 +156,23 @@ export const useJobsStore = defineStore('jobs', {
   }),
 
   getters: {
-    categoryConfigs: () => categoryConfigs,
-    employmentOptions: () => employmentOptions,
+    categoryConfigs: () => localizeCategoryConfigs(),
+    employmentOptions: () => localizeEmploymentOptions(),
 
     enrichedJobs(state) {
+      const countries = localizeCountryMeta()
+
       return state.jobs.map((job, index) => {
         const category = inferCategory(job)
         const countryKey = inferCountry(job.location)
-        const country = countryMeta.find((item) => item.key === countryKey)
+        const country = countries.find((item) => item.key === countryKey)
         const salaryAmount = parseSalaryAmount(job.salary)
 
         return {
           ...job,
           category,
           countryKey,
-          countryLabel: country?.label || 'Европа',
+          countryLabel: country?.label || t('jobsStore.europe'),
           countryFlagCode: country?.flagCode || 'eu',
           timeLabel: timeLabel(job.created_at),
           isHot: index < 2,
@@ -150,16 +183,16 @@ export const useJobsStore = defineStore('jobs', {
           employmentType: inferEmployment(job),
           isBookmarked: state.bookmarks.includes(String(job.id)),
           tags: [
-            inferHousing(job) ? 'Жильё' : 'Без жилья',
-            inferTransport(job) ? 'Транспорт' : 'Самостоятельный доезд',
-            category === 'construction' ? 'Европейский проект' : 'Работа в ЕС',
+            inferHousing(job) ? t('jobsStore.housing') : t('jobsStore.noHousing'),
+            inferTransport(job) ? t('jobsStore.transport') : t('jobsStore.selfCommute'),
+            category === 'construction' ? t('jobsStore.euProject') : t('jobsStore.euWork'),
           ],
         }
       })
     },
 
     categoryCounts() {
-      return categoryConfigs.map((category) => ({
+      return this.categoryConfigs.map((category) => ({
         ...category,
         count: category.id === 'all'
           ? this.enrichedJobs.length
@@ -168,12 +201,13 @@ export const useJobsStore = defineStore('jobs', {
     },
 
     countries() {
+      const localizedCountries = localizeCountryMeta()
       const counts = this.enrichedJobs.reduce((acc, job) => {
         acc[job.countryKey] = (acc[job.countryKey] || 0) + 1
         return acc
       }, {})
 
-      return countryMeta
+      return localizedCountries
         .map((country) => ({
           ...country,
           count: counts[country.key] || 0,
@@ -254,10 +288,10 @@ export const useJobsStore = defineStore('jobs', {
     },
 
     resultsLabel() {
-      if (this.isLoading) return 'Обновляем выдачу вакансий...'
-      if (!this.filteredJobs.length) return 'По текущим фильтрам вакансии не найдены'
+      if (this.isLoading) return t('jobsStore.updating')
+      if (!this.filteredJobs.length) return t('jobsStore.noMatches')
 
-      const parts = [`Найдено ${this.filteredJobs.length} вакансий`]
+      const parts = [t('jobsStore.foundJobs', { count: this.filteredJobs.length })]
 
       if (this.filters.selectedCategory !== 'all') {
         const category = this.categoryCounts.find((item) => item.id === this.filters.selectedCategory)
@@ -270,7 +304,7 @@ export const useJobsStore = defineStore('jobs', {
       }
 
       if (this.filters.onlyBookmarked) {
-        parts.push('закладки')
+        parts.push(t('jobsStore.bookmarks'))
       }
 
       return parts.join(' • ')
@@ -306,7 +340,7 @@ export const useJobsStore = defineStore('jobs', {
         this.jobs = Array.isArray(data) ? data.map(normalizeJob) : []
       } catch {
         this.jobs = []
-        this.error = 'Не удалось загрузить вакансии. Попробуйте обновить страницу.'
+        this.error = t('jobsStore.loadError')
       } finally {
         this.isLoading = false
       }
@@ -368,4 +402,3 @@ export const useJobsStore = defineStore('jobs', {
     },
   },
 })
-

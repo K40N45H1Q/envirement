@@ -46,9 +46,14 @@ export const apiRequest = async (path, options = {}) => {
   const token = getAuthToken()
   const headers = new Headers(options.headers || {})
   const skipAuth = options.skipAuth === true
+  const requireAuth = options.requireAuth === true
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
+  }
+
+  if (requireAuth && !token) {
+    throw new ApiError('unauthorized', 401)
   }
 
   if (!skipAuth && token && !headers.has('Authorization')) {
@@ -70,6 +75,15 @@ export const apiRequest = async (path, options = {}) => {
   const data = parseResponseBody(text)
 
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('app:unauthorized', {
+        detail: {
+          path,
+          status: response.status,
+          key: getErrorKey(data),
+        },
+      }))
+    }
     throw new ApiError(getErrorKey(data), response.status, data)
   }
 

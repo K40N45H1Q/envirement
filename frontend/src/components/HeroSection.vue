@@ -1,64 +1,50 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { useI18n } from '@/i18n'
 import Match from './Match.vue'
+
+const { t } = useI18n()
+
+const featureKeys = [
+  { title: 'hero.feature1Title', text: 'hero.feature1Text', icon: 'fas fa-chart-bar' },
+  { title: 'hero.feature2Title', text: 'hero.feature2Text', icon: 'fas fa-users' },
+  { title: 'hero.feature3Title', text: 'hero.feature3Text', icon: 'fas fa-chart-line' },
+]
 </script>
 
 <template>
   <section class="hero-shell">
     <div class="hero surface-card">
       <div class="hero-copy">
-        <p class="hero-eyebrow">Наше преимущество</p>
+        <p class="hero-eyebrow">{{ t('hero.eyebrow') }}</p>
         <h1>
-          Умный подбор.
+          {{ t('hero.line1') }}
           <br />
-          Прозрачные отклики.
+          {{ t('hero.line2') }}
           <br />
-          <span>Точный результат.</span>
+          <span>{{ t('hero.line3') }}</span>
         </h1>
-        <p class="hero-description">
-          Каждый кандидат получает Score по вашим требованиям.
-          Вы видите только тех, кто действительно подходит.
-        </p>
+        <p class="hero-description">{{ t('hero.description') }}</p>
 
         <div class="hero-actions">
           <RouterLink to="/jobs" class="btn-primary">
             <i class="fas fa-magnifying-glass"></i>
-            Найти сотрудника
+            {{ t('hero.findEmployees') }}
           </RouterLink>
           <RouterLink to="/employer-dashboard" class="btn-secondary">
-            Разместить вакансию
+            {{ t('hero.postJob') }}
             <i class="fas fa-plus"></i>
           </RouterLink>
         </div>
 
         <div class="hero-features">
-          <article class="feature-card">
+          <article v-for="feature in featureKeys" :key="feature.title" class="feature-card">
             <div class="feature-icon">
-              <i class="fas fa-chart-bar"></i>
+              <i :class="feature.icon"></i>
             </div>
             <div>
-              <h3>Match Score</h3>
-              <p>По каждому отклику</p>
-            </div>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-users"></i>
-            </div>
-            <div>
-              <h3>Сравнение</h3>
-              <p>Кандидатов side-by-side</p>
-            </div>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-chart-line"></i>
-            </div>
-            <div>
-              <h3>Аналитика</h3>
-              <p>По всем этапам подбора</p>
+              <h3>{{ t(feature.title) }}</h3>
+              <p>{{ t(feature.text) }}</p>
             </div>
           </article>
         </div>

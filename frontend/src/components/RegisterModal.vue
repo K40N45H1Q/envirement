@@ -10,19 +10,15 @@
         @click.self="close"
       >
         <form class="register-card" novalidate @submit.prevent="handleSubmit">
-          <button type="button" class="modal-close" aria-label="Закрыть окно регистрации" @click="close">
+          <button type="button" class="modal-close" :aria-label="t('common.closeRegister')" @click="close">
             <i class="fa-solid fa-xmark"></i>
           </button>
 
           <h1 id="register-title" class="title">
-            {{ selectedAccountType === 'employer' ? 'Создать аккаунт компании' : 'Создание аккаунта' }}
+            {{ selectedAccountType === 'employer' ? t('register.createCompanyAccount') : t('register.createAccount') }}
           </h1>
           <p class="subtitle">
-            {{
-              isEmployerCompanyStep
-                ? 'Шаг 2 из 2. Заполните данные компании в том же окне.'
-                : 'Создайте аккаунт и продолжите работу в едином интерфейсе платформы.'
-            }}
+            {{ isEmployerCompanyStep ? t('register.companyStepSubtitle') : t('register.defaultSubtitle') }}
           </p>
 
           <Transition name="expand">
@@ -35,12 +31,12 @@
           <div v-if="selectedAccountType === 'employer'" class="steps">
             <div class="step" :class="{ 'step--active': currentStep === 1, 'step--done': currentStep > 1 }">
               <span>1</span>
-              <strong>Аккаунт</strong>
+              <strong>{{ t('register.account') }}</strong>
             </div>
             <div class="steps-line"></div>
             <div class="step" :class="{ 'step--active': currentStep === 2 }">
               <span>2</span>
-              <strong>Компания</strong>
+              <strong>{{ t('register.company') }}</strong>
             </div>
           </div>
 
@@ -52,8 +48,8 @@
                 :class="{ 'account-option--active': selectedAccountType === 'candidate' }"
                 @click="selectAccountType('candidate')"
               >
-                <strong>Кандидат</strong>
-                <span>Создать профиль и откликаться на вакансии</span>
+                <strong>{{ t('register.candidate') }}</strong>
+                <span>{{ t('register.candidateText') }}</span>
               </button>
               <button
                 type="button"
@@ -61,8 +57,8 @@
                 :class="{ 'account-option--active': selectedAccountType === 'employer' }"
                 @click="selectAccountType('employer')"
               >
-                <strong>Работодатель</strong>
-                <span>Публиковать вакансии и управлять откликами</span>
+                <strong>{{ t('register.employer') }}</strong>
+                <span>{{ t('register.employerText') }}</span>
               </button>
             </div>
           </div>
@@ -84,7 +80,7 @@
                 <input
                   v-model="password"
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="Пароль"
+                  :placeholder="t('register.password')"
                   class="input"
                   :class="{ error: isPasswordTouched && !isPasswordValid }"
                   autocomplete="new-password"
@@ -94,7 +90,7 @@
                 <button
                   type="button"
                   class="toggle"
-                  aria-label="Показать пароль"
+                  :aria-label="t('common.showPassword')"
                   @click="showPassword = !showPassword"
                 >
                   <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
@@ -105,23 +101,23 @@
                 <div v-show="showRequirements" class="requirements">
                   <div class="req-item" :class="{ valid: checks.length }">
                     <i class="fa-solid" :class="checks.length ? 'fa-check' : 'fa-xmark'"></i>
-                    <span>Минимум 8 символов</span>
+                    <span>{{ t('register.reqLength') }}</span>
                   </div>
                   <div class="req-item" :class="{ valid: checks.uppercase }">
                     <i class="fa-solid" :class="checks.uppercase ? 'fa-check' : 'fa-xmark'"></i>
-                    <span>Одна заглавная буква</span>
+                    <span>{{ t('register.reqUppercase') }}</span>
                   </div>
                   <div class="req-item" :class="{ valid: checks.lowercase }">
                     <i class="fa-solid" :class="checks.lowercase ? 'fa-check' : 'fa-xmark'"></i>
-                    <span>Одна строчная буква</span>
+                    <span>{{ t('register.reqLowercase') }}</span>
                   </div>
                   <div class="req-item" :class="{ valid: checks.number }">
                     <i class="fa-solid" :class="checks.number ? 'fa-check' : 'fa-xmark'"></i>
-                    <span>Одна цифра</span>
+                    <span>{{ t('register.reqNumber') }}</span>
                   </div>
                   <div class="req-item" :class="{ valid: checks.special }">
                     <i class="fa-solid" :class="checks.special ? 'fa-check' : 'fa-xmark'"></i>
-                    <span>Один спецсимвол (!@#$%^&*)</span>
+                    <span>{{ t('register.reqSpecial') }}</span>
                   </div>
                 </div>
               </Transition>
@@ -132,7 +128,7 @@
                 <input
                   v-model="confirmPassword"
                   :type="showConfirmPassword ? 'text' : 'password'"
-                  placeholder="Подтвердите пароль"
+                  :placeholder="t('register.confirmPassword')"
                   class="input"
                   :class="{ error: isConfirmTouched && !doPasswordsMatch }"
                   autocomplete="new-password"
@@ -142,25 +138,25 @@
                 <button
                   type="button"
                   class="toggle"
-                  aria-label="Показать пароль"
+                  :aria-label="t('common.showPassword')"
                   @click="showConfirmPassword = !showConfirmPassword"
                 >
                   <i :class="showConfirmPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
                 </button>
               </div>
               <span v-if="isConfirmTouched && !doPasswordsMatch" class="error-msg">
-                Пароли не совпадают
+                {{ t('register.passwordMismatch') }}
               </span>
             </div>
 
             <label class="policy">
               <input v-model="acceptedPolicy" type="checkbox" />
-              <span>Я принимаю политику конфиденциальности и согласен на обработку данных.</span>
+              <span>{{ t('register.policy') }}</span>
             </label>
 
             <button type="submit" class="submit-btn btn-primary" :disabled="loading">
               <span v-if="loading" class="spinner"></span>
-              <span v-else>{{ selectedAccountType === 'employer' ? 'Продолжить' : 'Зарегистрироваться' }}</span>
+              <span v-else>{{ selectedAccountType === 'employer' ? t('register.continue') : t('register.registerNow') }}</span>
             </button>
           </template>
 
@@ -169,7 +165,7 @@
               <input
                 v-model.trim="companyName"
                 type="text"
-                placeholder="Название компании"
+                :placeholder="t('register.companyName')"
                 class="input"
                 autocomplete="organization"
                 @input="error = ''"
@@ -179,18 +175,9 @@
             <div class="field field-grid">
               <BaseDropdown
                 v-model="companyCountry"
-                aria-label="Страна компании"
+                :aria-label="t('register.companyCountry')"
                 :options="countryDropdownOptions"
-                placeholder="Страна"
-                full-width
-                :show-selected-hint="false"
-              />
-
-              <BaseDropdown
-                v-model="companyIndustry"
-                aria-label="Отрасль компании"
-                :options="industryDropdownOptions"
-                placeholder="Отрасль"
+                :placeholder="t('register.country')"
                 full-width
                 :show-selected-hint="false"
               />
@@ -200,7 +187,7 @@
               <input
                 v-model.trim="companyRegistrationNumber"
                 type="text"
-                placeholder="Регистрационный номер"
+                :placeholder="t('register.registrationNumber')"
                 class="input"
                 autocomplete="off"
                 @input="error = ''"
@@ -208,22 +195,22 @@
             </div>
 
             <div class="hint-card">
-              После регистрации вы сможете заполнить карточку работодателя и сразу опубликовать первую вакансию.
+              {{ t('register.companyHint') }}
             </div>
 
             <div class="actions">
               <button type="button" class="btn-secondary secondary-action" :disabled="loading" @click="currentStep = 1">
-                Назад
+                {{ t('common.back') }}
               </button>
               <button type="submit" class="submit-btn btn-primary" :disabled="loading">
                 <span v-if="loading" class="spinner"></span>
-                <span v-else>Создать компанию</span>
+                <span v-else>{{ t('register.createCompany') }}</span>
               </button>
             </div>
           </template>
 
           <button v-if="!isEmployerCompanyStep" type="button" class="link" @click="emit('open-login')">
-            Уже есть аккаунт? <span class="link-accent">Войти</span>
+            {{ t('register.alreadyHaveAccount') }} <span class="link-accent">{{ t('register.loginNow') }}</span>
           </button>
         </form>
       </div>
@@ -233,7 +220,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-
+import { useI18n } from '@/i18n'
 import { createAccount } from '@/api/auth'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 
@@ -245,6 +232,7 @@ defineProps({
 })
 
 const emit = defineEmits(['close', 'registered', 'open-login'])
+const { t } = useI18n()
 
 const selectedAccountType = ref('candidate')
 const currentStep = ref(1)
@@ -256,17 +244,21 @@ const showConfirmPassword = ref(false)
 const acceptedPolicy = ref(false)
 const companyName = ref('')
 const companyCountry = ref('')
-const companyIndustry = ref('')
+const companyIndustry = ref('general')
 const companyRegistrationNumber = ref('')
 const isPasswordTouched = ref(false)
 const isConfirmTouched = ref(false)
 const error = ref('')
 const loading = ref(false)
 
-const countryOptions = ['Латвия', 'Литва', 'Эстония', 'Германия', 'Польша', 'Нидерланды']
-const industryOptions = ['Энергетика', 'Строительство', 'Производство', 'Логистика', 'Металлообработка']
-const countryDropdownOptions = countryOptions.map((option) => ({ value: option, label: option }))
-const industryDropdownOptions = industryOptions.map((option) => ({ value: option, label: option }))
+const countryDropdownOptions = computed(() => [
+  { value: t('register.countryLatvia'), label: t('register.countryLatvia') },
+  { value: t('register.countryLithuania'), label: t('register.countryLithuania') },
+  { value: t('register.countryEstonia'), label: t('register.countryEstonia') },
+  { value: t('register.countryGermany'), label: t('register.countryGermany') },
+  { value: t('register.countryPoland'), label: t('register.countryPoland') },
+  { value: t('register.countryNetherlands'), label: t('register.countryNetherlands') },
+])
 
 const isEmployerCompanyStep = computed(() => selectedAccountType.value === 'employer' && currentStep.value === 2)
 const showRequirements = computed(() => isPasswordTouched.value || password.value.length > 0)
@@ -292,7 +284,7 @@ function resetForm() {
   acceptedPolicy.value = false
   companyName.value = ''
   companyCountry.value = ''
-  companyIndustry.value = ''
+  companyIndustry.value = 'general'
   companyRegistrationNumber.value = ''
   isPasswordTouched.value = false
   isConfirmTouched.value = false
@@ -314,22 +306,22 @@ function selectAccountType(type) {
 
 function validateAccountStep() {
   if (!email.value || !password.value || !confirmPassword.value) {
-    error.value = 'Заполните email и пароль.'
+    error.value = t('register.fillEmailAndPassword')
     return false
   }
 
   if (!isPasswordValid.value) {
-    error.value = 'Пароль не соответствует требованиям.'
+    error.value = t('register.passwordInvalid')
     return false
   }
 
   if (!doPasswordsMatch.value) {
-    error.value = 'Пароли не совпадают.'
+    error.value = t('register.passwordMismatch')
     return false
   }
 
   if (!acceptedPolicy.value) {
-    error.value = 'Подтвердите согласие с политикой конфиденциальности.'
+    error.value = t('register.confirmPolicy')
     return false
   }
 
@@ -337,8 +329,8 @@ function validateAccountStep() {
 }
 
 function validateCompanyStep() {
-  if (!companyName.value || !companyCountry.value || !companyIndustry.value) {
-    error.value = 'Заполните название компании, страну и отрасль.'
+  if (!companyName.value || !companyCountry.value) {
+    error.value = t('register.fillCompanyFields')
     return false
   }
 
@@ -383,7 +375,7 @@ async function handleSubmit() {
       close()
     }
   } catch (requestError) {
-    error.value = requestError?.message || 'Не удалось создать аккаунт.'
+    error.value = requestError?.message || t('register.createAccountFailed')
   } finally {
     loading.value = false
   }
@@ -521,7 +513,7 @@ onBeforeUnmount(() => {
 
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 }
 

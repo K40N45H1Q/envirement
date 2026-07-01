@@ -1,33 +1,93 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { getPricingPlans } from '@/api/pricing'
+import { useI18n } from '@/i18n'
 import ServiceCard from '@/components/ServiceCard.vue'
 import '@fortawesome/fontawesome-free/css/all.css'
 
 const billingPeriod = ref('monthly')
+const pricingResponse = ref(null)
+const pricingError = ref(false)
+const { language, t } = useI18n()
 
-const plans = [
-  {
+const staticPlans = computed(() => ({
+  basic: {
     name: 'Basic',
-    price: '99',
-    period: '1 вакансия · 30 дней',
-    description: 'Для тех, кто нанимает редко. Полный Match Score и все инструменты фильтрации.',
-    features: ['Match Score по каждому отклику', 'Breakdown по параметрам', 'Кнопка «Пригласить»'],
+    period: t('pricing.basicPeriod'),
+    description: t('pricing.basicDescription'),
+    features: [t('pricing.basicFeature1'), t('pricing.basicFeature2'), t('pricing.basicFeature3')],
   },
-  {
+  standard: {
     name: 'Standard',
-    price: '149',
-    period: '3 вакансии · 30 дней каждая',
-    description: 'Для регулярного найма. Сравнение кандидатов и история откликов по компании.',
-    features: ['Всё из Basic', 'Сравнение кандидатов бок о бок', 'История откликов по компании'],
+    period: t('pricing.standardPeriod'),
+    description: t('pricing.standardDescription'),
+    features: [t('pricing.standardFeature1'), t('pricing.standardFeature2'), t('pricing.standardFeature3')],
   },
-  {
+  pro: {
     name: 'Pro',
-    price: '229',
-    period: 'Безлимит вакансий · 30 дней',
-    description: 'Для компаний с постоянным потоком найма. Все функции без ограничений.',
-    features: ['Всё из Standard', 'Безлимит активных вакансий', 'Приоритетная поддержка'],
+    period: t('pricing.proPeriod'),
+    description: t('pricing.proDescription'),
+    features: [t('pricing.proFeature1'), t('pricing.proFeature2'), t('pricing.proFeature3')],
   },
-]
+}))
+
+const fallbackPrices = {
+  monthly: {
+    basic: 99,
+    standard: 149,
+    pro: 229,
+  },
+  yearly: {
+    basic: 84.15,
+    standard: 126.65,
+    pro: 194.65,
+  },
+}
+
+const formatPrice = (value) => {
+  const locale = language.value === 'en' ? 'en-US' : 'ru-RU'
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+const loadPricingPlans = async () => {
+  pricingError.value = false
+
+  try {
+    pricingResponse.value = await getPricingPlans(billingPeriod.value)
+  } catch {
+    pricingError.value = true
+    pricingResponse.value = null
+  }
+}
+
+watch(billingPeriod, () => {
+  loadPricingPlans()
+}, { immediate: true })
+
+const plans = computed(() => {
+  const remotePlans = Array.isArray(pricingResponse.value?.plans) ? pricingResponse.value.plans : []
+  const remoteById = new Map(remotePlans.map((plan) => [plan.id, plan]))
+  const currentFallbackPrices = fallbackPrices[billingPeriod.value] || fallbackPrices.monthly
+
+  return ['basic', 'standard', 'pro'].map((id) => {
+    const staticPlan = staticPlans.value[id]
+    const remotePlan = remoteById.get(id)
+    const numericPrice = Number(remotePlan?.price ?? currentFallbackPrices[id] ?? 0)
+
+    return {
+      id,
+      name: remotePlan?.name || staticPlan.name,
+      price: formatPrice(numericPrice),
+      currency: remotePlan?.currency || 'EUR',
+      period: staticPlan.period,
+      description: staticPlan.description,
+      features: staticPlan.features,
+    }
+  })
+})
 </script>
 
 <template>
@@ -35,32 +95,34 @@ const plans = [
     <template #header>
       <div class="pricing-header">
         <div>
-          <p class="section-eyebrow section-eyebrow--muted">Цены</p>
-          <h2>Прозрачное ценообразование</h2>
-          <p class="section-subtitle">
-            Одна вакансия — 30 дней. Никакого автопродления. Напоминаем за 3 дня до окончания.
-          </p>
+          <p class="section-eyebrow section-eyebrow--muted">{{ t('pricing.eyebrow') }}</p>
+          <h2>{{ t('pricing.title') }}</h2>
+          <p class="section-subtitle">{{ t('pricing.subtitle') }}</p>
         </div>
 
         <div class="billing-toggle">
           <button class="toggle-btn" :class="{ active: billingPeriod === 'monthly' }" @click="billingPeriod = 'monthly'">
-            Ежемесячно
+            {{ t('pricing.monthly') }}
           </button>
           <button class="toggle-btn" :class="{ active: billingPeriod === 'yearly' }" @click="billingPeriod = 'yearly'">
-            Ежегодно
+            {{ t('pricing.yearly') }}
             <span class="discount">-15%</span>
           </button>
         </div>
       </div>
     </template>
 
+    <p v-if="pricingError" class="pricing-note">
+      {{ language === 'en' ? 'Prices are shown from the local fallback.' : 'Цены показаны из локального резервного набора.' }}
+    </p>
+
     <div class="pricing-grid">
-      <article v-for="plan in plans" :key="plan.name" class="plan-card">
+      <article v-for="plan in plans" :key="plan.id" class="plan-card">
         <div class="plan-top">
           <strong class="plan-name">{{ plan.name }}</strong>
           <div class="plan-price">
             <span class="price">{{ plan.price }}</span>
-            <span class="currency">EUR</span>
+            <span class="currency">{{ plan.currency }}</span>
           </div>
           <p class="plan-period">{{ plan.period }}</p>
         </div>
@@ -74,7 +136,7 @@ const plans = [
           </li>
         </ul>
 
-        <button class="btn-primary plan-button">Начать</button>
+        <button class="btn-primary plan-button">{{ t('pricing.start') }}</button>
       </article>
     </div>
   </ServiceCard>
@@ -93,7 +155,8 @@ p {
 
 .section-subtitle,
 .plan-description,
-.plan-period {
+.plan-period,
+.pricing-note {
   color: var(--text-muted);
   line-height: 1.65;
 }
@@ -151,6 +214,10 @@ p {
 
 .toggle-btn.active .discount {
   color: #d9ffe9;
+}
+
+.pricing-note {
+  margin-bottom: 1rem;
 }
 
 .pricing-grid {

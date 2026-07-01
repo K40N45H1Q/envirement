@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { useI18n } from '@/i18n'
 import AppFlag from '@/components/AppFlag.vue'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
@@ -13,6 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const jobsListRef = ref(null)
 const jobsStore = useJobsStore()
+const { t } = useI18n()
 
 const {
   isLoading,
@@ -35,7 +37,7 @@ const syncRoute = async () => {
   const currentQuery = { ...route.query }
 
   if (hasQueryChanged(nextQuery, currentQuery)) {
-    await router.replace({ path: '/jobs', query: nextQuery })
+    await router.replace({ path: route.path, query: nextQuery, hash: route.hash })
   }
 }
 
@@ -80,13 +82,15 @@ const categoryConfigs = computed(() => jobsStore.categoryConfigs)
 const categoryDropdownOptions = computed(() => categoryCounts.value.map((category) => ({
   value: category.id,
   label: category.label,
-  hint: `${category.count} вакансий`,
+  hint: t('jobsPage.jobsCount', { count: category.count }),
   iconClass: category.icon,
 })))
-const sortOptions = [
-  { value: 'newest', label: 'Новые сначала' },
-  { value: 'salary', label: 'По зарплате' },
-]
+const sortOptions = computed(() => [
+  { value: 'newest', label: t('jobsPage.newestFirst') },
+  { value: 'salary', label: t('jobsPage.bySalary') },
+])
+
+const formatSalaryLabel = (salary) => t('jobsPage.salaryFromValue', { salary })
 
 const focusJob = (jobId) => {
   const target = document.getElementById(`job-card-${jobId}`)
@@ -128,12 +132,9 @@ onBeforeUnmount(() => {
     <main class="page">
       <section class="hero surface-section">
         <div class="hero-copy">
-          <p class="section-eyebrow">Вакансии</p>
-          <h1>Найдите работу мечты по всей Европе</h1>
-          <p>
-            Подберите подходящую вакансию по стране, категории, зарплате и условиям работы,
-            а закладки и фильтры сохранятся между переходами по сайту.
-          </p>
+          <p class="section-eyebrow">{{ t('jobsPage.heroEyebrow') }}</p>
+          <h1>{{ t('jobsPage.heroTitle') }}</h1>
+          <p>{{ t('jobsPage.heroDescription') }}</p>
         </div>
 
         <div class="hero-map">
@@ -146,26 +147,26 @@ onBeforeUnmount(() => {
           <section class="search-shell surface-card">
             <form class="search-grid" @submit.prevent="runSearch">
               <label>
-                <span>Я ищу</span>
+                <span>{{ t('search.lookingFor') }}</span>
                 <div class="input-wrap">
-                  <input v-model="filters.searchTitle" placeholder="Должность, ключевое слово" />
+                  <input v-model="filters.searchTitle" :placeholder="t('search.lookingPlaceholder')" />
                   <i class="fas fa-magnifying-glass"></i>
                 </div>
               </label>
 
               <label>
-                <span>Где</span>
+                <span>{{ t('search.where') }}</span>
                 <div class="input-wrap">
-                  <input v-model="filters.searchLocation" placeholder="Страна, город или регион" />
+                  <input v-model="filters.searchLocation" :placeholder="t('search.wherePlaceholder')" />
                   <i class="fas fa-location-dot"></i>
                 </div>
               </label>
 
               <label>
-                <span>Категория</span>
+                <span>{{ t('search.category') }}</span>
                 <BaseDropdown
                   v-model="filters.selectedCategory"
-                  aria-label="Категория"
+                  :aria-label="t('search.category')"
                   class="search-dropdown"
                   :options="categoryDropdownOptions"
                   full-width
@@ -175,7 +176,7 @@ onBeforeUnmount(() => {
               </label>
 
               <button type="submit" class="btn-primary search-button">
-                Найти вакансии
+                {{ t('search.submit') }}
               </button>
             </form>
 
@@ -198,11 +199,11 @@ onBeforeUnmount(() => {
             <div class="results-banner">
               <div>
                 <strong>{{ resultsLabel }}</strong>
-                <p>Комбинируйте поиск, категории, зарплату и условия, чтобы быстро сузить выдачу.</p>
+                <p>{{ t('jobsPage.resultsHint') }}</p>
               </div>
 
               <button type="button" class="btn-secondary results-reset" @click="resetFilters">
-                Сбросить фильтры
+                {{ t('jobsPage.resetFilters') }}
               </button>
             </div>
 
@@ -214,7 +215,7 @@ onBeforeUnmount(() => {
                   :class="{ 'tab-button--active': filters.selectedTab === 'all' }"
                   @click="selectTab('all')"
                 >
-                  Все вакансии
+                  {{ t('jobsPage.allJobs') }}
                   <span>{{ jobsStore.enrichedJobs.length }}</span>
                 </button>
                 <button
@@ -223,7 +224,7 @@ onBeforeUnmount(() => {
                   :class="{ 'tab-button--active': filters.selectedTab === 'hot' }"
                   @click="selectTab('hot')"
                 >
-                  Горячие вакансии
+                  {{ t('jobsPage.hotJobs') }}
                   <span>{{ hotCount }}</span>
                 </button>
                 <button
@@ -232,17 +233,17 @@ onBeforeUnmount(() => {
                   :class="{ 'tab-button--active': filters.selectedTab === 'favorites' }"
                   @click="selectTab('favorites')"
                 >
-                  Избранные
+                  {{ t('jobsPage.favorites') }}
                   <span>{{ bookmarkedCount }}</span>
                 </button>
               </div>
 
               <div class="toolbar-actions">
                 <label class="sort-label">
-                  <span>Сортировка</span>
+                  <span>{{ t('jobsPage.sorting') }}</span>
                   <BaseDropdown
                     v-model="filters.selectedSort"
-                    aria-label="Сортировка"
+                    :aria-label="t('jobsPage.sorting')"
                     align="right"
                     size="sm"
                     variant="ghost"
@@ -255,7 +256,7 @@ onBeforeUnmount(() => {
             </header>
 
             <div v-if="error" class="notice">{{ error }}</div>
-            <div v-else-if="isLoading" class="notice">Загрузка вакансий...</div>
+            <div v-else-if="isLoading" class="notice">{{ t('jobsPage.loadingJobs') }}</div>
 
             <div v-else class="jobs-list">
               <article :id="`job-card-${job.id}`" v-for="job in filteredJobs" :key="job.id" class="job-row">
@@ -283,7 +284,7 @@ onBeforeUnmount(() => {
                     </span>
                   </div>
 
-                  <strong class="job-salary">от {{ job.salary }} / мес.</strong>
+                  <strong class="job-salary">{{ formatSalaryLabel(job.salary) }}</strong>
                 </div>
 
                 <div class="job-actions">
@@ -291,27 +292,27 @@ onBeforeUnmount(() => {
                     type="button"
                     class="save-button"
                     :class="{ 'save-button--active': job.isBookmarked }"
-                    :aria-label="job.isBookmarked ? 'Убрать из избранного' : 'Добавить в избранное'"
+                    :aria-label="job.isBookmarked ? t('jobsPage.removeBookmark') : t('jobsPage.addBookmark')"
                     @click="jobsStore.toggleBookmark(job.id)"
                   >
                     <i :class="job.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
                   </button>
                   <RouterLink :to="`/jobs/${job.id}`" class="btn-primary details-button">
-                    Подробнее
+                    {{ t('jobsPage.details') }}
                   </RouterLink>
                 </div>
               </article>
 
               <div v-if="!filteredJobs.length" class="notice">
-                Вакансии не найдены. Попробуйте изменить фильтры, зарплату или страну.
+                {{ t('jobsPage.noJobsFound') }}
               </div>
             </div>
           </section>
 
           <section class="countries-strip surface-card">
             <header class="strip-head">
-              <h3>Популярные страны</h3>
-              <button type="button" class="link-button" @click="selectCountry('all')">Все страны</button>
+              <h3>{{ t('jobsPage.popularCountries') }}</h3>
+              <button type="button" class="link-button" @click="selectCountry('all')">{{ t('jobsPage.allCountries') }}</button>
             </header>
 
             <div class="country-cards">
@@ -324,7 +325,7 @@ onBeforeUnmount(() => {
                 @click="selectCountry(country.key)"
               >
                 <strong><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</strong>
-                <span>{{ country.count }} вакансий</span>
+                <span>{{ t('jobsPage.jobsCount', { count: country.count }) }}</span>
               </button>
             </div>
           </section>
@@ -333,7 +334,7 @@ onBeforeUnmount(() => {
         <aside class="sidebar-column">
           <section class="map-card surface-card">
             <header class="sidebar-head">
-              <h3>Работа на карте</h3>
+              <h3>{{ t('jobsPage.jobsOnMap') }}</h3>
             </header>
 
             <JobLocationsMap
@@ -358,20 +359,20 @@ onBeforeUnmount(() => {
             </div>
 
             <button type="button" class="btn-secondary sidebar-button" @click="selectCountry('all')">
-              Смотреть все страны
+              {{ t('jobsPage.viewAllCountries') }}
             </button>
           </section>
 
           <section class="filters-card surface-card">
             <header class="sidebar-head">
-              <h3>Фильтры</h3>
+              <h3>{{ t('jobsPage.filters') }}</h3>
               <button type="button" class="link-button" @click="resetFilters">
-                Сбросить все
+                {{ t('jobsPage.resetAll') }}
               </button>
             </header>
 
             <div class="filter-group">
-              <h4>Страна</h4>
+              <h4>{{ t('jobsPage.country') }}</h4>
               <button
                 v-for="country in countries"
                 :key="country.key"
@@ -386,15 +387,15 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="filter-group">
-              <h4>Зарплата от</h4>
+              <h4>{{ t('jobsPage.salaryFrom') }}</h4>
               <div class="input-wrap">
-                <input v-model="filters.salaryFrom" type="number" min="0" placeholder="Например, 2500" @change="syncRoute" />
+                <input v-model="filters.salaryFrom" type="number" min="0" :placeholder="t('jobsPage.salaryPlaceholder')" @change="syncRoute" />
                 <i class="fas fa-wallet"></i>
               </div>
             </div>
 
             <div class="filter-group">
-              <h4>Тип занятости</h4>
+              <h4>{{ t('jobsPage.employmentType') }}</h4>
               <div class="stack-options">
                 <button
                   v-for="option in employmentOptions"
@@ -410,18 +411,18 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="filter-group">
-              <h4>Условия</h4>
+              <h4>{{ t('jobsPage.conditions') }}</h4>
               <label class="toggle-row">
                 <input v-model="filters.onlyWithHousing" type="checkbox" @change="syncRoute" />
-                <span>Только с жильём</span>
+                <span>{{ t('jobsPage.onlyHousing') }}</span>
               </label>
               <label class="toggle-row">
                 <input v-model="filters.onlyWithTransport" type="checkbox" @change="syncRoute" />
-                <span>Только с транспортом</span>
+                <span>{{ t('jobsPage.onlyTransport') }}</span>
               </label>
               <label class="toggle-row">
                 <input v-model="filters.onlyBookmarked" type="checkbox" @change="syncRoute" />
-                <span>Только в закладках</span>
+                <span>{{ t('jobsPage.onlyBookmarks') }}</span>
               </label>
             </div>
           </section>

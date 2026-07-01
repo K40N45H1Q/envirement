@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/i18n'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import { useJobsStore } from '@/stores/jobs'
 
 const route = useRoute()
 const router = useRouter()
 const jobsStore = useJobsStore()
+const { t } = useI18n()
 
 const query = ref('')
 const location = ref('')
@@ -41,26 +43,26 @@ watch(() => route.query, syncFromRoute)
     <div class="search-shell surface-card">
       <form class="search-grid" @submit.prevent="submit">
         <label>
-          <span>Я ищу</span>
+          <span>{{ t('search.lookingFor') }}</span>
           <div class="input-wrap">
-            <input v-model="query" type="text" placeholder="Должность, ключевое слово" />
+            <input v-model="query" type="text" :placeholder="t('search.lookingPlaceholder')" />
             <i class="fas fa-magnifying-glass"></i>
           </div>
         </label>
 
         <label>
-          <span>Где</span>
+          <span>{{ t('search.where') }}</span>
           <div class="input-wrap">
-            <input v-model="location" type="text" placeholder="Страна, город или регион" />
+            <input v-model="location" type="text" :placeholder="t('search.wherePlaceholder')" />
             <i class="fas fa-location-dot"></i>
           </div>
         </label>
 
         <label>
-          <span>Категория</span>
+          <span>{{ t('search.category') }}</span>
           <BaseDropdown
             v-model="category"
-            aria-label="Категория"
+            :aria-label="t('search.category')"
             class="search-dropdown"
             :options="categoryOptions"
             full-width
@@ -69,7 +71,7 @@ watch(() => route.query, syncFromRoute)
         </label>
 
         <button type="submit" class="btn-primary search-button">
-          Найти вакансии
+          {{ t('search.submit') }}
         </button>
       </form>
     </div>

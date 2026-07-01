@@ -24,9 +24,14 @@ class Job(SQLModel, table=True):
     status: str = Field(default="pending")
     company: str
     location: str
+    country_key: Optional[str] = None
+    country_label: Optional[str] = None
+    country_flag_code: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
     logo: Optional[str] = None
+    languages_json: Optional[str] = None
+    licenses_json: Optional[str] = None
     has_housing: bool = Field(default=False)
     has_transport: bool = Field(default=False)
     user_id: int = Field(foreign_key="user.id")
@@ -115,6 +120,31 @@ def ensure_job_columns():
         if "has_transport" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE job ADD COLUMN has_transport BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+        if "languages_json" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN languages_json VARCHAR"
+            )
+
+        if "licenses_json" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN licenses_json VARCHAR"
+            )
+
+        if "country_key" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN country_key VARCHAR"
+            )
+
+        if "country_label" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN country_label VARCHAR"
+            )
+
+        if "country_flag_code" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN country_flag_code VARCHAR"
             )
 
 

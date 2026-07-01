@@ -37,7 +37,7 @@ export const login = async ({ email, password }) => {
   return data
 }
 
-export const getMe = () => apiRequest('/get_me')
+export const getMe = () => apiRequest('/get_me', { requireAuth: true })
 
 export const logout = () => {
   clearAuthToken()

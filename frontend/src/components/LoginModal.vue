@@ -3,11 +3,11 @@
     <Transition name="modal-fade" appear>
       <div class="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
         <form class="login-card" @submit.prevent="submit">
-          <button type="button" class="modal-close" aria-label="Закрыть окно входа" @click="close">
+          <button type="button" class="modal-close" :aria-label="t('common.closeLogin')" @click="close">
             <i class="fa-solid fa-xmark"></i>
           </button>
 
-          <h1 id="login-title" class="title">Вход в аккаунт</h1>
+          <h1 id="login-title" class="title">{{ t('login.title') }}</h1>
 
           <Transition name="expand">
             <div v-if="apiError" class="api-error-msg">
@@ -29,7 +29,7 @@
             <input
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="Пароль"
+              :placeholder="t('login.password')"
               class="input"
               :class="{ error: apiError }"
               @input="apiError = ''"
@@ -38,7 +38,7 @@
             <button
               type="button"
               class="toggle"
-              aria-label="Показать пароль"
+              :aria-label="t('common.showPassword')"
               @click="showPassword = !showPassword"
             >
               <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
@@ -47,11 +47,11 @@
 
           <button type="submit" class="submit-btn btn-primary" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner"></span>
-            <span v-else>Войти</span>
+            <span v-else>{{ t('common.login') }}</span>
           </button>
 
           <button type="button" class="link" @click="openRegister">
-            Нет аккаунта? <span class="link-accent">Зарегистрироваться</span>
+            {{ t('login.noAccount') }} <span class="link-accent">{{ t('login.registerNow') }}</span>
           </button>
         </form>
       </div>
@@ -62,6 +62,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/i18n'
 import { getMe, login } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import { defaultRouteForAccount } from '@/utils/auth'
@@ -70,6 +71,7 @@ const emit = defineEmits(['close', 'open-register'])
 const route = useRoute()
 const router = useRouter()
 const { setUser } = useAuth()
+const { t } = useI18n()
 
 const email = ref('')
 const password = ref('')
@@ -77,13 +79,8 @@ const showPassword = ref(false)
 const isSubmitting = ref(false)
 const apiError = ref('')
 
-const close = () => {
-  emit('close')
-}
-
-const openRegister = () => {
-  emit('open-register')
-}
+const close = () => emit('close')
+const openRegister = () => emit('open-register')
 
 const handleKeydown = (event) => {
   if (event.key === 'Escape') {
@@ -93,7 +90,7 @@ const handleKeydown = (event) => {
 
 const submit = async () => {
   if (!email.value || !password.value) {
-    apiError.value = 'Заполните все поля'
+    apiError.value = t('login.fillFields')
     return
   }
 
@@ -115,14 +112,14 @@ const submit = async () => {
     router.push(redirectTo)
   } catch (error) {
     const errorMessages = {
-      invalid_credentials: 'Неверный Email или пароль',
-      missing_fields: 'Заполните все обязательные поля',
-      no_token_received: 'Ошибка сервера: токен не получен',
-      network_error: 'Нет связи с сервером. Проверьте подключение и повторите попытку.',
-      unknown_error: 'Произошла непредвиденная ошибка',
+      invalid_credentials: t('login.invalidCredentials'),
+      missing_fields: t('login.missingFields'),
+      no_token_received: t('login.noToken'),
+      network_error: t('login.networkError'),
+      unknown_error: t('login.unknownError'),
     }
 
-    apiError.value = errorMessages[error.key || error.message] || `Ошибка: ${error.message}`
+    apiError.value = errorMessages[error.key || error.message] || t('login.genericError', { message: error.message })
   } finally {
     isSubmitting.value = false
   }

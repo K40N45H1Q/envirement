@@ -9,6 +9,7 @@ import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
 
 const AUTOSAVE_DELAY = 1200
+const GUEST_RESUME_DRAFT_KEY = 'cvhold:resume-builder:draft'
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 const MAX_RESUME_SIZE = 10 * 1024 * 1024
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -18,7 +19,17 @@ const RESUME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
 
-const DEFAULT_SECTOR_EXPERIENCE = '1-3 года'
+const sectorExperienceOptions = [
+  { value: '1+ год', label: '1+ год' },
+  { value: '2+ года', label: '2+ года' },
+  { value: '3+ года', label: '3+ года' },
+  { value: '4+ года', label: '4+ года' },
+  { value: '5+ лет', label: '5+ лет' },
+  { value: '7+ лет', label: '7+ лет' },
+  { value: '10+ лет', label: '10+ лет' },
+]
+
+const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceOptions[0].value
 const MAX_PRINT_SECTORS = 6
 const MAX_PRINT_SKILLS = 10
 const MAX_PRINT_LANGUAGES = 5
@@ -39,20 +50,26 @@ const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 const languageOptions = languageNames.map((label) => ({ value: label, label }))
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
-
-const mobilityOptions = [
-  { value: '', label: 'Выберите' },
-  { value: 'Максимальная мобильность EU', label: 'Максимальная мобильность EU' },
-  { value: 'Готов к переезду', label: 'Готов к переезду' },
-  { value: 'Только своя страна', label: 'Только своя страна' },
-]
-
-const preferredMobilityOptions = [
-  { value: '', label: 'Выберите' },
-  { value: 'Регион', label: 'Регион' },
-  { value: 'Европа', label: 'Европа' },
-  { value: 'Удалённо', label: 'Удалённо' },
-]
+const licenseOptions = [
+  'AM',
+  'A1',
+  'A2',
+  'A',
+  'B',
+  'BE',
+  'C1',
+  'C1E',
+  'C',
+  'CE',
+  'D1',
+  'D1E',
+  'D',
+  'DE',
+  'Код 95',
+  'ADR',
+  'Forklift',
+  'VCA',
+].map((label) => ({ value: label, label }))
 
 const permitOptions = [
   { value: '', label: 'Выберите' },
@@ -85,9 +102,10 @@ const avatarFile = ref(null)
 const resumeFile = ref(null)
 const avatarObjectUrl = ref('')
 const selectedSector = ref('')
+const selectedSectorExperience = ref(DEFAULT_SECTOR_EXPERIENCE)
 const newLanguage = ref(languageOptions[0].value)
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref('')
+const newLicense = ref(licenseOptions[4].value)
 const cvDocumentRef = ref(null)
 
 let autosaveTimer = null
@@ -107,7 +125,6 @@ const createEmptyProfile = () => ({
   languages: [],
   licenses: [],
   mobility: '',
-  preferred_mobility: '',
   work_permit: '',
   availability: '',
   resume_name: '',
@@ -209,6 +226,7 @@ const removePrintFrame = () => {
 }
 
 const user = computed(() => state.user)
+const isAuthenticated = computed(() => !!user.value)
 const fullName = computed(() => `${profile.value.first_name} ${profile.value.last_name}`.trim())
 const profileEmail = computed(() => user.value?.email || '')
 const avatarPreview = computed(() => avatarObjectUrl.value || profile.value.avatar_url || '')
@@ -320,7 +338,7 @@ const avatarInitials = computed(() => {
 
 const steps = [
   { id: 1, title: 'Основное', subtitle: 'Контакты и позиция' },
-  { id: 2, title: 'Опыт', subtitle: 'Навыки и мобильность' },
+  { id: 2, title: 'Опыт', subtitle: 'Навыки и условия' },
   { id: 3, title: 'Готовое CV', subtitle: 'Фото, проверка и PDF' },
 ]
 
@@ -371,7 +389,6 @@ const normalizeProfile = (value = {}) => {
     languages: normalizeLanguages(source.languages ?? source.languages_json),
     licenses: normalizeLicenses(source.licenses ?? source.licenses_json),
     mobility: toText(source.mobility),
-    preferred_mobility: toText(source.preferred_mobility),
     work_permit: toText(source.work_permit),
     availability: toText(source.availability),
     resume_name: toText(source.resume_name),
@@ -401,8 +418,6 @@ const snapshotProfile = () => JSON.stringify({
   sectors: profile.value.sectors,
   languages: profile.value.languages,
   licenses: profile.value.licenses,
-  mobility: profile.value.mobility,
-  preferred_mobility: profile.value.preferred_mobility,
   work_permit: profile.value.work_permit,
   availability: profile.value.availability,
   resume_name: profile.value.resume_name,
@@ -423,7 +438,6 @@ const progressChecks = computed(() => [
   profile.value.skills,
   profile.value.sectors.length,
   profile.value.languages.length,
-  profile.value.mobility,
   profile.value.work_permit,
   profile.value.availability,
   profile.value.avatar_url || avatarFile.value,
@@ -448,7 +462,17 @@ const statusMessage = computed(() => {
 const cvName = computed(() => fullName.value || 'Кандидат CVHOLD')
 const cvRole = computed(() => profile.value.current_role.trim() || 'Специалист')
 const cvSkills = computed(() => splitTextList(profile.value.skills))
-const cvSectors = computed(() => profile.value.sectors.map((sector) => getSectorOption(sector)).filter(Boolean))
+const cvSectors = computed(() => profile.value.sectors
+  .map((sector) => {
+    const option = getSectorOption(sector)
+    if (!option) return null
+
+    return {
+      ...option,
+      experience: toText(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
+    }
+  })
+  .filter(Boolean))
 const cvLanguages = computed(() => profile.value.languages.filter((language) => language.name && language.level))
 const cvLicenses = computed(() => profile.value.licenses.filter(Boolean))
 
@@ -483,7 +507,7 @@ const cvSummaryParagraphs = computed(() => {
 
   const fallbackParts = [
     profile.value.current_role ? `Специалист: ${profile.value.current_role}.` : '',
-    cvSectors.value.length ? `Сферы деятельности: ${cvSectors.value.map((sector) => sector.label).join(', ')}.` : '',
+    cvSectors.value.length ? `Сферы деятельности: ${cvSectors.value.map((sector) => `${sector.label} (${sector.experience})`).join(', ')}.` : '',
     cvSkills.value.length ? `Ключевые навыки: ${cvSkills.value.slice(0, 8).join(', ')}.` : '',
   ].filter(Boolean)
 
@@ -510,16 +534,6 @@ const cvAdditionalItems = computed(() => [
     icon: 'far fa-calendar-check',
     label: 'Готов приступить',
     value: availabilityLabel.value || 'Не указано',
-  },
-  {
-    icon: 'fas fa-earth-europe',
-    label: 'Максимальная мобильность',
-    value: profile.value.mobility || 'Не указано',
-  },
-  {
-    icon: 'fas fa-location-dot',
-    label: 'Предпочтительная мобильность',
-    value: profile.value.preferred_mobility || 'Не указано',
   },
   {
     icon: 'far fa-id-card',
@@ -580,6 +594,34 @@ const getErrorMessage = (error, fallback) => (
   || fallback
 )
 
+const saveGuestDraft = () => {
+  if (typeof window === 'undefined') return
+
+  const draft = {
+    ...buildPayload(),
+    avatar: null,
+    resume: null,
+    avatar_url: profile.value.avatar_url,
+    resume_url: profile.value.resume_url,
+    resume_name: profile.value.resume_name,
+  }
+
+  window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
+}
+
+const loadGuestDraft = () => {
+  if (typeof window === 'undefined') return null
+
+  const rawDraft = window.localStorage.getItem(GUEST_RESUME_DRAFT_KEY)
+  if (!rawDraft) return null
+
+  try {
+    return JSON.parse(rawDraft)
+  } catch {
+    return null
+  }
+}
+
 const applyServerProfile = (rawProfile) => {
   isApplyingServerProfile = true
   profile.value = normalizeProfile(rawProfile)
@@ -593,6 +635,18 @@ const applyServerProfile = (rawProfile) => {
 const loadProfile = async () => {
   isLoading.value = true
   status.value = ''
+
+  if (!isAuthenticated.value) {
+    const guestDraft = loadGuestDraft()
+    profile.value = normalizeProfile(guestDraft || {})
+    savedSnapshot.value = snapshotProfile()
+    status.value = guestDraft
+      ? 'Черновик резюме загружен из этого браузера.'
+      : 'Гостевой режим: черновик будет сохраняться только в этом браузере.'
+    isLoading.value = false
+    isLoaded.value = true
+    return
+  }
 
   try {
     const loadedProfile = await getProfile()
@@ -627,18 +681,22 @@ const buildPayload = () => ({
   current_role: profile.value.current_role.trim(),
   skills: profile.value.skills.trim(),
   sectors_json: profile.value.sectors
-    .map((sector) => getSectorOption(sector))
-    .filter(Boolean)
-    .map((option) => ({
-      id: option.value,
-      name: option.label,
-      experience: DEFAULT_SECTOR_EXPERIENCE,
-      iconClass: option.iconClass,
-    })),
+    .map((sector) => {
+      const option = getSectorOption(sector)
+      if (!option) return null
+
+      return {
+        id: option.value,
+        name: option.label,
+        experience: toText(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
+        iconClass: option.iconClass,
+      }
+    })
+    .filter(Boolean),
   languages_json: profile.value.languages,
   licenses_json: profile.value.licenses,
-  mobility: profile.value.mobility,
-  preferred_mobility: profile.value.preferred_mobility,
+  mobility: '',
+  preferred_mobility: '',
   work_permit: profile.value.work_permit,
   availability: profile.value.availability.trim(),
   avatar: avatarFile.value,
@@ -651,6 +709,21 @@ const performSave = async ({ silent = false, force = false } = {}) => {
 
   isSaving.value = true
   if (!silent) status.value = ''
+
+  if (!isAuthenticated.value) {
+    try {
+      saveGuestDraft()
+      savedSnapshot.value = snapshotProfile()
+      clearErrors()
+      status.value = silent ? '' : 'Черновик сохранен в этом браузере.'
+      return true
+    } catch (error) {
+      status.value = getErrorMessage(error, 'Не удалось сохранить черновик локально.')
+      return false
+    } finally {
+      isSaving.value = false
+    }
+  }
 
   try {
     const serverProfile = await updateProfile(buildPayload())
@@ -799,11 +872,12 @@ const addSector = () => {
   profile.value.sectors.push({
     id: option.value,
     name: option.label,
-    experience: DEFAULT_SECTOR_EXPERIENCE,
+    experience: selectedSectorExperience.value,
     iconClass: option.iconClass,
   })
 
   selectedSector.value = ''
+  selectedSectorExperience.value = DEFAULT_SECTOR_EXPERIENCE
   clearError('sectors')
 }
 
@@ -826,7 +900,7 @@ const removeLanguage = (index) => {
 }
 
 const addLicense = () => {
-  const value = newLicense.value.trim()
+  const value = toText(newLicense.value).trim()
   if (!value) return
 
   const exists = profile.value.licenses.some((license) => license.toLowerCase() === value.toLowerCase())
@@ -836,7 +910,6 @@ const addLicense = () => {
   }
 
   profile.value.licenses.push(value)
-  newLicense.value = ''
   clearError('licenses')
 }
 
@@ -1044,34 +1117,6 @@ const getPrintableStyles = () => `
     gap: 2.5mm !important;
     color: var(--cv-green) !important;
     flex: 0 0 auto !important;
-  }
-
-  .cv-verified-icon {
-    width: 7.5mm !important;
-    height: 7.5mm !important;
-    display: grid !important;
-    place-items: center !important;
-    border: 0.45mm solid var(--cv-green) !important;
-    border-radius: 50% !important;
-    font-size: 8pt !important;
-    line-height: 1 !important;
-    font-weight: 900 !important;
-  }
-
-  .cv-verified strong {
-    display: block !important;
-    font-size: 7pt !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
-  }
-
-  .cv-verified small {
-    display: block !important;
-    margin-top: 0.6mm !important;
-    color: var(--cv-muted) !important;
-    font-size: 6.7pt !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
   }
 
   .cv-top {
@@ -1520,7 +1565,6 @@ onBeforeUnmount(() => {
         <div class="hero-copy">
           <div class="title-row">
             <h1>Резюме кандидата</h1>
-            <span class="badge">Пошаговое заполнение</span>
           </div>
 
           <p>
@@ -1620,7 +1664,10 @@ onBeforeUnmount(() => {
                   <span class="sector-chip__icon">
                     <i :class="getSectorOption(sector)?.iconClass"></i>
                   </span>
-                  <span>{{ getSectorOption(sector)?.label }}</span>
+                  <span class="sector-chip__copy">
+                    <strong>{{ getSectorOption(sector)?.label }}</strong>
+                    <small>{{ sector.experience || DEFAULT_SECTOR_EXPERIENCE }}</small>
+                  </span>
                   <button type="button" @click="removeSector(index)">×</button>
                 </span>
               </div>
@@ -1634,6 +1681,14 @@ onBeforeUnmount(() => {
                   full-width
                   :show-selected-hint="false"
                   @change="clearError('sectors')"
+                />
+
+                <BaseDropdown
+                  v-model="selectedSectorExperience"
+                  aria-label="Опыт в сфере"
+                  class="sector-dropdown sector-dropdown--experience"
+                  :options="sectorExperienceOptions"
+                  full-width
                 />
 
                 <button type="button" class="ghost-button" :disabled="!canAddSector" @click="addSector">
@@ -1687,26 +1742,6 @@ onBeforeUnmount(() => {
 
             <div class="grid-two">
               <label>
-                Максимальная мобильность
-                <BaseDropdown
-                  v-model="profile.mobility"
-                  aria-label="Максимальная мобильность"
-                  full-width
-                  :options="mobilityOptions"
-                />
-              </label>
-
-              <label>
-                Предпочтительная мобильность
-                <BaseDropdown
-                  v-model="profile.preferred_mobility"
-                  aria-label="Предпочтительная мобильность"
-                  full-width
-                  :options="preferredMobilityOptions"
-                />
-              </label>
-
-              <label>
                 Разрешение на работу
                 <BaseDropdown
                   v-model="profile.work_permit"
@@ -1739,11 +1774,13 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div class="inline-add">
-                <input
+              <div class="inline-add inline-add--dropdown">
+                <BaseDropdown
                   v-model="newLicense"
-                  placeholder="Например, B, CE, VCA, Forklift"
-                  @input="clearError('licenses')"
+                  aria-label="Категория прав, лицензия или сертификат"
+                  full-width
+                  :options="licenseOptions"
+                  @change="clearError('licenses')"
                 />
                 <button type="button" class="ghost-button" @click="addLicense">Добавить</button>
               </div>
@@ -1779,14 +1816,6 @@ onBeforeUnmount(() => {
                 <header class="cv-header">
                   <div class="cv-brand" aria-label="CVHOLD">
                     <Logo class="cv-brand__logo" aria-hidden="true" />
-                  </div>
-
-                  <div class="cv-verified">
-                    <span class="cv-verified-icon">✓</span>
-                    <div>
-                      <strong>VERIFIED BY CVHOLD</strong>
-                      <small>Профиль подтверждён</small>
-                    </div>
                   </div>
                 </header>
 
@@ -1844,7 +1873,10 @@ onBeforeUnmount(() => {
                       <div class="cv-sector-grid">
                         <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
                           <i :class="sector.iconClass"></i>
-                          <span>{{ sector.label }}</span>
+                          <span class="cv-sector__copy">
+                            <strong>{{ sector.label }}</strong>
+                            <small>{{ sector.experience }}</small>
+                          </span>
                         </div>
                         <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
                           <span>+ ещё {{ cvMoreSectorsCount }}</span>
@@ -1961,7 +1993,7 @@ onBeforeUnmount(() => {
 
             <div class="feature">
               <span class="feature-icon">1</span>
-              <div>
+              <div class="feature-text">
                 <strong>Понятная роль</strong>
                 <small>Укажите специализацию и сильные стороны в нескольких словах.</small>
               </div>
@@ -1969,15 +2001,15 @@ onBeforeUnmount(() => {
 
             <div class="feature">
               <span class="feature-icon">2</span>
-              <div>
-                <strong>Сферы деятельности и мобильность</strong>
-                <small>Добавьте направления работы, языки и готовность к переезду.</small>
+              <div class="feature-text">
+                <strong>Сферы деятельности и опыт</strong>
+                <small>Добавьте направления работы, опыт по каждой сфере и языки.</small>
               </div>
             </div>
 
             <div class="feature">
               <span class="feature-icon">3</span>
-              <div>
+              <div class="feature-text">
                 <strong>Готовое CV</strong>
                 <small>На последнем шаге профиль собирается в аккуратное резюме для PDF.</small>
               </div>
@@ -2036,14 +2068,6 @@ onBeforeUnmount(() => {
 .title-row h1 {
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.08;
-}
-
-.badge {
-  padding: 0.45rem 0.9rem;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 72%, white);
-  color: var(--brand-strong);
-  font-weight: 700;
 }
 
 .hero-copy p,
@@ -2203,7 +2227,7 @@ textarea:focus {
 }
 
 .sector-add {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(11rem, 12rem) auto;
 }
 
 .chips {
@@ -2230,6 +2254,26 @@ textarea:focus {
 
 .sector-chip {
   padding-left: 0.65rem;
+}
+
+.sector-chip__copy {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.sector-chip__copy strong,
+.sector-chip__copy small {
+  line-height: 1.2;
+}
+
+.sector-chip__copy strong {
+  font-size: 0.88rem;
+}
+
+.sector-chip__copy small {
+  color: color-mix(in srgb, var(--brand-strong) 82%, white);
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .sector-chip__icon {
@@ -2851,6 +2895,22 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.cv-sector__copy {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.cv-sector__copy strong,
+.cv-sector__copy small {
+  line-height: 1.12;
+}
+
+.cv-sector__copy small {
+  color: #557567;
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
 .cv-extra-list {
   display: grid;
   gap: 0.38rem;
@@ -2886,6 +2946,11 @@ button:disabled {
   width: 6.3rem;
   max-width: 6.3rem;
   max-height: 1.6rem;
+}
+
+.feature-text {
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 72rem) {

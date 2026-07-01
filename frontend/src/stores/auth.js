@@ -8,6 +8,7 @@ export const useAuth = defineStore('auth', {
       user: null,
       isLoading: false,
       isReady: false,
+      sessionExpired: false,
     },
     bootstrapPromise: null,
   }),
@@ -27,6 +28,7 @@ export const useAuth = defineStore('auth', {
 
       if (!token) {
         this.resetState()
+        this.state.sessionExpired = false
         this.finalizeReady()
         return null
       }
@@ -45,8 +47,10 @@ export const useAuth = defineStore('auth', {
       this.bootstrapPromise = (async () => {
         try {
           this.state.user = await getMe()
+          this.state.sessionExpired = false
           return this.state.user
-        } catch {
+        } catch (error) {
+          this.state.sessionExpired = error?.status === 401
           logoutRequest()
           this.state.user = null
           return null
@@ -62,12 +66,14 @@ export const useAuth = defineStore('auth', {
 
     setUser(user) {
       this.state.user = user
+      this.state.sessionExpired = false
       this.finalizeReady()
     },
 
     logout() {
       logoutRequest()
       this.resetState()
+      this.state.sessionExpired = false
       this.finalizeReady()
     },
 

@@ -1,31 +1,23 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from '@/i18n'
 import ServicePricingCard from '@/components/ServicePricingCard.vue'
 import '@fortawesome/fontawesome-free/css/all.css'
 
-const steps = [
-  {
-    number: '1',
-    title: 'Разместите вакансию',
-    text: 'Укажите требования: категории, опыт, навыки, права, график, локация, зарплата и др.',
-  },
-  {
-    number: '2',
-    title: 'Получайте Score по каждому отклику',
-    text: 'Каждый кандидат получает Match Score 0–100 по вашим критериям. Strong / Good / Partial / Weak — сразу видно, кто подходит.',
-  },
-  {
-    number: '3',
-    title: 'Нанимайте лучшего',
-    text: 'Разбор по каждому параметру в карточке. Пригласите одним кликом — кандидат получит письмо с вашими контактами.',
-  },
-]
+const { t } = useI18n()
 
-const reasons = [
-  'Никаких «подходит/не подходит» вслепую',
-  'Сравнение кандидатов по ключевым критериям',
-  'Экономия времени рекрутера',
-  'Более точные и быстрые наймы',
-]
+const steps = computed(() => [
+  { number: '1', title: t('service.step1Title'), text: t('service.step1Text') },
+  { number: '2', title: t('service.step2Title'), text: t('service.step2Text') },
+  { number: '3', title: t('service.step3Title'), text: t('service.step3Text') },
+])
+
+const reasons = computed(() => [
+  t('service.reason1'),
+  t('service.reason2'),
+  t('service.reason3'),
+  t('service.reason4'),
+])
 </script>
 
 <template>
@@ -33,12 +25,9 @@ const reasons = [
     <div class="service-stack">
       <section class="service-card">
         <div class="section-head">
-          <p class="section-eyebrow section-eyebrow--muted">Как это работает</p>
-          <h2>Три шага до нужного кандидата</h2>
-          <p class="section-subtitle">
-            Структурированные профили с обеих сторон — вакансии и кандидат говорят на одном языке полей.
-            Система сравнивает поле с полем.
-          </p>
+          <p class="section-eyebrow section-eyebrow--muted">{{ t('service.eyebrow') }}</p>
+          <h2>{{ t('service.title') }}</h2>
+          <p class="section-subtitle">{{ t('service.subtitle') }}</p>
         </div>
 
         <div class="steps-grid">
@@ -49,7 +38,7 @@ const reasons = [
           </article>
 
           <article class="step-card step-card--reasons">
-            <h3>Почему это работает лучше</h3>
+            <h3>{{ t('service.reasonsTitle') }}</h3>
             <ul class="why-list">
               <li v-for="reason in reasons" :key="reason">
                 <i class="fas fa-check"></i>

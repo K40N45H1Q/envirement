@@ -1,3 +1,4 @@
+import json
 import secrets
 import shutil
 from os import path, makedirs, getenv, remove
@@ -6,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile
 from sqlmodel import select
 
-from database.models import Job, JobApplication, Message, User, get_session
+from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
 from routes.safety import get_current_user, require_account_types
 
 router = APIRouter()
@@ -53,13 +54,28 @@ def ensure_chat_access(application: JobApplication, current_user: User, is_candi
     raise HTTPException(status_code=400, detail={"key": "chat_not_approved"})
 
 
+def parse_json_field(value: Optional[str], fallback):
+    if not value:
+        return fallback
+
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return fallback
+
+
 @router.post("/create_job")
 async def create_job(
     title: str = Form(...),
     company: str = Form(...),
     salary: str = Form(...),
+    country_key: str = Form(...),
+    country_label: str = Form(...),
+    country_flag_code: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
+    languages_json: Optional[str] = Form(None),
+    licenses_json: Optional[str] = Form(None),
     has_housing: bool = Form(False),
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
@@ -86,9 +102,14 @@ async def create_job(
         title=title,
         company=company,
         salary=salary,
+        country_key=country_key,
+        country_label=country_label,
+        country_flag_code=country_flag_code,
         location=location,
         description=description,
         logo=logo_path,
+        languages_json=languages_json,
+        licenses_json=licenses_json,
         has_housing=has_housing,
         has_transport=has_transport,
         user_id=current_user.id,
@@ -133,8 +154,13 @@ async def update_job(
     title: str = Form(...),
     company: str = Form(...),
     salary: str = Form(...),
+    country_key: str = Form(...),
+    country_label: str = Form(...),
+    country_flag_code: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
+    languages_json: Optional[str] = Form(None),
+    licenses_json: Optional[str] = Form(None),
     has_housing: bool = Form(False),
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
@@ -174,8 +200,13 @@ async def update_job(
     job.title = title
     job.company = company
     job.salary = salary
+    job.country_key = country_key
+    job.country_label = country_label
+    job.country_flag_code = country_flag_code
     job.location = location
     job.description = description
+    job.languages_json = languages_json
+    job.licenses_json = licenses_json
     job.has_housing = has_housing
     job.has_transport = has_transport
 
@@ -337,26 +368,47 @@ def get_my_job_responses(
         job.id: {
             "title": job.title,
             "company": job.company,
+            "country_key": job.country_key,
+            "country_label": job.country_label,
+            "country_flag_code": job.country_flag_code,
             "location": job.location,
             "salary": job.salary,
             "logo": job.logo,
             "description": job.description,
+            "languages": parse_json_field(job.languages_json, []),
+            "licenses": parse_json_field(job.licenses_json, []),
         }
         for job in my_jobs
     }
 
+    applicant_ids = [
+        app.applicant_user_id
+        for app in applications
+        if app.applicant_user_id is not None
+    ]
+    profiles = session.exec(
+        select(CandidateProfile).where(CandidateProfile.user_id.in_(set(applicant_ids)))
+    ).all() if applicant_ids else []
+    profile_map = {profile.user_id: profile for profile in profiles}
+
     result = []
     for app in applications:
         job_data = job_map.get(app.job_id, {})
+        profile = profile_map.get(app.applicant_user_id)
         result.append({
             "id": app.id,
             "job_id": app.job_id,
             "job_title": job_data.get("title", ""),
             "job_company": job_data.get("company", ""),
+            "job_country_key": job_data.get("country_key", ""),
+            "job_country_label": job_data.get("country_label", ""),
+            "job_country_flag_code": job_data.get("country_flag_code", ""),
             "job_location": job_data.get("location", ""),
             "job_salary": job_data.get("salary", ""),
             "job_logo": job_data.get("logo", ""),
             "job_description": job_data.get("description", ""),
+            "job_languages": job_data.get("languages", []),
+            "job_licenses": job_data.get("licenses", []),
             "phone": app.phone,
             "email": app.email,
             "username": app.username,
@@ -365,6 +417,16 @@ def get_my_job_responses(
             "nationality": app.nationality,
             "message": app.message,
             "chat_approved": app.chat_approved,
+            "candidate_current_role": profile.current_role if profile else "",
+            "candidate_summary": profile.summary if profile else "",
+            "candidate_skills": profile.skills if profile else "",
+            "candidate_work_permit": profile.work_permit if profile else "",
+            "candidate_availability": profile.availability if profile else "",
+            "candidate_resume_url": profile.resume_url if profile else "",
+            "candidate_avatar_url": profile.avatar_url if profile else "",
+            "candidate_languages": parse_json_field(profile.languages_json, []) if profile else [],
+            "candidate_licenses": parse_json_field(profile.licenses_json, []) if profile else [],
+            "candidate_sectors": parse_json_field(profile.sectors_json, []) if profile else [],
             "created_at": app.created_at,
         })
     return result

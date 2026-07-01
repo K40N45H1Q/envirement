@@ -1,38 +1,78 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from '@/i18n'
 
 import industrialBanner from '@/assets/banners/jobs-banner-industrial.png'
 import logisticsBanner from '@/assets/banners/jobs-banner-logistics.png'
 import healthcareBanner from '@/assets/banners/jobs-banner-healthcare.png'
 
-const slides = [
-  {
-    id: 'industrial',
-    image: industrialBanner,
-    eyebrow: 'Производство и стройка',
-    title: 'Сильные вакансии для людей дела',
-    text: 'Проверенные работодатели, понятные условия и быстрый отклик.',
-  },
-  {
-    id: 'logistics',
-    image: logisticsBanner,
-    eyebrow: 'Логистика и склады',
-    title: 'Работа, где ценят скорость и надежность',
-    text: 'Подбирайте предложения по странам, зарплате и формату занятости.',
-  },
-  {
-    id: 'healthcare',
-    image: healthcareBanner,
-    eyebrow: 'Медицина и care',
-    title: 'Европейские вакансии с человеческим подходом',
-    text: 'От клиник до частных центров: все в одном поиске без лишнего шума.',
-  },
-]
+const { language } = useI18n()
 
+const isEnglish = computed(() => language.value === 'en')
+const copy = computed(() => (
+  isEnglish.value
+    ? {
+      slides: [
+        {
+          id: 'industrial',
+          image: industrialBanner,
+          eyebrow: 'Industry and construction',
+          title: 'Strong vacancies for people who get things done',
+          text: 'Verified employers, clear terms, and a faster way to apply.',
+        },
+        {
+          id: 'logistics',
+          image: logisticsBanner,
+          eyebrow: 'Logistics and warehouses',
+          title: 'Jobs where speed and reliability matter',
+          text: 'Filter opportunities by country, salary, and employment format.',
+        },
+        {
+          id: 'healthcare',
+          image: healthcareBanner,
+          eyebrow: 'Healthcare and care',
+          title: 'European jobs with a human-first approach',
+          text: 'From clinics to private centres: everything in one search without extra noise.',
+        },
+      ],
+      dotsLabel: 'Job banners',
+      showBanner: 'Show banner {index}',
+    }
+    : {
+      slides: [
+        {
+          id: 'industrial',
+          image: industrialBanner,
+          eyebrow: 'Производство и стройка',
+          title: 'Сильные вакансии для людей дела',
+          text: 'Проверенные работодатели, понятные условия и быстрый отклик.',
+        },
+        {
+          id: 'logistics',
+          image: logisticsBanner,
+          eyebrow: 'Логистика и склады',
+          title: 'Работа, где ценят скорость и надежность',
+          text: 'Подбирайте предложения по странам, зарплате и формату занятости.',
+        },
+        {
+          id: 'healthcare',
+          image: healthcareBanner,
+          eyebrow: 'Медицина и care',
+          title: 'Европейские вакансии с человеческим подходом',
+          text: 'От клиник до частных центров: все в одном поиске без лишнего шума.',
+        },
+      ],
+      dotsLabel: 'Баннеры вакансий',
+      showBanner: 'Показать баннер {index}',
+    }
+))
+
+const slides = computed(() => copy.value.slides)
 const activeIndex = ref(0)
 let autoplayTimer = null
 
-const activeSlide = computed(() => slides[activeIndex.value] ?? slides[0])
+const activeSlide = computed(() => slides.value[activeIndex.value] ?? slides.value[0])
+const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 const showSlide = (index) => {
   activeIndex.value = index
@@ -41,7 +81,7 @@ const showSlide = (index) => {
 const startAutoplay = () => {
   stopAutoplay()
   autoplayTimer = window.setInterval(() => {
-    activeIndex.value = (activeIndex.value + 1) % slides.length
+    activeIndex.value = (activeIndex.value + 1) % slides.value.length
   }, 5000)
 }
 
@@ -80,14 +120,14 @@ onBeforeUnmount(() => {
       </article>
     </transition>
 
-    <div class="hero-banner__dots" aria-label="Баннеры вакансий">
+    <div class="hero-banner__dots" :aria-label="copy.dotsLabel">
       <button
         v-for="(slide, index) in slides"
         :key="slide.id"
         type="button"
         class="hero-banner__dot"
         :class="{ 'hero-banner__dot--active': index === activeIndex }"
-        :aria-label="`Показать баннер ${index + 1}`"
+        :aria-label="interpolate(copy.showBanner, { index: index + 1 })"
         @click="selectSlide(index)"
       ></button>
     </div>

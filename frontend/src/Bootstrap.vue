@@ -3,16 +3,42 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 import { useAuth } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import router from './router'
+import { getLocaleFromPath, stripLocaleFromPath, withLocale } from './router/locale'
 
-const { loadUser } = useAuth()
+const auth = useAuth()
 const uiStore = useUiStore()
+
+const handleUnauthorized = () => {
+  const currentRoute = router.currentRoute.value
+  const logicalPath = stripLocaleFromPath(currentRoute.path)
+
+  if (!currentRoute.meta.requiresAuth || logicalPath === '/unauthorized') {
+    return
+  }
+
+  auth.logout()
+
+  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+  router.replace({
+    path: withLocale('/unauthorized', locale),
+    query: {
+      redirect: currentRoute.fullPath,
+    },
+  })
+}
 
 onMounted(() => {
   uiStore.initialize()
-  loadUser()
+  auth.loadUser()
+  window.addEventListener('app:unauthorized', handleUnauthorized)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('app:unauthorized', handleUnauthorized)
 })
 </script>
 

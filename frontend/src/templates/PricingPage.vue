@@ -1,20 +1,51 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 
-const plans = [
-  { name: 'Basic', price: '99 €', badge: '', features: ['1 вакансия', 'Базовая карточка', 'Отклики кандидатов'] },
-  { name: 'Standard', price: '149 €', badge: 'Популярно', features: ['5 вакансий', 'Match Score', 'Кабинет работодателя'] },
-  { name: 'Pro', price: '229 €', badge: '', features: ['20 вакансий', 'Приоритетная выдача', 'Расширенная аналитика'] },
-]
+const { t } = useI18n()
+
+const plans = computed(() => [
+  {
+    name: 'Basic',
+    price: '99 EUR',
+    badge: '',
+    features: [
+      t('pricing.planFeatureJobs', { count: 1 }),
+      t('pricing.planFeatureBasicCard'),
+      t('pricing.planFeatureApplications'),
+    ],
+  },
+  {
+    name: 'Standard',
+    price: '149 EUR',
+    badge: t('pricing.popular'),
+    features: [
+      t('pricing.planFeatureJobs', { count: 5 }),
+      t('pricing.planFeatureMatchScore'),
+      t('pricing.planFeatureEmployerDashboard'),
+    ],
+  },
+  {
+    name: 'Pro',
+    price: '229 EUR',
+    badge: '',
+    features: [
+      t('pricing.planFeatureJobs', { count: 20 }),
+      t('pricing.planFeaturePriorityListing'),
+      t('pricing.planFeatureAnalytics'),
+    ],
+  },
+])
 </script>
 
 <template>
   <AppLayout>
     <main class="page">
       <section class="head">
-        <p class="eyebrow">Цены</p>
-        <h1>Прозрачное ценообразование</h1>
-        <p>Выберите тариф для публикации вакансий и работы с откликами.</p>
+        <p class="eyebrow">{{ t('pricing.eyebrow') }}</p>
+        <h1>{{ t('pricing.pricingPageTitle') }}</h1>
+        <p>{{ t('pricing.pricingPageDescription') }}</p>
       </section>
 
       <section class="plans">
@@ -27,7 +58,7 @@ const plans = [
               <i class="fas fa-check"></i>{{ feature }}
             </li>
           </ul>
-          <RouterLink to="/employer-dashboard" class="btn-primary">Выбрать</RouterLink>
+          <RouterLink to="/employer-dashboard" class="btn-primary">{{ t('pricing.choose') }}</RouterLink>
         </article>
       </section>
     </main>

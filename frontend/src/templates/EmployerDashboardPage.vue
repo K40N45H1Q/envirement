@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
+import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import {
@@ -13,11 +15,21 @@ import {
   updateJob,
 } from '@/api/jobs'
 import { useMessagingStore } from '@/stores/messaging'
+import {
+  getLanguageOptions,
+  languageLevelOptions,
+  licenseOptions,
+  normalizeLanguages,
+  normalizeLicenses,
+} from '@/utils/jobRequirements'
+import { countryByKey, countryDropdownOptions, resolveCountryMeta } from '@/utils/countries'
+import { analyzeCandidateMatch } from '@/utils/matchScore'
 import { normalizeJob } from '@/utils/jobs'
 
 const route = useRoute()
 const router = useRouter()
 const messaging = useMessagingStore()
+const { language: currentLanguage } = useI18n()
 
 const plans = [
   {
@@ -48,6 +60,211 @@ const plans = [
 
 const currentPlanId = 'standard'
 
+const isEnglish = computed(() => currentLanguage.value === 'en')
+const copy = computed(() => (
+  isEnglish.value
+    ? {
+      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', pricing: 'Plans' },
+      stats: { jobs: 'Total jobs', published: 'Published', responses: 'Applications', conversations: 'Conversations' },
+      fallbackSection: 'Jobs',
+      saving: 'Saving...',
+      saveChanges: 'Save changes',
+      saveJob: 'Save vacancy',
+      failLabel: 'Not a fit',
+      activeJobs: 'Active vacancies',
+      totalResponses: 'Total applications',
+      strongMatch: 'Strong match',
+      chatActive: 'Active chats',
+      candidate: 'Candidate',
+      noCandidateMessage: 'The candidate applied without an extra message.',
+      dashboardLoadError: 'Failed to load the employer dashboard.',
+      chooseCountryError: 'Choose the vacancy country.',
+      jobUpdated: 'Vacancy updated.',
+      jobSaved: 'Vacancy saved.',
+      jobSaveError: 'Failed to save the vacancy.',
+      deleteConfirm: 'Delete vacancy "{title}"?',
+      jobDeleted: 'Vacancy deleted.',
+      jobDeleteError: 'Failed to delete the vacancy.',
+      chatConfirmed: 'Chat approved and opened in messages.',
+      chatConfirmError: 'Failed to approve the chat.',
+      statusApproved: 'Published',
+      statusPending: 'In review',
+      statusRejected: 'Rejected',
+      statusDraft: 'Draft',
+      shellEyebrow: 'Employer dashboard',
+      shellDescription: 'Workspace for vacancies, applications, messages, and plans.',
+      loadingDashboard: 'Loading dashboard...',
+      editingEyebrow: 'Editing',
+      newJobEyebrow: 'New vacancy',
+      updateJob: 'Update vacancy',
+      createJob: 'Create vacancy',
+      title: 'Title',
+      titlePlaceholder: 'Electrician',
+      company: 'Company',
+      salary: 'Salary',
+      country: 'Country',
+      countryAria: 'Vacancy country',
+      location: 'Location',
+      locationPlaceholder: 'Berlin, Germany',
+      selectedCountry: 'Selected country',
+      notSelected: 'Not selected',
+      vacancyPhoto: 'Vacancy photo',
+      vacancyPhotoHint: 'PNG, JPG, or WEBP for the vacancy card',
+      chooseFile: 'Choose file',
+      noFileSelected: 'No file selected',
+      vacancyPreview: 'Vacancy preview',
+      hasHousing: 'Housing included',
+      hasHousingHint: 'Show accommodation on the vacancy card',
+      hasTransport: 'Transport included',
+      hasTransportHint: 'Show shuttle or company transport on the vacancy card',
+      description: 'Description',
+      descriptionPlaceholder: 'Responsibilities, requirements, and working conditions',
+      vacancyLanguages: 'Languages for the vacancy',
+      requiredLanguage: 'Required language',
+      requiredLanguageLevel: 'Required language level',
+      addLanguage: 'Add language',
+      licenses: 'Licences and certificates',
+      licenseAria: 'Driving licence, certificate, or permit',
+      add: 'Add',
+      reset: 'Reset',
+      publications: 'Publications',
+      myJobs: 'My vacancies',
+      noJobsYet: 'No vacancies yet.',
+      housingTag: 'Housing included',
+      transportTag: 'Transport included',
+      open: 'Open',
+      edit: 'Edit',
+      deleting: 'Deleting...',
+      delete: 'Delete',
+      responsesEyebrow: 'Applications',
+      candidatesByJobs: 'Candidates by vacancy',
+      responsesSubtitle: 'Review candidates quickly, approve chats, and move straight into conversation.',
+      noResponsesYet: 'No applications yet.',
+      locationMissing: 'Location not specified',
+      salaryNegotiable: 'Negotiable',
+      responsesCount: '{count} applications',
+      hideResponses: 'Hide applications',
+      showResponses: 'View applications',
+      candidateKicker: 'Candidate',
+      chatWaiting: 'Awaiting approval',
+      confirming: 'Approving...',
+      confirmChat: 'Approve chat',
+      openMessages: 'Open messages',
+      currentPlan: 'Current plan',
+      active: 'Active',
+      cost: 'Price',
+      limit: 'Limit',
+      renewal: 'Renewal',
+      in30Days: 'In 30 days',
+      yourPlan: 'Your plan',
+      available: 'Available',
+      current: 'Current',
+      renew: 'Renew',
+      choosePlan: 'Choose plan',
+    }
+    : {
+      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', pricing: 'Тарифы' },
+      stats: { jobs: 'Всего вакансий', published: 'Опубликовано', responses: 'Откликов', conversations: 'Диалогов' },
+      fallbackSection: 'Вакансии',
+      saving: 'Сохранение...',
+      saveChanges: 'Сохранить изменения',
+      saveJob: 'Сохранить вакансию',
+      failLabel: 'Не соответствует',
+      activeJobs: 'Активных вакансий',
+      totalResponses: 'Всего откликов',
+      strongMatch: 'Сильное совпадение',
+      chatActive: 'Чат активен',
+      candidate: 'Кандидат',
+      noCandidateMessage: 'Кандидат отправил отклик без дополнительного сообщения.',
+      dashboardLoadError: 'Не удалось загрузить кабинет работодателя.',
+      chooseCountryError: 'Выберите страну вакансии.',
+      jobUpdated: 'Вакансия обновлена.',
+      jobSaved: 'Вакансия сохранена.',
+      jobSaveError: 'Не удалось сохранить вакансию.',
+      deleteConfirm: 'Удалить вакансию "{title}"?',
+      jobDeleted: 'Вакансия удалена.',
+      jobDeleteError: 'Не удалось удалить вакансию.',
+      chatConfirmed: 'Чат подтверждён и открыт в сообщениях.',
+      chatConfirmError: 'Не удалось подтвердить чат.',
+      statusApproved: 'Опубликована',
+      statusPending: 'На модерации',
+      statusRejected: 'Отклонена',
+      statusDraft: 'Черновик',
+      shellEyebrow: 'Личный кабинет работодателя',
+      shellDescription: 'Рабочее пространство для вакансий, откликов, сообщений и тарифа.',
+      loadingDashboard: 'Загрузка кабинета...',
+      editingEyebrow: 'Редактирование',
+      newJobEyebrow: 'Новая вакансия',
+      updateJob: 'Обновить вакансию',
+      createJob: 'Создать вакансию',
+      title: 'Название',
+      titlePlaceholder: 'Электрик',
+      company: 'Компания',
+      salary: 'Зарплата',
+      country: 'Страна',
+      countryAria: 'Страна вакансии',
+      location: 'Локация',
+      locationPlaceholder: 'Берлин, Германия',
+      selectedCountry: 'Выбранная страна',
+      notSelected: 'Не выбрана',
+      vacancyPhoto: 'Фото вакансии',
+      vacancyPhotoHint: 'PNG, JPG или WEBP для карточки вакансии',
+      chooseFile: 'Выбрать файл',
+      noFileSelected: 'Файл не выбран',
+      vacancyPreview: 'Превью вакансии',
+      hasHousing: 'Есть жильё',
+      hasHousingHint: 'Показывать проживание в карточке вакансии',
+      hasTransport: 'Есть транспорт',
+      hasTransportHint: 'Показывать наличие трансфера или служебного транспорта',
+      description: 'Описание',
+      descriptionPlaceholder: 'Обязанности, требования и условия работы',
+      vacancyLanguages: 'Языки для вакансии',
+      requiredLanguage: 'Требуемый язык',
+      requiredLanguageLevel: 'Требуемый уровень языка',
+      addLanguage: 'Добавить язык',
+      licenses: 'Права, лицензии и сертификаты',
+      licenseAria: 'Категория прав, лицензия или сертификат',
+      add: 'Добавить',
+      reset: 'Сбросить',
+      publications: 'Публикации',
+      myJobs: 'Мои вакансии',
+      noJobsYet: 'Вакансий пока нет.',
+      housingTag: 'Есть жильё',
+      transportTag: 'Есть транспорт',
+      open: 'Открыть',
+      edit: 'Редактировать',
+      deleting: 'Удаление...',
+      delete: 'Удалить',
+      responsesEyebrow: 'Отклики',
+      candidatesByJobs: 'Кандидаты по вакансиям',
+      responsesSubtitle: 'Быстро оценивайте кандидатов, подтверждайте чат и переходите к общению.',
+      noResponsesYet: 'Откликов пока нет.',
+      locationMissing: 'Локация не указана',
+      salaryNegotiable: 'По договорённости',
+      responsesCount: '{count} откликов',
+      hideResponses: 'Скрыть отклики',
+      showResponses: 'Смотреть отклики',
+      candidateKicker: 'Кандидат',
+      chatWaiting: 'Ждёт подтверждения',
+      confirming: 'Подтверждаем...',
+      confirmChat: 'Подтвердить чат',
+      openMessages: 'Открыть сообщения',
+      currentPlan: 'Текущий тариф',
+      active: 'Активен',
+      cost: 'Стоимость',
+      limit: 'Лимит',
+      renewal: 'Продление',
+      in30Days: 'Через 30 дней',
+      yourPlan: 'Ваш пакет',
+      available: 'Доступно',
+      current: 'Текущий',
+      renew: 'Продлить',
+      choosePlan: 'Выбрать тариф',
+    }
+))
+
+const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
+
 const sections = [
   { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/employer-dashboard?section=jobs' },
   { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/employer-dashboard?section=responses' },
@@ -55,6 +272,32 @@ const sections = [
   { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/employer-dashboard?section=pricing' },
 ]
 
+const localizedPlans = computed(() => plans.map((plan) => ({
+  ...plan,
+  vacancies: plan.id === 'basic'
+    ? (isEnglish.value ? '1 job' : '1 вакансия')
+    : plan.id === 'standard'
+      ? (isEnglish.value ? '5 jobs' : '5 вакансий')
+      : (isEnglish.value ? '20 jobs' : '20 вакансий'),
+  description: plan.id === 'basic'
+    ? (isEnglish.value ? 'For occasional hiring and one-off publications.' : 'Для точечного найма и редких публикаций.')
+    : plan.id === 'standard'
+      ? (isEnglish.value ? 'The best balance for an active employer.' : 'Лучший баланс для активного работодателя.')
+      : (isEnglish.value ? 'For teams with a constant hiring pipeline.' : 'Для команд с постоянным потоком найма.'),
+  features: plan.id === 'basic'
+    ? (isEnglish.value ? ['30 days online', 'Basic vacancy card', 'Candidate applications'] : ['30 дней публикации', 'Базовая карточка вакансии', 'Отклики кандидатов'])
+    : plan.id === 'standard'
+      ? (isEnglish.value ? ['30 days online', 'Employer dashboard', 'Candidate comparison'] : ['30 дней публикации', 'Кабинет работодателя', 'Сравнение кандидатов'])
+      : (isEnglish.value ? ['Priority listing', 'Advanced analytics', 'Priority support'] : ['Приоритетная выдача', 'Расширенная аналитика', 'Приоритетная поддержка']),
+})))
+
+const localizedSections = computed(() => sections.map((section) => ({
+  ...section,
+  label: copy.value.sections[section.id] || section.label,
+  to: `${route.path}?section=${section.id}`,
+})))
+
+const localizedLanguageOptions = computed(() => getLanguageOptions())
 const validSectionIds = sections.map((section) => section.id)
 const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'jobs')
 
@@ -62,8 +305,11 @@ const blankForm = () => ({
   title: '',
   company: '',
   salary: '',
+  country_key: '',
   location: '',
   description: '',
+  languages: [],
+  licenses: [],
   has_housing: false,
   has_transport: false,
   logo: null,
@@ -83,25 +329,113 @@ const status = ref('')
 const error = ref('')
 const logoPreview = ref('')
 const objectUrl = ref('')
+const newLanguage = ref(localizedLanguageOptions.value[0]?.value || 'English')
+const newLanguageLevel = ref(languageLevelOptions[2].value)
+const newLicense = ref(licenseOptions[4].value)
+const expandedResponseJobIds = ref([])
 const brokenAvatars = ref(new Set())
 const dashboardRefreshTimer = ref(null)
 
 const conversations = computed(() => messaging.conversations)
 const isEditing = computed(() => editingId.value !== null)
 const approvedCount = computed(() => jobs.value.filter((job) => job.status === 'approved').length)
-const shellStats = computed(() => ([
-  { value: jobs.value.length, label: 'Всего вакансий' },
-  { value: approvedCount.value, label: 'Опубликовано' },
-  { value: responses.value.length, label: 'Откликов' },
-  { value: conversations.value.length, label: 'Диалогов' },
-]))
-const activeSectionLabel = computed(() => sections.find((item) => item.id === activeSection.value)?.label || 'Вакансии')
-const showHeaderAction = computed(() => activeSection.value === 'jobs')
-const submitLabel = computed(() => {
-  if (isSaving.value) return 'Сохранение...'
-  return isEditing.value ? 'Сохранить изменения' : 'Сохранить вакансию'
+const canAddLanguage = computed(() => !form.value.languages.some((language) => (
+  language.name === newLanguage.value && language.level === newLanguageLevel.value
+)))
+const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId) || localizedPlans.value[1])
+const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
+const scoredResponses = computed(() => responses.value.map((item) => ({
+  ...item,
+  matchAnalysis: analyzeCandidateMatch(item, item),
+})))
+
+const groupedResponses = computed(() => {
+  const groups = new Map()
+
+  scoredResponses.value.forEach((item) => {
+    const key = String(item.job_id)
+    if (!groups.has(key)) {
+      groups.set(key, {
+        job_id: item.job_id,
+        job_title: item.job_title,
+        job_company: item.job_company,
+        job_location: item.job_location,
+        job_salary: item.job_salary,
+        responses: [],
+        counts: {
+          strong: 0,
+          good: 0,
+          partial: 0,
+          weak: 0,
+          fail: 0,
+        },
+      })
+    }
+
+    const group = groups.get(key)
+    group.responses.push(item)
+    group.counts[item.matchAnalysis.meta.key] += 1
+  })
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      responses: group.responses.sort((left, right) => right.matchAnalysis.score - left.matchAnalysis.score),
+      badges: [
+        { key: 'strong', label: 'Strong', count: group.counts.strong },
+        { key: 'good', label: 'Good', count: group.counts.good },
+        { key: 'partial', label: 'Partial', count: group.counts.partial },
+        { key: 'weak', label: 'Weak', count: group.counts.weak },
+        { key: 'fail', label: copy.value.failLabel, count: group.counts.fail },
+      ].filter((item) => item.count > 0),
+    }))
+    .sort((left, right) => {
+      const leftTop = left.responses[0]?.matchAnalysis.score || 0
+      const rightTop = right.responses[0]?.matchAnalysis.score || 0
+      return rightTop - leftTop
+    })
 })
-const currentPlan = computed(() => plans.find((plan) => plan.id === currentPlanId) || plans[1])
+
+const responseMatchSummary = computed(() => {
+  const counters = {
+    strong: 0,
+    good: 0,
+    partial: 0,
+    weak: 0,
+    fail: 0,
+  }
+
+  scoredResponses.value.forEach((item) => {
+    counters[item.matchAnalysis.meta.key] += 1
+  })
+
+  return [
+    { key: 'strong', label: 'Strong', count: counters.strong },
+    { key: 'good', label: 'Good', count: counters.good },
+    { key: 'partial', label: 'Partial', count: counters.partial },
+    { key: 'weak', label: 'Weak', count: counters.weak },
+    { key: 'fail', label: copy.value.failLabel, count: counters.fail },
+  ].filter((item) => item.count > 0)
+})
+
+const localizedShellStats = computed(() => ([
+  { value: jobs.value.length, label: copy.value.stats.jobs },
+  { value: approvedCount.value, label: copy.value.stats.published },
+  { value: responses.value.length, label: copy.value.stats.responses },
+  { value: conversations.value.length, label: copy.value.stats.conversations },
+]))
+const localizedActiveSectionLabel = computed(() => localizedSections.value.find((item) => item.id === activeSection.value)?.label || copy.value.fallbackSection)
+const localizedSubmitLabel = computed(() => (isSaving.value ? copy.value.saving : (isEditing.value ? copy.value.saveChanges : copy.value.saveJob)))
+const localizedResponseStats = computed(() => ([
+  { label: copy.value.activeJobs, value: groupedResponses.value.length },
+  { label: copy.value.totalResponses, value: scoredResponses.value.length },
+  { label: copy.value.strongMatch, value: scoredResponses.value.filter((item) => item.matchAnalysis.meta.key === 'strong').length },
+  { label: copy.value.chatActive, value: scoredResponses.value.filter((item) => item.chat_approved).length },
+]))
+
+function localizedResponseCount(count) {
+  return interpolate(copy.value.responsesCount, { count })
+}
 
 function revokeLogoPreview() {
   if (objectUrl.value) {
@@ -147,7 +481,7 @@ function markAvatarBroken(item) {
 }
 
 function responseFullName(item) {
-  return [item.name, item.surname].filter(Boolean).join(' ') || 'Кандидат'
+  return [item.name, item.surname].filter(Boolean).join(' ') || copy.value.candidate
 }
 
 function responseInitials(item) {
@@ -161,18 +495,14 @@ function responseInitials(item) {
   return getFirstTwoLetters(item.name) || getFirstTwoLetters(item.surname) || 'CV'
 }
 
-function responseJobMeta(item) {
-  return [item.job_title, item.job_company].filter(Boolean).join(' · ') || 'Вакансия не указана'
-}
-
 function responseMessage(item) {
-  return item.message || 'Кандидат отправил отклик без дополнительного сообщения.'
+  return item.message || copy.value.noCandidateMessage
 }
 
 async function setSection(sectionId) {
   activeSection.value = normalizeSection(sectionId)
   await router.replace({
-    path: '/employer-dashboard',
+    path: route.path,
     query: { section: activeSection.value },
   })
 }
@@ -196,7 +526,7 @@ async function fetchDashboardData({ silent = false } = {}) {
     responses.value = Array.isArray(responsesData) ? responsesData : []
   } catch {
     if (!silent) {
-      error.value = 'Не удалось загрузить кабинет работодателя.'
+      error.value = copy.value.dashboardLoadError
       jobs.value = []
       responses.value = []
     }
@@ -246,6 +576,30 @@ function resetForm() {
   revokeLogoPreview()
 }
 
+function addLanguage() {
+  if (!canAddLanguage.value) return
+
+  form.value.languages.push({
+    name: newLanguage.value,
+    level: newLanguageLevel.value,
+  })
+}
+
+function removeLanguage(index) {
+  form.value.languages.splice(index, 1)
+}
+
+function addLicense() {
+  const value = String(newLicense.value || '').trim()
+  if (!value) return
+  if (form.value.licenses.some((license) => license.toLowerCase() === value.toLowerCase())) return
+  form.value.licenses.push(value)
+}
+
+function removeLicense(index) {
+  form.value.licenses.splice(index, 1)
+}
+
 function onLogoChange(event) {
   const file = event.target.files?.[0] || null
   form.value.logo = file
@@ -261,13 +615,17 @@ function onLogoChange(event) {
 }
 
 async function editJob(job) {
+  const country = resolveCountryMeta(job)
   editingId.value = job.id
   form.value = {
     title: job.title,
     company: job.company,
     salary: job.salary,
+    country_key: country.countryKey || '',
     location: job.location,
     description: job.description,
+    languages: normalizeLanguages(job.languages ?? job.languages_json),
+    licenses: normalizeLicenses(job.licenses ?? job.licenses_json),
     has_housing: Boolean(job.has_housing),
     has_transport: Boolean(job.has_transport),
     logo: null,
@@ -284,26 +642,41 @@ async function submitJob() {
   isSaving.value = true
 
   try {
+    const { languages, licenses, ...formPayload } = form.value
+    if (!selectedCountry.value) {
+      error.value = copy.value.chooseCountryError
+      return
+    }
+
+    const payload = {
+      ...formPayload,
+      country_key: selectedCountry.value.key,
+      country_label: selectedCountry.value.label,
+      country_flag_code: selectedCountry.value.flagCode,
+      languages_json: JSON.stringify(languages),
+      licenses_json: JSON.stringify(licenses),
+    }
+
     if (isEditing.value) {
-      await updateJob(editingId.value, form.value)
-      status.value = 'Вакансия обновлена.'
+      await updateJob(editingId.value, payload)
+      status.value = copy.value.jobUpdated
     } else {
-      await createJob(form.value)
-      status.value = 'Вакансия сохранена.'
+      await createJob(payload)
+      status.value = copy.value.jobSaved
     }
 
     resetForm()
     await loadDashboard()
     await setSection('jobs')
   } catch {
-    error.value = 'Не удалось сохранить вакансию.'
+    error.value = copy.value.jobSaveError
   } finally {
     isSaving.value = false
   }
 }
 
 async function removeJob(job) {
-  if (!window.confirm(`Удалить вакансию "${job.title}"?`)) return
+  if (!window.confirm(interpolate(copy.value.deleteConfirm, { title: job.title }))) return
 
   deletingId.value = job.id
   status.value = ''
@@ -312,10 +685,10 @@ async function removeJob(job) {
   try {
     await deleteJob(job.id)
     if (editingId.value === job.id) resetForm()
-    status.value = 'Вакансия удалена.'
+    status.value = copy.value.jobDeleted
     await loadDashboard()
   } catch {
-    error.value = 'Не удалось удалить вакансию.'
+    error.value = copy.value.jobDeleteError
   } finally {
     deletingId.value = null
   }
@@ -331,9 +704,9 @@ async function approveChat(response) {
     await loadDashboard()
     await setSection('messages')
     await messaging.openConversation(response.id)
-    status.value = 'Чат подтверждён и открыт в сообщениях.'
+    status.value = copy.value.chatConfirmed
   } catch {
-    error.value = 'Не удалось подтвердить чат.'
+    error.value = copy.value.chatConfirmError
   } finally {
     approvingId.value = null
   }
@@ -341,17 +714,28 @@ async function approveChat(response) {
 
 function openDashboardConversation(applicationId) {
   router.replace({
-    path: '/employer-dashboard',
+    path: route.path,
     query: { section: 'messages', application: String(applicationId) },
   })
 }
 
+function toggleResponseJob(jobId) {
+  const key = String(jobId)
+  expandedResponseJobIds.value = expandedResponseJobIds.value.includes(key)
+    ? expandedResponseJobIds.value.filter((item) => item !== key)
+    : [...expandedResponseJobIds.value, key]
+}
+
+function isResponseJobExpanded(jobId) {
+  return expandedResponseJobIds.value.includes(String(jobId))
+}
+
 function statusLabel(value) {
   return {
-    approved: 'Опубликована',
-    pending: 'На модерации',
-    rejected: 'Отклонена',
-  }[value] || 'Черновик'
+    approved: copy.value.statusApproved,
+    pending: copy.value.statusPending,
+    rejected: copy.value.statusRejected,
+  }[value] || copy.value.statusDraft
 }
 
 watch(
@@ -398,65 +782,80 @@ onBeforeUnmount(() => {
 <template>
   <AppLayout>
     <DashboardShell
-      :sections="sections"
+      :sections="localizedSections"
       :active-section="activeSection"
-      eyebrow="Личный кабинет работодателя"
-      :title="activeSectionLabel"
-      description="Рабочее пространство для вакансий, откликов, сообщений и тарифа."
-      :stats="shellStats"
+      :eyebrow="copy.shellEyebrow"
+      :title="localizedActiveSectionLabel"
+      :description="copy.shellDescription"
+      :stats="localizedShellStats"
       @select-section="setSection"
     >
-
       <p v-if="status" class="status success">{{ status }}</p>
       <p v-if="error" class="status danger">{{ error }}</p>
-      <p v-if="isLoading" class="state">Загрузка кабинета...</p>
+      <p v-if="isLoading" class="state">{{ copy.loadingDashboard }}</p>
 
       <template v-if="!isLoading">
         <section v-if="activeSection === 'jobs'" class="jobs-grid">
           <form class="panel form-panel" @submit.prevent="submitJob">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow compact">{{ isEditing ? 'Редактирование' : 'Новая вакансия' }}</p>
-                <h2>{{ isEditing ? 'Обновить вакансию' : 'Создать вакансию' }}</h2>
+                <p class="eyebrow compact">{{ isEditing ? copy.editingEyebrow : copy.newJobEyebrow }}</p>
+                <h2>{{ isEditing ? copy.updateJob : copy.createJob }}</h2>
               </div>
             </div>
 
             <div class="field-grid">
               <label>
-                Название
-                <input v-model="form.title" required placeholder="Электрик" />
+                {{ copy.title }}
+                <input v-model="form.title" required :placeholder="copy.titlePlaceholder" />
               </label>
               <label>
-                Компания
+                {{ copy.company }}
                 <input v-model="form.company" required placeholder="Build Solutions GmbH" />
               </label>
             </div>
 
             <div class="field-grid">
               <label>
-                Зарплата
+                {{ copy.salary }}
                 <input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" />
               </label>
               <label>
-                Локация
-                <input v-model="form.location" required placeholder="Берлин, Германия" />
+                {{ copy.country }}
+                <BaseDropdown
+                  v-model="form.country_key"
+                  :aria-label="copy.countryAria"
+                  full-width
+                  :options="countryDropdownOptions"
+                />
               </label>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                {{ copy.location }}
+                <input v-model="form.location" required :placeholder="copy.locationPlaceholder" />
+              </label>
+              <div class="field-hint">
+                <span>{{ copy.selectedCountry }}</span>
+                <strong>{{ selectedCountry?.label || copy.notSelected }}</strong>
+              </div>
             </div>
 
             <div class="upload-grid">
               <label class="upload-card">
-                <span class="upload-title">Фото вакансии</span>
-                <span class="upload-copy">PNG, JPG или WEBP для карточки вакансии</span>
-                <span class="upload-button">Выбрать файл</span>
-                <span class="upload-filename">{{ form.logo?.name || 'Файл не выбран' }}</span>
+                <span class="upload-title">{{ copy.vacancyPhoto }}</span>
+                <span class="upload-copy">{{ copy.vacancyPhotoHint }}</span>
+                <span class="upload-button">{{ copy.chooseFile }}</span>
+                <span class="upload-filename">{{ form.logo?.name || copy.noFileSelected }}</span>
                 <input type="file" accept="image/*" @change="onLogoChange" />
               </label>
 
               <div class="preview-card">
-                <img v-if="logoPreview" :src="logoPreview" alt="Превью вакансии" />
+                <img v-if="logoPreview" :src="logoPreview" :alt="copy.vacancyPreview" />
                 <div v-else class="preview-placeholder">
                   <i class="fas fa-image"></i>
-                  <span>Превью вакансии</span>
+                  <span>{{ copy.vacancyPreview }}</span>
                 </div>
               </div>
             </div>
@@ -466,8 +865,8 @@ onBeforeUnmount(() => {
                 <input v-model="form.has_housing" type="checkbox" />
                 <i class="fas fa-house"></i>
                 <span>
-                  <strong>Есть жильё</strong>
-                  <small>Показывать проживание в карточке вакансии</small>
+                  <strong>{{ copy.hasHousing }}</strong>
+                  <small>{{ copy.hasHousingHint }}</small>
                 </span>
               </label>
 
@@ -475,32 +874,94 @@ onBeforeUnmount(() => {
                 <input v-model="form.has_transport" type="checkbox" />
                 <i class="fas fa-bus"></i>
                 <span>
-                  <strong>Есть транспорт</strong>
-                  <small>Показывать наличие трансфера или служебного транспорта</small>
+                  <strong>{{ copy.hasTransport }}</strong>
+                  <small>{{ copy.hasTransportHint }}</small>
                 </span>
               </label>
             </div>
 
             <label>
-              Описание
-              <textarea v-model="form.description" rows="6" required placeholder="Обязанности, требования и условия работы"></textarea>
+              {{ copy.description }}
+              <textarea v-model="form.description" rows="6" required :placeholder="copy.descriptionPlaceholder"></textarea>
             </label>
 
+            <div class="section">
+              <label class="section-label">{{ copy.vacancyLanguages }}</label>
+
+              <div class="chips">
+                <span
+                  v-for="(language, index) in form.languages"
+                  :key="`${language.name}-${language.level}-${index}`"
+                  class="chip"
+                >
+                  <span>{{ language.name }}</span>
+                  <b>{{ language.level }}</b>
+                  <button type="button" @click="removeLanguage(index)">×</button>
+                </span>
+              </div>
+
+              <div class="field-grid">
+                <BaseDropdown
+                  v-model="newLanguage"
+                  :aria-label="copy.requiredLanguage"
+                  full-width
+                  :options="localizedLanguageOptions"
+                />
+
+                <BaseDropdown
+                  v-model="newLanguageLevel"
+                  :aria-label="copy.requiredLanguageLevel"
+                  full-width
+                  :options="languageLevelOptions"
+                />
+              </div>
+
+              <button
+                type="button"
+                class="btn-secondary btn-secondary--compact"
+                :disabled="!canAddLanguage"
+                @click="addLanguage"
+              >
+                {{ copy.addLanguage }}
+              </button>
+            </div>
+
+            <div class="section">
+              <label class="section-label">{{ copy.licenses }}</label>
+
+              <div class="chips">
+                <span v-for="(license, index) in form.licenses" :key="`${license}-${index}`" class="chip">
+                  <span>{{ license }}</span>
+                  <button type="button" @click="removeLicense(index)">×</button>
+                </span>
+              </div>
+
+              <div class="inline-add inline-add--dropdown">
+                <BaseDropdown
+                  v-model="newLicense"
+                  :aria-label="copy.licenseAria"
+                  full-width
+                  :options="licenseOptions"
+                />
+                <button type="button" class="btn-secondary btn-secondary--compact" @click="addLicense">{{ copy.add }}</button>
+              </div>
+            </div>
+
             <div class="form-actions">
-              <button class="btn-primary" type="submit" :disabled="isSaving">{{ submitLabel }}</button>
-              <button v-if="isEditing" class="btn-secondary" type="button" @click="resetForm">Сбросить</button>
+              <button class="btn-primary" type="submit" :disabled="isSaving">{{ localizedSubmitLabel }}</button>
+              <button v-if="isEditing" class="btn-secondary" type="button" @click="resetForm">{{ copy.reset }}</button>
             </div>
           </form>
 
           <section class="panel jobs-panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow compact">Публикации</p>
-                <h2>Мои вакансии</h2>
+                <p class="eyebrow compact">{{ copy.publications }}</p>
+                <h2>{{ copy.myJobs }}</h2>
               </div>
             </div>
 
-            <p v-if="!jobs.length" class="state">Вакансий пока нет.</p>
+            <p v-if="!jobs.length" class="state">{{ copy.noJobsYet }}</p>
 
             <article v-for="job in jobs" :key="job.id" class="job-row">
               <div class="company-logo" :style="{ background: job.color }">
@@ -518,8 +979,14 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="job-tags">
-                  <span v-if="job.has_housing" class="job-tag"><i class="fas fa-house"></i> Есть жильё</span>
-                  <span v-if="job.has_transport" class="job-tag"><i class="fas fa-bus"></i> Есть транспорт</span>
+                  <span v-if="job.has_housing" class="job-tag"><i class="fas fa-house"></i> {{ copy.housingTag }}</span>
+                  <span v-if="job.has_transport" class="job-tag"><i class="fas fa-bus"></i> {{ copy.transportTag }}</span>
+                  <span v-for="language in job.languages" :key="`${job.id}-${language.name}-${language.level}`" class="job-tag">
+                    <i class="fas fa-language"></i> {{ language.name }} · {{ language.level }}
+                  </span>
+                  <span v-for="license in job.licenses" :key="`${job.id}-${license}`" class="job-tag">
+                    <i class="fas fa-id-card"></i> {{ license }}
+                  </span>
                 </div>
 
                 <p class="job-description">{{ job.description }}</p>
@@ -527,10 +994,10 @@ onBeforeUnmount(() => {
                 <div class="job-footer">
                   <strong class="job-salary">{{ job.salary }}</strong>
                   <div class="job-buttons">
-                    <RouterLink v-if="job.status === 'approved'" :to="`/jobs/${job.id}`" class="text-button">Открыть</RouterLink>
-                    <button type="button" class="text-button" @click="editJob(job)">Редактировать</button>
+                    <RouterLink v-if="job.status === 'approved'" :to="`/jobs/${job.id}`" class="text-button">{{ copy.open }}</RouterLink>
+                    <button type="button" class="text-button" @click="editJob(job)">{{ copy.edit }}</button>
                     <button type="button" class="text-button danger" :disabled="deletingId === job.id" @click="removeJob(job)">
-                      {{ deletingId === job.id ? 'Удаление...' : 'Удалить' }}
+                      {{ deletingId === job.id ? copy.deleting : copy.delete }}
                     </button>
                   </div>
                 </div>
@@ -542,94 +1009,177 @@ onBeforeUnmount(() => {
         <section v-if="activeSection === 'responses'" class="panel responses-panel">
           <div class="panel-heading responses-heading">
             <div>
-              <p class="eyebrow compact">Отклики</p>
-              <h2>Кандидаты по вакансиям</h2>
-              <p class="responses-subtitle">Быстро оценивайте кандидатов, подтверждайте чат и переходите к общению.</p>
+              <p class="eyebrow compact">{{ copy.responsesEyebrow }}</p>
+              <h2>{{ copy.candidatesByJobs }}</h2>
+              <p class="responses-subtitle">{{ copy.responsesSubtitle }}</p>
             </div>
           </div>
 
-          <p v-if="!responses.length" class="state">Откликов пока нет.</p>
+          <p v-if="!responses.length" class="state">{{ copy.noResponsesYet }}</p>
 
-          <div v-else class="responses-list">
-            <article
-              v-for="item in responses"
-              :key="item.id"
-              class="response-row"
-              :class="{ 'response-row--approved': item.chat_approved }"
-            >
-              <div class="response-avatar">
-                <img
-                  v-if="responseAvatar(item)"
-                  :src="responseAvatar(item)"
-                  :alt="responseFullName(item)"
-                  @error="markAvatarBroken(item)"
-                />
-                <span v-else>{{ responseInitials(item) }}</span>
-              </div>
+          <template v-else>
+            <div class="response-stats">
+              <article v-for="item in localizedResponseStats" :key="item.label" class="response-stat-card">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </article>
+            </div>
 
-              <div class="response-content">
-                <div class="response-header">
-                  <div class="response-title-block">
-                    <p class="response-kicker">Кандидат</p>
-                    <h3>{{ responseFullName(item) }}</h3>
+            <div v-if="responseMatchSummary.length" class="response-summary">
+              <span
+                v-for="item in responseMatchSummary"
+                :key="item.key"
+                class="response-summary__pill"
+                :class="`response-summary__pill--${item.key}`"
+              >
+                {{ item.label }} · {{ item.count }}
+              </span>
+            </div>
+
+            <div class="responses-list">
+              <article
+                v-for="group in groupedResponses"
+                :key="group.job_id"
+                class="response-vacancy-card"
+              >
+                <div class="response-vacancy-card__top">
+                  <div class="response-vacancy-card__copy">
+                    <h3>{{ group.job_title }}</h3>
+                    <div class="response-vacancy-card__meta">
+                      <span><i class="fas fa-location-dot"></i>{{ group.job_location || copy.locationMissing }}</span>
+                      <span><i class="fas fa-euro-sign"></i>{{ group.job_salary || copy.salaryNegotiable }}</span>
+                      <span><i class="fas fa-users"></i>{{ localizedResponseCount(group.responses.length) }}</span>
+                    </div>
                   </div>
 
-                  <span class="badge response-status-mobile" :class="item.chat_approved ? 'approved' : 'pending'">
-                    {{ item.chat_approved ? 'Чат активен' : 'Ждёт подтверждения' }}
+                  <button
+                    type="button"
+                    class="response-vacancy-card__toggle"
+                    @click="toggleResponseJob(group.job_id)"
+                  >
+                    {{ isResponseJobExpanded(group.job_id) ? copy.hideResponses : copy.showResponses }}
+                  </button>
+                </div>
+
+                <div class="response-inline-pills">
+                  <span
+                    v-for="item in group.badges"
+                    :key="`${group.job_id}-${item.key}`"
+                    class="response-summary__pill"
+                    :class="`response-summary__pill--${item.key}`"
+                  >
+                    {{ item.label }} · {{ item.count }}
+                  </span>
+
+                  <span
+                    v-for="item in group.responses"
+                    :key="`pill-${item.id}`"
+                    class="response-candidate-pill"
+                    :class="`response-candidate-pill--${item.matchAnalysis.meta.key}`"
+                  >
+                    {{ responseFullName(item) }} · {{ item.matchAnalysis.score }}
                   </span>
                 </div>
 
-                <div class="response-job">
-                  <i class="fas fa-briefcase"></i>
-                  <span>{{ responseJobMeta(item) }}</span>
+                <div v-if="isResponseJobExpanded(group.job_id)" class="response-candidate-list">
+                  <article
+                    v-for="item in group.responses"
+                    :key="item.id"
+                    class="response-candidate-row"
+                  >
+                    <div class="response-avatar">
+                      <img
+                        v-if="responseAvatar(item)"
+                        :src="responseAvatar(item)"
+                        :alt="responseFullName(item)"
+                        @error="markAvatarBroken(item)"
+                      />
+                      <span v-else>{{ responseInitials(item) }}</span>
+                    </div>
+
+                    <div class="response-candidate-row__body">
+                      <div class="response-header">
+                        <div class="response-title-block">
+                          <p class="response-kicker">{{ copy.candidateKicker }}</p>
+                          <h3>{{ responseFullName(item) }}</h3>
+                        </div>
+
+                        <div class="response-score-chip" :class="`response-score-chip--${item.matchAnalysis.meta.key}`">
+                          {{ item.matchAnalysis.meta.label }} · {{ item.matchAnalysis.score }}
+                        </div>
+                      </div>
+
+                      <p class="response-message">{{ responseMessage(item) }}</p>
+
+                      <div class="response-details">
+                        <span v-if="item.phone" class="response-detail">
+                          <i class="fas fa-phone"></i>
+                          {{ item.phone }}
+                        </span>
+                        <span v-if="item.email" class="response-detail">
+                          <i class="fas fa-envelope"></i>
+                          {{ item.email }}
+                        </span>
+                        <span v-if="item.nationality" class="response-detail">
+                          <i class="fas fa-globe"></i>
+                          {{ item.nationality }}
+                        </span>
+                      </div>
+
+                      <div class="response-breakdown">
+                        <article
+                          v-for="part in item.matchAnalysis.breakdown"
+                          :key="`${item.id}-${part.key}`"
+                          class="response-breakdown-card"
+                          :class="`response-breakdown-card--${part.meta.key}`"
+                        >
+                          <div class="response-breakdown-card__head">
+                            <span>{{ part.label }}</span>
+                            <strong>{{ part.score }}</strong>
+                          </div>
+
+                          <p
+                            v-for="(detail, detailIndex) in part.details"
+                            :key="`${item.id}-${part.key}-${detailIndex}`"
+                            class="response-breakdown-card__detail"
+                          >
+                            {{ detail }}
+                          </p>
+                        </article>
+                      </div>
+                    </div>
+
+                    <div class="response-actions">
+                      <span class="badge response-status" :class="item.chat_approved ? 'approved' : 'pending'">
+                        {{ item.chat_approved ? copy.chatActive : copy.chatWaiting }}
+                      </span>
+
+                      <button
+                        v-if="!item.chat_approved"
+                        type="button"
+                        class="response-action-button"
+                        :disabled="approvingId === item.id"
+                        @click="approveChat(item)"
+                      >
+                        <i class="fas fa-message"></i>
+                        {{ approvingId === item.id ? copy.confirming : copy.confirmChat }}
+                      </button>
+
+                      <button
+                        v-else
+                        type="button"
+                        class="response-action-button"
+                        @click="openDashboardConversation(item.id)"
+                      >
+                        <i class="fas fa-arrow-up-right-from-square"></i>
+                        {{ copy.openMessages }}
+                      </button>
+                    </div>
+                  </article>
                 </div>
-
-                <p class="response-message">{{ responseMessage(item) }}</p>
-
-                <div class="response-details">
-                  <span v-if="item.phone" class="response-detail">
-                    <i class="fas fa-phone"></i>
-                    {{ item.phone }}
-                  </span>
-                  <span v-if="item.email" class="response-detail">
-                    <i class="fas fa-envelope"></i>
-                    {{ item.email }}
-                  </span>
-                  <span v-if="item.nationality" class="response-detail">
-                    <i class="fas fa-globe"></i>
-                    {{ item.nationality }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="response-actions">
-                <span class="badge response-status" :class="item.chat_approved ? 'approved' : 'pending'">
-                  {{ item.chat_approved ? 'Чат активен' : 'Ждёт подтверждения' }}
-                </span>
-
-                <button
-                  v-if="!item.chat_approved"
-                  type="button"
-                  class="response-action-button"
-                  :disabled="approvingId === item.id"
-                  @click="approveChat(item)"
-                >
-                  <i class="fas fa-message"></i>
-                  {{ approvingId === item.id ? 'Подтверждаем...' : 'Подтвердить чат' }}
-                </button>
-
-                <button
-                  v-else
-                  type="button"
-                  class="response-action-button"
-                  @click="openDashboardConversation(item.id)"
-                >
-                  <i class="fas fa-arrow-up-right-from-square"></i>
-                  Открыть сообщения
-                </button>
-              </div>
-            </article>
-          </div>
+              </article>
+            </div>
+          </template>
         </section>
 
         <section v-if="activeSection === 'messages'" class="message-shell">
@@ -640,41 +1190,41 @@ onBeforeUnmount(() => {
           <article class="panel current-plan">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow compact">Текущий тариф</p>
+                <p class="eyebrow compact">{{ copy.currentPlan }}</p>
                 <h2>{{ currentPlan.name }}</h2>
               </div>
-              <span class="plan-badge">Активен</span>
+              <span class="plan-badge">{{ copy.active }}</span>
             </div>
 
             <div class="current-plan-grid">
               <div class="current-plan-card">
-                <span>Стоимость</span>
+                <span>{{ copy.cost }}</span>
                 <strong>{{ currentPlan.price }}</strong>
               </div>
               <div class="current-plan-card">
-                <span>Лимит</span>
+                <span>{{ copy.limit }}</span>
                 <strong>{{ currentPlan.vacancies }}</strong>
               </div>
               <div class="current-plan-card">
-                <span>Продление</span>
-                <strong>Через 30 дней</strong>
+                <span>{{ copy.renewal }}</span>
+                <strong>{{ copy.in30Days }}</strong>
               </div>
             </div>
           </article>
 
           <section class="pricing-grid">
             <article
-              v-for="plan in plans"
+              v-for="plan in localizedPlans"
               :key="plan.id"
               class="plan-card"
               :class="{ 'plan-card--current': plan.id === currentPlanId }"
             >
               <div class="plan-card__top">
                 <div>
-                  <p class="eyebrow compact">{{ plan.id === currentPlanId ? 'Ваш пакет' : 'Доступно' }}</p>
+                  <p class="eyebrow compact">{{ plan.id === currentPlanId ? copy.yourPlan : copy.available }}</p>
                   <h3>{{ plan.name }}</h3>
                 </div>
-                <span v-if="plan.id === currentPlanId" class="plan-badge">Текущий</span>
+                <span v-if="plan.id === currentPlanId" class="plan-badge">{{ copy.current }}</span>
               </div>
 
               <strong class="plan-price">{{ plan.price }}</strong>
@@ -689,7 +1239,7 @@ onBeforeUnmount(() => {
               </ul>
 
               <button type="button" :class="plan.id === currentPlanId ? 'btn-secondary' : 'btn-primary'">
-                {{ plan.id === currentPlanId ? 'Продлить' : 'Выбрать тариф' }}
+                {{ plan.id === currentPlanId ? copy.renew : copy.choosePlan }}
               </button>
             </article>
           </section>
@@ -797,6 +1347,78 @@ p {
 .form-panel {
   position: sticky;
   top: 5.5rem;
+}
+
+.section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.section-label {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.chips,
+.summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999rem;
+  background: color-mix(in srgb, var(--brand-soft) 68%, white);
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
+.chip b {
+  font-size: 0.78rem;
+}
+
+.chip button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.inline-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.field-hint {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.95rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--surface-secondary) 88%, white);
+}
+
+.field-hint span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.field-hint strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.btn-secondary--compact {
+  width: fit-content;
 }
 
 .jobs-panel {
@@ -1089,46 +1711,202 @@ textarea {
   line-height: 1.5;
 }
 
+.response-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.response-stat-card {
+  padding: 1rem 1.1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 92%, transparent);
+}
+
+.response-stat-card span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.4rem;
+}
+
+.response-stat-card strong {
+  color: var(--text-primary);
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.response-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.response-summary__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.32rem 0.78rem;
+  border-radius: 999rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.response-summary__pill--strong {
+  background: #e6f0ec;
+  color: #19785a;
+}
+
+.response-summary__pill--good {
+  background: #e8f0fe;
+  color: #4a90e2;
+}
+
+.response-summary__pill--partial {
+  background: #fef3e2;
+  color: #d68a12;
+}
+
+.response-summary__pill--weak {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.response-summary__pill--fail {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 .responses-list {
   display: grid;
   gap: 0.85rem;
 }
 
-.response-row {
-  position: relative;
+.response-vacancy-card {
   display: grid;
-  cursor: pointer;
-  grid-template-columns: 4.25rem minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  padding: 1.15rem 1.2rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1.2rem;
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-soft);
+}
+
+.response-vacancy-card__top {
+  display: flex;
+  justify-content: space-between;
   gap: 1rem;
+  align-items: flex-start;
+}
+
+.response-vacancy-card__copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.response-vacancy-card__copy h3 {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.response-vacancy-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.response-vacancy-card__meta span {
+  display: inline-flex;
   align-items: center;
-  padding: 1rem;
-  overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(240, 253, 244, 0.82), rgba(255, 255, 255, 0.98) 44%),
-    var(--surface-primary);
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  gap: 0.35rem;
 }
 
-.response-row::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.25rem;
-  background: var(--brand-strong);
-  opacity: 0.85;
+.response-vacancy-card__toggle {
+  min-height: 2.9rem;
+  padding: 0.7rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.95rem;
+  background: #fff;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.response-row:hover {
-  transform: translateY(-0.125rem);
-  border-color: var(--border-strong);
-  box-shadow: 0 1.25rem 2.6rem rgba(15, 23, 42, 0.08);
+.response-summary--card {
+  gap: 0.55rem;
 }
 
-.response-row--approved::before {
-  background: #16a34a;
+.response-inline-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.response-candidate-pill,
+.response-score-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.32rem 0.78rem;
+  border-radius: 999rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.response-candidate-pill--strong,
+.response-score-chip--strong {
+  background: #e6f0ec;
+  color: #19785a;
+}
+
+.response-candidate-pill--good,
+.response-score-chip--good {
+  background: #e8f0fe;
+  color: #4a90e2;
+}
+
+.response-candidate-pill--partial,
+.response-score-chip--partial {
+  background: #fef3e2;
+  color: #d68a12;
+}
+
+.response-candidate-pill--weak,
+.response-score-chip--weak {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.response-candidate-pill--fail,
+.response-score-chip--fail {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.response-candidate-list {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.1rem;
+}
+
+.response-candidate-row {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr) 12.5rem;
+  gap: 1rem;
+  align-items: start;
+  padding-top: 0.85rem;
+  border-top: 0.0625rem solid var(--border-subtle);
+}
+
+.response-candidate-row__body {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .response-avatar {
@@ -1221,6 +1999,77 @@ textarea {
 .response-details {
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.response-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.response-breakdown-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.95rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-secondary) 92%, white);
+}
+
+.response-breakdown-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.response-breakdown-card__head span {
+  color: var(--text-primary);
+  font-weight: 800;
+  font-size: 0.88rem;
+}
+
+.response-breakdown-card__head strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999rem;
+  font-size: 0.82rem;
+}
+
+.response-breakdown-card__detail {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.response-breakdown-card--strong .response-breakdown-card__head strong {
+  background: #e6f0ec;
+  color: #19785a;
+}
+
+.response-breakdown-card--good .response-breakdown-card__head strong {
+  background: #e8f0fe;
+  color: #4a90e2;
+}
+
+.response-breakdown-card--partial .response-breakdown-card__head strong {
+  background: #fef3e2;
+  color: #d68a12;
+}
+
+.response-breakdown-card--weak .response-breakdown-card__head strong {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.response-breakdown-card--fail .response-breakdown-card__head strong {
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .response-detail {
@@ -1342,7 +2191,8 @@ textarea {
 }
 
 @media (max-width: 88rem) {
-  .pricing-grid {
+  .pricing-grid,
+  .response-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1360,9 +2210,11 @@ textarea {
 
 @media (max-width: 56rem) {
   .pricing-grid,
+  .response-stats,
   .field-grid,
   .attribute-grid,
   .upload-grid,
+  .inline-add,
   .panel-heading,
   .form-actions,
   .job-row,
@@ -1372,13 +2224,17 @@ textarea {
     display: grid;
   }
 
-  .response-row {
-    grid-template-columns: 3.8rem minmax(0, 1fr);
-    align-items: start;
+  .response-vacancy-card__top,
+  .response-candidate-row {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .response-breakdown {
+    grid-template-columns: 1fr;
   }
 
   .response-actions {
-    grid-column: 1 / -1;
     align-items: stretch;
     width: 100%;
     min-width: 0;
@@ -1402,10 +2258,6 @@ textarea {
     border-radius: 50%;
   }
 
-  .response-header {
-    align-items: flex-start;
-  }
-
   .response-job span {
     white-space: normal;
   }
@@ -1425,7 +2277,7 @@ textarea {
 }
 
 @media (max-width: 34rem) {
-  .response-row {
+  .response-stats {
     grid-template-columns: 1fr;
   }
 

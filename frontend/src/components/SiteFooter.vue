@@ -5,46 +5,46 @@
         <RouterLink to="/" class="brand-link" aria-label="CVHOLD home">
           <Logo />
         </RouterLink>
-        <p>
-          CVHOLD помогает работодателям и специалистам по всей Европе находить друг друга
-          через понятные профили, прозрачные отклики и удобный рабочий процесс найма.
-        </p>
+        <p>{{ t('footer.home') }}</p>
       </div>
 
-      <nav class="footer-grid" aria-label="Подвал сайта">
+      <nav class="footer-grid" :aria-label="t('footer.navLabel')">
         <div class="footer-column">
-          <h2>Платформа</h2>
-          <RouterLink to="/jobs">Вакансии</RouterLink>
-          <RouterLink to="/resume-builder">Резюме</RouterLink>
-          <RouterLink to="/about">О нас</RouterLink>
+          <h2>{{ t('footer.platform') }}</h2>
+          <RouterLink to="/jobs">{{ t('navbar.jobs') }}</RouterLink>
+          <RouterLink to="/resume-builder">{{ t('navbar.resume') }}</RouterLink>
+          <RouterLink to="/about">{{ t('footer.aboutUs') }}</RouterLink>
         </div>
 
         <div class="footer-column">
-          <h2>Работодателям</h2>
-          <RouterLink to="/">Решения</RouterLink>
-          <RouterLink to="/pricing">Тарифы</RouterLink>
-          <RouterLink to="/employer-dashboard">Кабинет</RouterLink>
+          <h2>{{ t('footer.forEmployers') }}</h2>
+          <RouterLink to="/">{{ t('footer.solutions') }}</RouterLink>
+          <RouterLink to="/pricing">{{ t('navbar.pricing') }}</RouterLink>
+          <RouterLink to="/employer-dashboard">{{ t('navbar.dashboard') }}</RouterLink>
         </div>
 
         <div class="footer-column">
-          <h2>Поддержка</h2>
+          <h2>{{ t('footer.support') }}</h2>
           <RouterLink to="/faq">FAQ</RouterLink>
-          <RouterLink to="/contacts">Контакты</RouterLink>
-          <RouterLink to="/terms">Условия</RouterLink>
+          <RouterLink to="/contacts">{{ t('footer.contacts') }}</RouterLink>
+          <RouterLink to="/terms">{{ t('footer.terms') }}</RouterLink>
         </div>
       </nav>
     </div>
 
     <div class="footer-meta">
-      <span>&copy; {{ currentYear }} CVHOLD. Все права защищены.</span>
-      <span>Платформа для поиска работы и найма в Латвии, Литве, Эстонии и по всей Европе.</span>
+      <span>&copy; {{ currentYear }} CVHOLD. {{ t('footer.rights') }}</span>
+      <span>{{ t('footer.meta') }}</span>
     </div>
   </footer>
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import { useI18n } from '@/i18n'
 import Logo from '@/components/Logo.vue'
+
+const { t } = useI18n()
 const currentYear = new Date().getFullYear()
 </script>
 

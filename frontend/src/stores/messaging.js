@@ -5,6 +5,7 @@ import {
   getMessageThread,
   sendMessage,
 } from '@/api/jobs'
+import { getLocaleFromPath } from '@/router/locale'
 
 const sortConversations = (conversations) => {
   return [...conversations].sort((a, b) => {
@@ -13,6 +14,34 @@ const sortConversations = (conversations) => {
     return right - left
   })
 }
+
+const getCurrentLanguage = () => {
+  if (typeof window === 'undefined') return 'ru'
+  return getLocaleFromPath(window.location.pathname)
+}
+
+const messageCopy = {
+  ru: {
+    chatAvailableAfterApproval: 'Чат станет доступен после подтверждения работодателем.',
+    threadLoadError: 'Не удалось открыть переписку по выбранному отклику.',
+    conversationsLoadError: 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.',
+    pickConversationFirst: 'Сначала выберите диалог.',
+    chatNotApproved: 'Работодатель еще не подтвердил чат по этому отклику.',
+    sendError: 'Не удалось отправить сообщение.',
+    deleteError: 'Не удалось удалить диалог.',
+  },
+  en: {
+    chatAvailableAfterApproval: 'The chat will become available after the employer approves it.',
+    threadLoadError: 'Failed to open the conversation for the selected application.',
+    conversationsLoadError: 'Failed to load messages. Please check your connection and sign-in status.',
+    pickConversationFirst: 'Choose a conversation first.',
+    chatNotApproved: 'The employer has not approved the chat for this application yet.',
+    sendError: 'Failed to send the message.',
+    deleteError: 'Failed to delete the conversation.',
+  },
+}
+
+const t = (key) => messageCopy[getCurrentLanguage()]?.[key] || messageCopy.ru[key] || ''
 
 export const useMessagingStore = defineStore('messaging', {
   state: () => ({
@@ -80,8 +109,8 @@ export const useMessagingStore = defineStore('messaging', {
 
         if (!silent) {
           this.status = error?.key === 'chat_not_approved'
-            ? 'Чат станет доступен после подтверждения работодателем.'
-            : 'Не удалось открыть переписку по выбранному отклику.'
+            ? t('chatAvailableAfterApproval')
+            : t('threadLoadError')
         }
       }
     },
@@ -123,7 +152,7 @@ export const useMessagingStore = defineStore('messaging', {
         if (!silent) {
           this.conversations = []
           this.thread = []
-          this.status = 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.'
+          this.status = t('conversationsLoadError')
         }
       } finally {
         if (!silent) {
@@ -167,7 +196,7 @@ export const useMessagingStore = defineStore('messaging', {
       if (!body) return null
 
       if (!this.activeApplicationId) {
-        this.status = 'Сначала выберите диалог.'
+        this.status = t('pickConversationFirst')
         return null
       }
 
@@ -182,8 +211,8 @@ export const useMessagingStore = defineStore('messaging', {
         return message
       } catch (error) {
         this.status = error?.key === 'chat_not_approved'
-          ? 'Работодатель ещё не подтвердил чат по этому отклику.'
-          : 'Не удалось отправить сообщение.'
+          ? t('chatNotApproved')
+          : t('sendError')
         return null
       } finally {
         this.isSending = false
@@ -214,7 +243,7 @@ export const useMessagingStore = defineStore('messaging', {
 
         return true
       } catch {
-        this.status = 'Не удалось удалить диалог.'
+        this.status = t('deleteError')
         return false
       } finally {
         this.isDeleting = false

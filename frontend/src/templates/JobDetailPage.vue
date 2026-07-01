@@ -26,6 +26,16 @@ const form = ref({
 
 const user = computed(() => state.user)
 const hasLogo = computed(() => !!job.value?.logo && !brokenLogo.value)
+const requiredLanguages = computed(() => (
+  Array.isArray(job.value?.languages)
+    ? job.value.languages.filter((language) => language?.name && language?.level)
+    : []
+))
+const requiredLicenses = computed(() => (
+  Array.isArray(job.value?.licenses)
+    ? job.value.licenses.filter(Boolean)
+    : []
+))
 
 const tagSet = computed(() => {
   if (!job.value) return []
@@ -83,6 +93,14 @@ const requirementList = computed(() => {
     'Опыт работы по специальности',
     'Готовность к стабильному графику и командной работе',
   ]
+
+  requiredLanguages.value.forEach((language) => {
+    base.push(`${language.name} — уровень не ниже ${language.level}`)
+  })
+
+  requiredLicenses.value.forEach((license) => {
+    base.push(`Наличие ${license}`)
+  })
 
   const haystack = `${job.value.title} ${job.value.description}`.toLowerCase()
   if (/(ce|driver|водител)/.test(haystack)) base.push('Наличие действующих прав и аккуратное ведение документации')
@@ -219,6 +237,26 @@ watch(() => route.params.id, loadJob)
               <p class="lead">
                 {{ job.description || 'Подробности вакансии уточняются работодателем.' }}
               </p>
+
+              <div v-if="requiredLanguages.length || requiredLicenses.length" class="requirements-summary">
+                <article v-if="requiredLanguages.length" class="summary-card">
+                  <h3>Языки</h3>
+                  <div class="summary-chips">
+                    <span v-for="language in requiredLanguages" :key="`${language.name}-${language.level}`" class="summary-chip">
+                      {{ language.name }} · {{ language.level }}
+                    </span>
+                  </div>
+                </article>
+
+                <article v-if="requiredLicenses.length" class="summary-card">
+                  <h3>Права и сертификаты</h3>
+                  <div class="summary-chips">
+                    <span v-for="license in requiredLicenses" :key="license" class="summary-chip">
+                      {{ license }}
+                    </span>
+                  </div>
+                </article>
+              </div>
 
               <div class="content-blocks">
                 <article class="content-card">
@@ -483,6 +521,41 @@ watch(() => route.params.id, loadJob)
   font-size: 1.02rem;
 }
 
+.requirements-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.summary-card {
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
+}
+
+.summary-card h3 {
+  margin: 0 0 0.75rem;
+}
+
+.summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999rem;
+  background: color-mix(in srgb, var(--brand-soft) 68%, white);
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
 .content-blocks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -614,6 +687,7 @@ watch(() => route.params.id, loadJob)
 @media (max-width: 72rem) {
   .facts-grid,
   .content-grid,
+  .requirements-summary,
   .content-blocks,
   .company-grid {
     grid-template-columns: 1fr;

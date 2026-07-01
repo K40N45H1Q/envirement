@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from '@/i18n'
 import { useMessagingStore } from '@/stores/messaging'
 
 const props = defineProps({
@@ -9,15 +10,47 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: 'Сообщения',
+    default: '',
   },
   hint: {
     type: String,
-    default: 'Все активные диалоги по подтверждённым откликам и вакансиям',
+    default: '',
   },
 })
 
+const { language } = useI18n()
 const messaging = useMessagingStore()
+
+const isEnglish = computed(() => language.value === 'en')
+const copy = computed(() => (
+  isEnglish.value
+    ? {
+      title: 'Messages',
+      hint: 'All active conversations for approved applications and vacancies.',
+      fallbackTitle: 'Messages',
+      fallbackSubtitle: 'Approved conversations for applications',
+      loading: 'Loading conversations...',
+      emptyList: 'Conversations will appear after the employer approves a chat in the applications section.',
+      deleting: 'Deleting...',
+      deleteConversation: 'Delete conversation',
+      deleteConfirm: 'Delete this conversation? The related application will be deleted too.',
+      emptyThread: 'Choose a conversation on the left to start chatting.',
+      inputPlaceholder: 'Write a message',
+    }
+    : {
+      title: 'Сообщения',
+      hint: 'Все активные диалоги по подтвержденным откликам и вакансиям.',
+      fallbackTitle: 'Сообщения',
+      fallbackSubtitle: 'Подтвержденные диалоги по откликам',
+      loading: 'Загрузка диалогов...',
+      emptyList: 'Диалоги появятся после подтверждения работодателем во вкладке откликов.',
+      deleting: 'Удаление...',
+      deleteConversation: 'Удалить диалог',
+      deleteConfirm: 'Удалить этот диалог? Вместе с ним будет удален и связанный отклик.',
+      emptyThread: 'Выберите диалог слева, чтобы начать общение.',
+      inputPlaceholder: 'Напишите сообщение',
+    }
+))
 
 const conversations = computed(() => messaging.conversations)
 const activeApplicationId = computed(() => messaging.activeApplicationId)
@@ -31,9 +64,12 @@ const isLoading = computed(() => messaging.isLoading)
 const isSending = computed(() => messaging.isSending)
 const isDeleting = computed(() => messaging.isDeleting)
 const activeConversation = computed(() => messaging.activeConversation)
-const activeTitle = computed(() => activeConversation.value?.counterparty_name || 'Сообщения')
+const panelTitle = computed(() => props.title || copy.value.title)
+const panelHint = computed(() => props.hint || copy.value.hint)
+const dateLocale = computed(() => (isEnglish.value ? 'en-US' : 'ru-RU'))
+const activeTitle = computed(() => activeConversation.value?.counterparty_name || copy.value.fallbackTitle)
 const activeSubtitle = computed(() => {
-  if (!activeConversation.value) return 'Подтверждённые диалоги по откликам'
+  if (!activeConversation.value) return copy.value.fallbackSubtitle
   return `${activeConversation.value.job_title} · ${activeConversation.value.job_company}`
 })
 
@@ -50,7 +86,7 @@ const send = async () => {
 }
 
 const deleteConversation = async () => {
-  const confirmed = window.confirm('Удалить этот диалог? Вместе с ним будет удалён и связанный отклик.')
+  const confirmed = window.confirm(copy.value.deleteConfirm)
   if (!confirmed) return
   await messaging.deleteActiveConversation()
 }
@@ -61,14 +97,14 @@ const deleteConversation = async () => {
     <aside class="chat-list">
       <div class="chat-list__head">
         <div>
-          <h2>{{ title }}</h2>
-          <p class="chat-list__hint">{{ hint }}</p>
+          <h2>{{ panelTitle }}</h2>
+          <p class="chat-list__hint">{{ panelHint }}</p>
         </div>
         <span class="chat-count">{{ conversations.length }}</span>
       </div>
 
       <p v-if="status" class="status">{{ status }}</p>
-      <p v-if="isLoading" class="status">Загрузка диалогов...</p>
+      <p v-if="isLoading" class="status">{{ copy.loading }}</p>
 
       <button
         v-for="conversation in conversations"
@@ -80,14 +116,14 @@ const deleteConversation = async () => {
       >
         <div class="chat-list__item-head">
           <strong>{{ conversation.counterparty_name }}</strong>
-          <span>{{ new Date(conversation.last_message_at).toLocaleDateString('ru-RU') }}</span>
+          <span>{{ new Date(conversation.last_message_at).toLocaleDateString(dateLocale) }}</span>
         </div>
         <span class="chat-list__job">{{ conversation.job_title }}</span>
         <span class="chat-list__message">{{ conversation.last_message }}</span>
       </button>
 
       <p v-if="!isLoading && !conversations.length" class="status">
-        Диалоги появятся после подтверждения работодателем во вкладке откликов.
+        {{ copy.emptyList }}
       </p>
     </aside>
 
@@ -106,7 +142,7 @@ const deleteConversation = async () => {
           @click="deleteConversation"
         >
           <i class="fas fa-trash-can"></i>
-          <span>{{ isDeleting ? 'Удаляем...' : 'Удалить диалог' }}</span>
+          <span>{{ isDeleting ? copy.deleting : copy.deleteConversation }}</span>
         </button>
       </header>
 
@@ -122,7 +158,7 @@ const deleteConversation = async () => {
         </div>
 
         <p v-if="!thread.length" class="empty-thread">
-          Выберите диалог слева, чтобы начать общение.
+          {{ copy.emptyThread }}
         </p>
       </div>
 
@@ -130,7 +166,7 @@ const deleteConversation = async () => {
         <input
           v-model="draft"
           :disabled="!activeApplicationId || isSending"
-          placeholder="Напишите сообщение"
+          :placeholder="copy.inputPlaceholder"
         />
         <button type="submit" :disabled="!activeApplicationId || isSending">
           <i class="fas fa-paper-plane"></i>
@@ -290,15 +326,31 @@ const deleteConversation = async () => {
   min-height: 2.9rem;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.55rem;
-  padding: 0 1rem;
-  border: 0.0625rem solid color-mix(in srgb, #d24646 28%, var(--border-subtle));
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.95);
-  color: #c03939;
+  padding: 0.78rem 1rem;
+  border: 0.0625rem solid rgba(220, 38, 38, 0.14);
+  border-radius: 0.9rem;
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
   font: inherit;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.delete-button:hover:not(:disabled) {
+  transform: translateY(-0.0625rem);
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.delete-button i {
+  font-size: 0.9rem;
 }
 
 .thread {
@@ -401,7 +453,6 @@ const deleteConversation = async () => {
   .delete-button,
   .chat-form button {
     width: 100%;
-    justify-content: center;
   }
 
   .chat-form {
