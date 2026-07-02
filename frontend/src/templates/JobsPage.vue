@@ -901,6 +901,8 @@ onBeforeUnmount(() => {
 .toggle-row input[type='checkbox'] {
   cursor: pointer;
   accent-color: var(--brand-base);
+  width: 1.11rem;
+  height: 1.11rem;
 }
 
 @media (max-width: 72rem) {
