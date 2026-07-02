@@ -20,7 +20,7 @@
           <h2>{{ t('footer.forEmployers') }}</h2>
           <RouterLink to="/">{{ t('footer.solutions') }}</RouterLink>
           <RouterLink to="/pricing">{{ t('navbar.pricing') }}</RouterLink>
-          <RouterLink to="/employer-dashboard">{{ t('navbar.dashboard') }}</RouterLink>
+          <RouterLink to="/dashboard">{{ t('navbar.dashboard') }}</RouterLink>
         </div>
 
         <div class="footer-column">

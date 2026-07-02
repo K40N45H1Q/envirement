@@ -144,8 +144,8 @@ function routeForAccount(accountType) {
   const normalizedType = normalizeAccountType(accountType)
 
   if (normalizedType === 'candidate') return '/dashboard'
-  if (normalizedType === 'employer') return '/employer-dashboard'
-  if (normalizedType === 'admin') return '/admin'
+  if (normalizedType === 'employer') return '/dashboard?section=jobs'
+  if (normalizedType === 'admin') return '/dashboard?section=jobs'
 
   return '/'
 }
@@ -229,19 +229,21 @@ export default {
 
       if (this.normalizedAccountType === 'admin') {
         return [
-          { label: this.t('navbar.adminPanel'), to: '/admin', primary: true },
-          { label: this.t('navbar.employerDashboard'), to: '/employer-dashboard' },
-          { label: this.t('navbar.jobs'), to: '/admin?section=jobs' },
+          { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true },
+          { label: this.t('navbar.responses'), to: '/dashboard?section=responses' },
+          { label: this.t('navbar.messages'), to: '/dashboard?section=messages' },
+          { label: this.t('navbar.plans'), to: '/dashboard?section=pricing' },
+          { label: this.t('navbar.adminPanel'), to: '/admin' },
           { label: this.t('navbar.profile'), to: '/profile' },
         ]
       }
 
       return [
-        { label: this.t('navbar.dashboard'), to: '/employer-dashboard', primary: true },
-        { label: this.t('navbar.myJobs'), to: '/employer-dashboard?section=jobs' },
-        { label: this.t('navbar.responses'), to: '/employer-dashboard?section=responses' },
-        { label: this.t('navbar.messages'), to: '/employer-dashboard?section=messages' },
-        { label: this.t('navbar.plans'), to: '/employer-dashboard?section=pricing' },
+        { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true },
+        { label: this.t('navbar.myJobs'), to: '/dashboard?section=jobs' },
+        { label: this.t('navbar.responses'), to: '/dashboard?section=responses' },
+        { label: this.t('navbar.messages'), to: '/dashboard?section=messages' },
+        { label: this.t('navbar.plans'), to: '/dashboard?section=pricing' },
         { label: this.t('navbar.profile'), to: '/profile' },
       ]
     },

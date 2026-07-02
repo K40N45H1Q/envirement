@@ -58,7 +58,7 @@ const plans = computed(() => [
               <i class="fas fa-check"></i>{{ feature }}
             </li>
           </ul>
-          <RouterLink to="/employer-dashboard" class="btn-primary">{{ t('pricing.choose') }}</RouterLink>
+          <RouterLink to="/dashboard?section=pricing" class="btn-primary">{{ t('pricing.choose') }}</RouterLink>
         </article>
       </section>
     </main>

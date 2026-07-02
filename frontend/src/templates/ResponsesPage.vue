@@ -35,7 +35,7 @@ const approveChat = async (id) => {
   try {
     await approveResponseChat(id)
     await loadResponses()
-    await router.push(`/employer-dashboard?section=messages&application=${id}`)
+    await router.push(`/dashboard?section=messages&application=${id}`)
   } catch {
     status.value = 'Не удалось подтвердить чат.'
   } finally {
@@ -87,7 +87,7 @@ onMounted(loadResponses)
             <button v-if="!item.chat_approved" type="button" @click="approveChat(item.id)">
               {{ approvingId === item.id ? 'Подтверждаем...' : 'Подтвердить чат' }}
             </button>
-            <button v-else type="button" @click="router.push(`/employer-dashboard?section=messages&application=${item.id}`)">
+            <button v-else type="button" @click="router.push(`/dashboard?section=messages&application=${item.id}`)">
               Открыть сообщения
             </button>
             <button type="button" class="danger" @click="remove(item.id)">Удалить</button>

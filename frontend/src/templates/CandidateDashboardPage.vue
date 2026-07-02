@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import Profile from '@/components/Profile.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { getJobs, getMyApplications } from '@/api/jobs'
@@ -103,11 +104,13 @@ const isLoading = ref(false)
 const isRefreshingApplications = ref(false)
 const notice = ref('')
 const applicationsRefreshTimer = ref(null)
-const activeSection = ref(typeof route.query.section === 'string' ? route.query.section : 'dashboard')
+const validSectionIds = ['dashboard', 'messages', 'profile']
+const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'dashboard')
+const activeSection = ref(normalizeSection(typeof route.query.section === 'string' ? route.query.section : 'dashboard'))
 
 const shellSections = computed(() => ([
   { id: 'messages', label: copy.value.sections.messages, icon: 'fas fa-message', to: '/dashboard?section=messages' },
-  { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/profile' },
+  { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/dashboard?section=profile' },
   { id: 'jobs', label: copy.value.sections.jobs, icon: 'fas fa-briefcase', to: '/jobs' },
   { id: 'resume', label: copy.value.sections.resume, icon: 'fas fa-file-lines', to: '/resume-builder' },
 ]))
@@ -146,7 +149,9 @@ const shellStats = computed(() => ([
 const dashboardTitle = computed(() => (
   activeSection.value === 'messages'
     ? copy.value.titleMessages
-    : interpolate(copy.value.titleGreeting, { name: userName.value })
+    : activeSection.value === 'profile'
+      ? copy.value.sections.profile
+      : interpolate(copy.value.titleGreeting, { name: userName.value })
 ))
 
 const getSettledValue = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback)
@@ -252,7 +257,7 @@ const stopApplicationsRealtime = () => {
 }
 
 watch(() => route.query.section, (section) => {
-  activeSection.value = typeof section === 'string' ? section : 'dashboard'
+  activeSection.value = normalizeSection(typeof section === 'string' ? section : 'dashboard')
 })
 
 watch(() => route.query.application, async (application) => {
@@ -365,12 +370,16 @@ onBeforeUnmount(() => {
               </div>
             </button>
 
-            <RouterLink v-if="!applications.length" to="/profile" class="activity-item empty">
+            <RouterLink v-if="!applications.length" to="/dashboard?section=profile" class="activity-item empty">
               <i class="fas fa-user-pen"></i>
               <span>{{ copy.completeProfile }}</span>
             </RouterLink>
           </div>
         </div>
+      </section>
+
+      <section v-else-if="activeSection === 'profile'" class="message-shell">
+        <Profile embedded />
       </section>
 
       <section v-else class="message-shell">

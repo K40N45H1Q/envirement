@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
+import Profile from '@/components/Profile.vue'
 import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
@@ -78,7 +79,7 @@ const isEnglish = computed(() => currentLanguage.value === 'en')
 const copy = computed(() => (
   isEnglish.value
     ? {
-      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', pricing: 'Plans' },
+      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', profile: 'Profile', pricing: 'Plans' },
       stats: { jobs: 'Total jobs', published: 'Published', responses: 'Applications', conversations: 'Conversations' },
       fallbackSection: 'Jobs',
       saving: 'Saving...',
@@ -183,7 +184,7 @@ const copy = computed(() => (
       choosePlan: 'Choose plan',
     }
     : {
-      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', pricing: 'Тарифы' },
+      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', profile: 'Профиль', pricing: 'Тарифы' },
       stats: { jobs: 'Всего вакансий', published: 'Опубликовано', responses: 'Откликов', conversations: 'Диалогов' },
       fallbackSection: 'Вакансии',
       saving: 'Сохранение...',
@@ -292,10 +293,11 @@ const copy = computed(() => (
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 const sections = [
-  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/employer-dashboard?section=jobs' },
-  { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/employer-dashboard?section=responses' },
-  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/employer-dashboard?section=messages' },
-  { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/employer-dashboard?section=pricing' },
+  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/dashboard?section=jobs' },
+  { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/dashboard?section=responses' },
+  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
+  { id: 'profile', label: 'Профиль', icon: 'fas fa-user', to: '/dashboard?section=profile' },
+  { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/dashboard?section=pricing' },
 ]
 
 const localizedPlans = computed(() => plans.map((plan) => ({
@@ -1346,6 +1348,10 @@ onBeforeUnmount(() => {
 
         <section v-if="activeSection === 'messages'" class="message-shell">
           <MessagesPanel embedded @open="openDashboardConversation" />
+        </section>
+
+        <section v-if="activeSection === 'profile'" class="message-shell">
+          <Profile embedded />
         </section>
 
         <section v-if="activeSection === 'pricing'" class="pricing-layout">

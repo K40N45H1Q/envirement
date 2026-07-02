@@ -31,7 +31,7 @@ const featureKeys = [
             <i class="fas fa-magnifying-glass"></i>
             {{ t('hero.findEmployees') }}
           </RouterLink>
-          <RouterLink to="/employer-dashboard" class="btn-secondary">
+          <RouterLink to="/dashboard?section=jobs" class="btn-secondary">
             {{ t('hero.postJob') }}
             <i class="fas fa-plus"></i>
           </RouterLink>

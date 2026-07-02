@@ -13,7 +13,7 @@ import ServicePricingCard from '@/components/ServicePricingCard.vue'
           <h1>Найдите лучших сотрудников быстрее</h1>
           <p>Публикуйте вакансии, собирайте отклики и смотрите кандидатов в одном кабинете.</p>
           <div class="actions">
-            <RouterLink to="/employer-dashboard" class="btn-primary">Разместить вакансию</RouterLink>
+            <RouterLink to="/dashboard?section=jobs" class="btn-primary">Разместить вакансию</RouterLink>
             <RouterLink to="/responses" class="btn-secondary">Смотреть отклики</RouterLink>
           </div>
         </div>

@@ -7,7 +7,7 @@ export const ACCOUNT_LABELS = {
 export const isEmployerAccount = (accountType) => ['employer', 'admin'].includes(accountType)
 
 export const defaultRouteForAccount = (accountType) => {
-  if (isEmployerAccount(accountType)) return '/employer-dashboard'
+  if (isEmployerAccount(accountType)) return '/dashboard?section=jobs'
   return '/dashboard'
 }
 

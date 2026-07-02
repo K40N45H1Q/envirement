@@ -5,8 +5,7 @@ import JobsPage from '@/templates/JobsPage.vue'
 import JobDetailPage from '@/templates/JobDetailPage.vue'
 import PricingPage from '@/templates/PricingPage.vue'
 import ResumeBuilderPage from '@/templates/ResumeBuilderPage.vue'
-import CandidateDashboardPage from '@/templates/CandidateDashboardPage.vue'
-import EmployerDashboardPage from '@/templates/EmployerDashboardPage.vue'
+import DashboardPage from '@/templates/DashboardPage.vue'
 import ResponsesPage from '@/templates/ResponsesPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
@@ -73,8 +72,8 @@ const defaultRouteForAccount = (accountType) => {
   const normalizedType = normalizeAccountType(accountType)
 
   if (normalizedType === 'candidate') return '/dashboard'
-  if (normalizedType === 'employer') return '/employer-dashboard'
-  if (normalizedType === 'admin') return '/employer-dashboard'
+  if (normalizedType === 'employer') return '/dashboard?section=jobs'
+  if (normalizedType === 'admin') return '/dashboard?section=jobs'
 
   return '/'
 }
@@ -109,8 +108,14 @@ const localizedChildren = [
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
-  { path: 'dashboard', component: CandidateDashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate'] } },
-  { path: 'employer-dashboard', component: EmployerDashboardPage, meta: { logicalPath: '/employer-dashboard', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
+  { path: 'dashboard', component: DashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
+  {
+    path: 'employer-dashboard',
+    redirect: (to) => ({
+      path: '/dashboard',
+      query: to.query,
+    }),
+  },
   { path: 'responses', component: ResponsesPage, meta: { logicalPath: '/responses', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
   { path: 'messages', component: MessagesPage, meta: { logicalPath: '/messages', requiresAuth: true } },
   { path: 'blog', component: InfoPage, meta: { logicalPath: '/blog', page: 'blog' } },
@@ -217,8 +222,8 @@ router.beforeEach(async (to) => {
 
     const normalizedType = normalizeAccountType(auth.state.user.account_type)
 
-    if (logicalPath === '/profile' && ['employer', 'admin'].includes(normalizedType)) {
-      const target = localizeFullPath('/employer-dashboard?section=profile', locale)
+    if (logicalPath === '/profile') {
+      const target = localizeFullPath('/dashboard?section=profile', locale)
 
       if (to.fullPath !== target) {
         return target
@@ -227,13 +232,32 @@ router.beforeEach(async (to) => {
       return true
     }
 
-    if (logicalPath === '/messages' && normalizedType === 'candidate') {
+    if (logicalPath === '/messages') {
+      if (normalizedType === 'candidate') {
+        return localizeRouteLocation({
+          path: '/dashboard',
+          query: {
+            section: 'messages',
+            ...(typeof to.query.application === 'string' ? { application: to.query.application } : {}),
+          },
+        }, locale)
+      }
+
+      if (['employer', 'admin'].includes(normalizedType)) {
+        return localizeRouteLocation({
+          path: '/dashboard',
+          query: {
+            section: 'messages',
+            ...(typeof to.query.application === 'string' ? { application: to.query.application } : {}),
+          },
+        }, locale)
+      }
+    }
+
+    if (logicalPath === '/responses' && ['employer', 'admin'].includes(normalizedType)) {
       return localizeRouteLocation({
         path: '/dashboard',
-        query: {
-          section: 'messages',
-          ...(typeof to.query.application === 'string' ? { application: to.query.application } : {}),
-        },
+        query: { section: 'responses' },
       }, locale)
     }
 

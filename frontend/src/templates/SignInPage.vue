@@ -8,7 +8,7 @@ const route = useRoute()
 const destinationLabel = computed(() => {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
 
-  if (redirect.startsWith('/employer-dashboard')) return 'кабинету работодателя'
+  if (redirect.startsWith('/dashboard?section=jobs') || redirect.startsWith('/dashboard')) return 'личному кабинету'
   if (redirect.startsWith('/responses')) return 'откликам'
   if (redirect.startsWith('/messages')) return 'сообщениям'
   if (redirect.startsWith('/profile')) return 'профилю'
