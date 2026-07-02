@@ -223,9 +223,9 @@ watch(() => route.params.id, loadJob)
             <section class="panel">
               <div class="panel-head">
                 <div>
-                  <p class="section-eyebrow compact">{{ t('jobDetailPage.descriptionEyebrow') }}</p>
                   <h2>{{ t('jobDetailPage.descriptionTitle') }}</h2>
                 </div>
+                <p class="section-eyebrow compact">{{ t('jobDetailPage.descriptionEyebrow') }}</p>
               </div>
 
               <p class="lead">
@@ -253,14 +253,6 @@ watch(() => route.params.id, loadJob)
               </div>
             </section>
 
-            <section class="panel company-panel">
-              <div class="panel-head">
-                <div>
-                  <p class="section-eyebrow compact">{{ t('jobDetailPage.companyEyebrow') }}</p>
-                  <h2>{{ job.company }}</h2>
-                </div>
-              </div>
-
               <div class="company-grid">
                 <div>
                   <span class="company-label">{{ t('jobDetailPage.quickFacts.location') }}</span>
@@ -275,7 +267,7 @@ watch(() => route.params.id, loadJob)
                   <strong>{{ t('jobDetailPage.publicVacancy') }}</strong>
                 </div>
               </div>
-            </section>
+
           </div>
 
           <form class="panel apply-form" @submit.prevent="submitApplication">
@@ -284,7 +276,7 @@ watch(() => route.params.id, loadJob)
                 <h2>{{ t('jobDetailPage.applyTitle') }}</h2>
               </div>
             </div>
-
+            
             <input v-model="form.name" required :placeholder="t('jobDetailPage.form.name')" />
             <input v-model="form.surname" required :placeholder="t('jobDetailPage.form.surname')" />
             <input v-model="form.phone" required :placeholder="t('jobDetailPage.form.phone')" />
@@ -449,13 +441,13 @@ watch(() => route.params.id, loadJob)
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 24rem;
-  gap: 1.25rem;
-  align-items: start;
+  gap: 1rem;
 }
 
 .main-column {
   display: grid;
   gap: 1.25rem;
+  height: 100%;
 }
 
 .panel {
@@ -464,6 +456,9 @@ watch(() => route.params.id, loadJob)
   background: var(--surface-primary);
   box-shadow: var(--shadow-soft);
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .panel-head {
@@ -486,7 +481,7 @@ watch(() => route.params.id, loadJob)
 
 .requirements-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-top: 1.25rem;
 }
@@ -521,13 +516,13 @@ watch(() => route.params.id, loadJob)
 
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 .company-grid div {
   padding: 1rem;
+  max-height: max-content;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
@@ -547,10 +542,8 @@ watch(() => route.params.id, loadJob)
 .apply-form {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-  position: sticky;
-  top: 5.6rem;
   height: 100%;
+  gap: 1rem;
 }
 
 .apply-form input,

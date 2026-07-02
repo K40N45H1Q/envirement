@@ -142,9 +142,7 @@ onBeforeUnmount(() => {
   height: 100%;
   overflow: hidden;
   border-radius: 1.25rem;
-  background:
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.22), transparent 45%),
-    linear-gradient(180deg, rgba(9, 18, 16, 0.02), rgba(9, 18, 16, 0.16));
+  background: #111;
   box-shadow: inset 0 0 0 0.25rem rgba(31, 201, 127, 0.28);
 }
 
@@ -152,66 +150,89 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 15rem;
   height: 100%;
-}
-
-.hero-banner__image,
-.hero-banner__overlay,
-.hero-banner__content {
-  position: absolute;
-  inset: 0;
+  overflow: hidden;
 }
 
 .hero-banner__image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
 .hero-banner__overlay {
+  position: absolute;
+  inset: 0;
   background:
-    linear-gradient(90deg, rgba(9, 18, 16, 0.02) 0%, rgba(9, 18, 16, 0.08) 36%, rgba(9, 18, 16, 0.46) 100%),
-    linear-gradient(180deg, rgba(9, 18, 16, 0) 0%, rgba(9, 18, 16, 0.18) 100%);
+    linear-gradient(
+      90deg,
+      rgba(9, 18, 16, 0.02) 0%,
+      rgba(9, 18, 16, 0.12) 34%,
+      rgba(9, 18, 16, 0.58) 72%,
+      rgba(9, 18, 16, 0.76) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(9, 18, 16, 0.02) 0%,
+      rgba(9, 18, 16, 0.18) 100%
+    );
 }
 
 .hero-banner__content {
-  left: auto;
-  width: min(62%, 14rem);
-  padding: 0;
-  margin: auto 1.15rem 1.15rem auto;
-  align-self: end;
-  inset: auto 1.15rem 1.15rem auto;
+  position: relative;
+  z-index: 1;
+  width: min(48%, 18rem);
+  min-height: 15rem;
+  margin-left: auto;
+  padding: 2.15rem 1.35rem 1.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: right;
 }
 
 .hero-banner__eyebrow {
   display: inline-flex;
   align-items: center;
-  min-height: 1.85rem;
-  padding: 0.1rem 0.8rem 0;
+  justify-content: center;
+  align-self: flex-end;
+  max-width: 13.5rem;
+  min-height: 1.75rem;
+  padding: 0.35rem 0.85rem 0.3rem;
   border-radius: 999px;
-  background: rgba(224, 245, 234, 0.72);
+  background: rgba(224, 245, 234, 0.86);
   color: var(--brand-strong);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  box-shadow: 0 0.5rem 1rem rgba(9, 18, 16, 0.12);
+  box-shadow: 0 0.5rem 1rem rgba(9, 18, 16, 0.16);
 }
 
 .hero-banner__content h3 {
-  margin: 0.5rem 0 0;
-  font-size: 1.22rem;
-  line-height: 1.12;
+  max-width: 16rem;
+  margin: 0;
   color: white;
+  font-size: clamp(1.12rem, 2.2vw, 1.42rem);
+  font-weight: 900;
+  line-height: 1.12;
   text-wrap: balance;
-  text-shadow: 0 0.35rem 1rem rgba(9, 18, 16, 0.42);
+  text-shadow: 0 0.35rem 1rem rgba(9, 18, 16, 0.52);
 }
 
 .hero-banner__content p {
-  margin: 0.45rem 0 0;
-  color: rgba(255, 255, 255, 0.9);
+  max-width: 15.5rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
   font-size: 0.88rem;
+  font-weight: 600;
   line-height: 1.38;
-  text-shadow: 0 0.25rem 0.8rem rgba(9, 18, 16, 0.38);
+  text-shadow: 0 0.25rem 0.8rem rgba(9, 18, 16, 0.45);
 }
 
 .hero-banner__dots {
@@ -259,9 +280,43 @@ onBeforeUnmount(() => {
     min-height: 17rem;
   }
 
+  .hero-banner__slide {
+    min-height: 17rem;
+  }
+
+  .hero-banner__overlay {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(9, 18, 16, 0.05) 0%,
+        rgba(9, 18, 16, 0.28) 42%,
+        rgba(9, 18, 16, 0.82) 100%
+      );
+  }
+
   .hero-banner__content {
-    width: calc(100% - 2.3rem);
-    inset: auto 1.15rem 1.15rem 1.15rem;
+    width: 100%;
+    min-height: 17rem;
+    margin-left: 0;
+    padding: 1.25rem 1.15rem 3.2rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .hero-banner__eyebrow {
+    align-self: center;
+    max-width: max-content;
+  }
+  
+  .hero-banner__content h3,
+  .hero-banner__content p {
+    max-width: 20rem;
+  }
+
+  .hero-banner__dots {
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
 </style>
