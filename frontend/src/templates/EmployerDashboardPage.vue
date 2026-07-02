@@ -29,13 +29,14 @@ import {
   resolveCountryMeta,
   salaryCurrencyOptions,
 } from '@/utils/countries'
+import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
 import { analyzeCandidateMatch } from '@/utils/matchScore'
 import { normalizeJob } from '@/utils/jobs'
 
 const route = useRoute()
 const router = useRouter()
 const messaging = useMessagingStore()
-const { language: currentLanguage } = useI18n()
+const { language: currentLanguage, t } = useI18n()
 const employmentTypeOptions = [
   { id: 'full-time', ru: 'Полная занятость', en: 'Full-time' },
   { id: 'shift', ru: 'Вахта / смены', en: 'Shift work' },
@@ -319,6 +320,22 @@ const localizedSections = computed(() => sections.map((section) => ({
 })))
 
 const localizedLanguageOptions = computed(() => getLanguageOptions())
+const localizedCategoryOptions = computed(() => ([
+  {
+    value: '',
+    label: isEnglish.value ? 'Choose category' : 'Выберите категорию',
+    iconClass: 'fas fa-list',
+  },
+  ...localizeCategoryConfigs((key) => t(key))
+    .filter((category) => category.id !== 'all')
+    .map((category) => ({
+      value: category.id,
+      label: category.label,
+      iconClass: category.icon,
+    })),
+]))
+const categoryFieldLabel = computed(() => (isEnglish.value ? 'Job category' : 'Категория работы'))
+const categoryPlaceholder = computed(() => (isEnglish.value ? 'Choose category' : 'Выберите категорию'))
 const localizedEmploymentTypeOptions = computed(() => employmentTypeOptions.map((option) => ({
   id: option.id,
   label: isEnglish.value ? option.en : option.ru,
@@ -331,6 +348,7 @@ const blankForm = () => ({
   company: '',
   salary: '',
   salary_currency: 'EUR',
+  category: '',
   employment_type: 'full-time',
   country_key: '',
   location: '',
@@ -482,6 +500,7 @@ const localizedShellStats = computed(() => ([
 ]))
 const localizedActiveSectionLabel = computed(() => localizedSections.value.find((item) => item.id === activeSection.value)?.label || copy.value.fallbackSection)
 const localizedSubmitLabel = computed(() => (isSaving.value ? copy.value.saving : (isEditing.value ? copy.value.saveChanges : copy.value.saveJob)))
+const categoryRequiredError = computed(() => (isEnglish.value ? 'Choose a vacancy category.' : 'Выберите категорию вакансии.'))
 const localizedResponseStats = computed(() => ([
   { label: copy.value.activeJobs, value: groupedResponses.value.length },
   { label: copy.value.totalResponses, value: scoredResponses.value.length },
@@ -679,6 +698,7 @@ async function editJob(job) {
     company: job.company,
     salary: salaryParts.amount,
     salary_currency: salaryParts.currency,
+    category: job.category || inferJobCategory(job),
     employment_type: job.employment_type || job.employmentType || 'full-time',
     country_key: country.countryKey || '',
     location: job.location,
@@ -711,10 +731,15 @@ async function submitJob() {
       error.value = copy.value.chooseCountryError
       return
     }
+    if (!form.value.category) {
+      error.value = categoryRequiredError.value
+      return
+    }
 
     const payload = {
       ...formPayload,
       salary: formatSalaryValue(form.value.salary, form.value.salary_currency),
+      category: form.value.category,
       country_key: selectedCountry.value.key,
       country_label: selectedCountry.value.label,
       country_flag_code: selectedCountry.value.flagCode,
@@ -912,23 +937,33 @@ onBeforeUnmount(() => {
               <label>
                 {{ copy.country }}
                 <BaseDropdown
-                  v-model="form.country_key"
-                  :aria-label="copy.countryAria"
-                  full-width
-                  :options="countryDropdownOptions"
+                v-model="form.country_key"
+                :aria-label="copy.countryAria"
+                full-width
+                :options="countryDropdownOptions"
                 />
               </label>
               <label>
                 {{ copy.city }}
                 <BaseDropdown
-                  v-model="form.location"
+                v-model="form.location"
                   :aria-label="copy.cityAria"
                   full-width
                   :options="cityOptions"
                 />
               </label>
             </div>
-
+            <label>
+              {{ categoryFieldLabel }}
+              <BaseDropdown
+                v-model="form.category"
+                :aria-label="categoryFieldLabel"
+                :placeholder="categoryPlaceholder"
+                full-width
+                :options="localizedCategoryOptions"
+              />
+            </label>
+            
             <div class="fields-row">
               <label>
                 {{ copy.requiredLanguage }}

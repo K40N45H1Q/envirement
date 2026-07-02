@@ -84,7 +84,7 @@ export const salaryCurrencyOptions = [
   { value: 'Kč', label: 'Kč' },
 ]
 
-const normalizeText = (value = '') => String(value || '')
+export const normalizeText = (value = '') => String(value || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
@@ -104,6 +104,19 @@ export const countryDropdownOptions = countryMeta.map((country) => ({
 }))
 
 export const countryByKey = Object.fromEntries(countryMeta.map((country) => [country.key, country]))
+
+export const getCountrySearchValues = (countryKey = '') => {
+  const country = countryByKey[countryKey]
+  if (!country) return []
+
+  return [
+    country.key,
+    country.label,
+    country.canonicalLabel,
+    ...country.aliases,
+    ...country.cities,
+  ].filter(Boolean)
+}
 
 export const inferCountryFromLabel = (value = '') => {
   const normalized = normalizeText(value)

@@ -2,20 +2,11 @@ import { defineStore } from 'pinia'
 import { getJobs } from '@/api/jobs'
 import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
-import { resolveCountryMeta } from '@/utils/countries'
+import { getCountrySearchValues, normalizeText, resolveCountryMeta } from '@/utils/countries'
+import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
 import { normalizeJob } from '@/utils/jobs'
 
 const BOOKMARKS_STORAGE_KEY = 'cvhold-job-bookmarks'
-
-const categoryConfigs = [
-  { id: 'all', labelKey: 'jobsStore.allCategories', icon: 'fas fa-border-all' },
-  { id: 'construction', labelKey: 'categories.construction', icon: 'fas fa-hard-hat' },
-  { id: 'production', labelKey: 'categories.production', icon: 'fas fa-industry' },
-  { id: 'logistics', labelKey: 'categories.logistics', icon: 'fas fa-truck-fast' },
-  { id: 'it', labelKey: 'categories.it', icon: 'fas fa-laptop-code' },
-  { id: 'health', labelKey: 'categories.health', icon: 'fas fa-heart-pulse' },
-  { id: 'hospitality', labelKey: 'categories.hospitality', icon: 'fas fa-bell-concierge' },
-]
 
 const countryMeta = [
   { key: 'germany', labelKey: 'jobsStore.germany', flagCode: 'de' },
@@ -46,10 +37,7 @@ const getLanguage = () => {
 
 const t = (key, params = {}) => translate(key, params, getLanguage())
 
-const localizeCategoryConfigs = () => categoryConfigs.map((category) => ({
-  ...category,
-  label: t(category.labelKey),
-}))
+const getLocalizedCategories = () => localizeCategoryConfigs((key) => t(key))
 
 const localizeCountryMeta = () => countryMeta.map((country) => ({
   ...country,
@@ -60,6 +48,30 @@ const localizeEmploymentOptions = () => employmentOptions.map((option) => ({
   ...option,
   label: t(option.labelKey),
 }))
+
+const buildSearchTokens = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean)
+
+const includesAllTokens = (value = '', tokens = []) => {
+  if (!tokens.length) return true
+  const haystack = normalizeText(value)
+  return tokens.every((token) => haystack.includes(token))
+}
+
+const keywordHaystack = (job, categoryLabel = '') => [
+  job.title,
+  job.company,
+  job.description,
+  job.location,
+  job.countryLabel,
+  categoryLabel,
+].filter(Boolean).join(' ')
+
+const locationHaystack = (job) => [
+  job.location,
+  job.displayLocation,
+  job.countryLabel,
+  ...getCountrySearchValues(job.countryKey),
+].filter(Boolean).join(' ')
 
 const readBookmarks = () => {
   try {
@@ -161,15 +173,16 @@ export const useJobsStore = defineStore('jobs', {
   }),
 
   getters: {
-    categoryConfigs: () => localizeCategoryConfigs(),
+    categoryConfigs: () => getLocalizedCategories(),
     employmentOptions: () => localizeEmploymentOptions(),
 
     enrichedJobs(state) {
       const countries = localizeCountryMeta()
       const countriesByKey = Object.fromEntries(countries.map((country) => [country.key, country]))
+      const categoriesById = Object.fromEntries(getLocalizedCategories().map((category) => [category.id, category.label]))
 
       return state.jobs.map((job, index) => {
-        const category = inferCategory(job)
+        const category = inferJobCategory(job)
         const resolvedCountry = resolveCountryMeta(job)
         const countryKey = resolvedCountry.countryKey || legacyInferCountry(job.location)
         const country = countriesByKey[countryKey]
@@ -189,6 +202,7 @@ export const useJobsStore = defineStore('jobs', {
           hasTransport: inferTransport(job),
           employmentType: inferEmployment(job),
           isBookmarked: state.bookmarks.includes(String(job.id)),
+          categoryLabel: categoriesById[category] || '',
           tags: [
             inferHousing(job) ? t('jobsStore.housing') : t('jobsStore.noHousing'),
             inferTransport(job) ? t('jobsStore.transport') : t('jobsStore.selfCommute'),
@@ -229,16 +243,16 @@ export const useJobsStore = defineStore('jobs', {
 
     filteredJobs() {
       let result = [...this.enrichedJobs]
-      const q = this.filters.searchTitle.trim().toLowerCase()
-      const loc = this.filters.searchLocation.trim().toLowerCase()
+      const qTokens = buildSearchTokens(this.filters.searchTitle)
+      const locTokens = buildSearchTokens(this.filters.searchLocation)
       const salaryFrom = Number(this.filters.salaryFrom) || 0
 
-      if (q) {
-        result = result.filter((job) => `${job.title} ${job.company} ${job.description}`.toLowerCase().includes(q))
+      if (qTokens.length) {
+        result = result.filter((job) => includesAllTokens(keywordHaystack(job, job.categoryLabel), qTokens))
       }
 
-      if (loc) {
-        result = result.filter((job) => job.location.toLowerCase().includes(loc))
+      if (locTokens.length) {
+        result = result.filter((job) => includesAllTokens(locationHaystack(job), locTokens))
       }
 
       if (this.filters.selectedCategory !== 'all') {

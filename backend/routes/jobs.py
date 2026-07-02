@@ -69,6 +69,7 @@ async def create_job(
     title: str = Form(...),
     company: str = Form(...),
     salary: str = Form(...),
+    category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
     country_key: str = Form(...),
     country_label: str = Form(...),
@@ -103,6 +104,7 @@ async def create_job(
         title=title,
         company=company,
         salary=salary,
+        category=category,
         employment_type=employment_type,
         country_key=country_key,
         country_label=country_label,
@@ -156,6 +158,7 @@ async def update_job(
     title: str = Form(...),
     company: str = Form(...),
     salary: str = Form(...),
+    category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
     country_key: str = Form(...),
     country_label: str = Form(...),
@@ -203,6 +206,7 @@ async def update_job(
     job.title = title
     job.company = company
     job.salary = salary
+    job.category = category
     job.employment_type = employment_type
     job.country_key = country_key
     job.country_label = country_label
@@ -372,6 +376,7 @@ def get_my_job_responses(
         job.id: {
             "title": job.title,
             "company": job.company,
+            "category": job.category,
             "country_key": job.country_key,
             "country_label": job.country_label,
             "country_flag_code": job.country_flag_code,

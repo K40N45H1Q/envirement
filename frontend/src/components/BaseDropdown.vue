@@ -82,6 +82,7 @@ const selectedOption = computed(() => (
 const resolvedPlaceholder = computed(() => props.placeholder || t('common.choose'))
 const resolvedAriaLabel = computed(() => props.ariaLabel || t('common.selectionList'))
 const buttonLabel = computed(() => selectedOption.value?.label || resolvedPlaceholder.value)
+const leadIconClass = computed(() => selectedOption.value?.iconClass || props.iconClass)
 
 const close = () => {
   if (!isOpen.value) return
@@ -212,8 +213,8 @@ onBeforeUnmount(() => {
       @click="toggle"
       @keydown="onKeydown"
     >
-      <span v-if="iconClass" class="dropdown__lead">
-        <i :class="iconClass"></i>
+      <span v-if="leadIconClass" class="dropdown__lead">
+        <i :class="leadIconClass"></i>
       </span>
 
       <span class="dropdown__content">
