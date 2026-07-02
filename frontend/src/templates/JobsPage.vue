@@ -24,7 +24,6 @@ const {
   featuredCountries,
   countries,
   filteredJobs,
-  hotCount,
   bookmarkedCount,
   resultsLabel,
   employmentOptions,

@@ -147,6 +147,13 @@ const router = createRouter({
       return false
     }
 
+    // Если пользователь остался на той же странице,
+    // например /ru/jobs, но изменились query-параметры фильтров,
+    // не скроллим страницу вверх.
+    if (to.path === from.path) {
+      return false
+    }
+
     return { top: 0 }
   },
 })
