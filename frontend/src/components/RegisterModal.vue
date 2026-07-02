@@ -16,9 +16,6 @@
           <h1 id="register-title" class="title">
             {{ selectedAccountType === 'employer' ? t('register.createCompanyAccount') : t('register.createAccount') }}
           </h1>
-          <p class="subtitle">
-            {{ isEmployerCompanyStep ? t('register.companyStepSubtitle') : t('register.defaultSubtitle') }}
-          </p>
 
           <Transition name="expand">
             <div v-if="error" class="api-error-msg">
@@ -70,7 +67,7 @@
                 :placeholder="t('register.fullName')"
                 class="input"
                 autocomplete="name"
-                @input="error = ''"
+                @input="setError('')"
               />
             </div>
 
@@ -81,7 +78,7 @@
                 placeholder="Email"
                 class="input"
                 autocomplete="email"
-                @input="error = ''"
+                @input="setError('')"
               />
             </div>
 
@@ -92,7 +89,7 @@
                 :placeholder="t('register.phone')"
                 class="input"
                 autocomplete="tel"
-                @input="error = ''"
+                @input="setError('')"
               />
             </div>
 
@@ -106,7 +103,7 @@
                   :class="{ error: isPasswordTouched && !isPasswordValid }"
                   autocomplete="new-password"
                   @blur="isPasswordTouched = true"
-                  @input="error = ''"
+                  @input="setError('')"
                 />
                 <button
                   type="button"
@@ -154,7 +151,7 @@
                   :class="{ error: isConfirmTouched && !doPasswordsMatch }"
                   autocomplete="new-password"
                   @blur="isConfirmTouched = true"
-                  @input="error = ''"
+                  @input="setError('')"
                 />
                 <button
                   type="button"
@@ -189,7 +186,7 @@
                 :placeholder="t('register.companyName')"
                 class="input"
                 autocomplete="organization"
-                @input="error = ''"
+                @input="setError('')"
               />
             </div>
 
@@ -211,7 +208,7 @@
                 :placeholder="t('register.registrationNumber')"
                 class="input"
                 autocomplete="off"
-                @input="error = ''"
+                @input="setError('')"
               />
             </div>
 
@@ -252,7 +249,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'registered', 'open-login', 'register-error'])
+const emit = defineEmits(['close', 'registered', 'open-login'])
 const { t } = useI18n()
 
 const selectedAccountType = ref('candidate')
@@ -273,6 +270,7 @@ const isPasswordTouched = ref(false)
 const isConfirmTouched = ref(false)
 const error = ref('')
 const loading = ref(false)
+let errorTimer = null
 
 const countryDropdownOptions = computed(() => [
   { value: t('register.countryLatvia'), label: t('register.countryLatvia') },
@@ -298,6 +296,25 @@ const isPasswordValid = computed(() => {
 })
 const doPasswordsMatch = computed(() => password.value === confirmPassword.value && confirmPassword.value !== '')
 
+function clearErrorTimer() {
+  if (errorTimer) {
+    window.clearTimeout(errorTimer)
+    errorTimer = null
+  }
+}
+
+function setError(message) {
+  clearErrorTimer()
+  error.value = message
+
+  if (!message) return
+
+  errorTimer = window.setTimeout(() => {
+    error.value = ''
+    errorTimer = null
+  }, 4500)
+}
+
 function resetForm() {
   fullName.value = ''
   email.value = ''
@@ -316,6 +333,7 @@ function resetForm() {
   currentStep.value = 1
   error.value = ''
   loading.value = false
+  clearErrorTimer()
 }
 
 function close() {
@@ -326,27 +344,27 @@ function close() {
 function selectAccountType(type) {
   selectedAccountType.value = type
   currentStep.value = 1
-  error.value = ''
+  setError('')
 }
 
 function validateAccountStep() {
   if (!fullName.value || !email.value || !phone.value || !password.value || !confirmPassword.value) {
-    error.value = t('register.fillRequiredFields')
+    setError(t('register.fillRequiredFields'))
     return false
   }
 
   if (!isPasswordValid.value) {
-    error.value = t('register.passwordInvalid')
+    setError(t('register.passwordInvalid'))
     return false
   }
 
   if (!doPasswordsMatch.value) {
-    error.value = t('register.passwordMismatch')
+    setError(t('register.passwordMismatch'))
     return false
   }
 
   if (!acceptedPolicy.value) {
-    error.value = t('register.confirmPolicy')
+    setError(t('register.confirmPolicy'))
     return false
   }
 
@@ -355,7 +373,7 @@ function validateAccountStep() {
 
 function validateCompanyStep() {
   if (!companyName.value || !companyCountry.value) {
-    error.value = t('register.fillCompanyFields')
+    setError(t('register.fillCompanyFields'))
     return false
   }
 
@@ -366,6 +384,9 @@ function getErrorMessage(requestError) {
   const key = requestError?.key || requestError?.message
 
   if (key === 'user_exists') return t('register.userExists')
+  if (key === 'phone_exists') return t('register.phoneExists')
+  if (key === 'company_name_exists') return t('register.companyNameExists')
+  if (key === 'company_registration_number_exists') return t('register.companyRegistrationNumberExists')
   if (key === 'missing_company_fields') return t('register.fillCompanyFields')
   if (key === 'missing_fields') return t('register.fillRequiredFields')
   if (key === 'invalid_account_type') return t('register.createAccountFailed')
@@ -375,7 +396,7 @@ function getErrorMessage(requestError) {
 }
 
 async function handleSubmit() {
-  error.value = ''
+  setError('')
 
   if (!isEmployerCompanyStep.value) {
     isPasswordTouched.value = true
@@ -420,11 +441,7 @@ async function handleSubmit() {
       close()
     }
   } catch (requestError) {
-    error.value = getErrorMessage(requestError)
-    emit('register-error', {
-      key: requestError?.key || requestError?.message || 'create_account_failed',
-      message: error.value,
-    })
+    setError(getErrorMessage(requestError))
   } finally {
     loading.value = false
   }
@@ -442,6 +459,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  clearErrorTimer()
 })
 </script>
 

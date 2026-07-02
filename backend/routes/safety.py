@@ -1,4 +1,5 @@
 import secrets
+import re
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from os import getenv
@@ -48,6 +49,22 @@ def split_full_name(full_name: str) -> tuple[str, str]:
     if len(normalized_parts) == 1:
         return normalized_parts[0], ""
     return normalized_parts[0], " ".join(normalized_parts[1:])
+
+
+def normalize_email(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+def normalize_phone(value: str | None) -> str:
+    return re.sub(r"[^\d+]+", "", (value or "").strip())
+
+
+def normalize_company_name(value: str | None) -> str:
+    return " ".join((value or "").strip().lower().split())
+
+
+def normalize_registration_number(value: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (value or "").strip().lower())
 
 
 def ensure_default_admin():
@@ -132,14 +149,14 @@ async def create_account(
 ):
     data = await request.json()
     full_name = (data.get("full_name") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-    phone = (data.get("phone") or "").strip()
+    email = normalize_email(data.get("email"))
+    phone = normalize_phone(data.get("phone"))
     password = data.get("password")
     account_type = data.get("account_type", "candidate")
-    company_name = data.get("company_name")
+    company_name = (data.get("company_name") or "").strip()
     company_country = data.get("company_country")
     company_industry = data.get("company_industry")
-    company_registration_number = data.get("company_registration_number")
+    company_registration_number = (data.get("company_registration_number") or "").strip()
 
     if not full_name or not email or not phone or not password:
         error("missing_fields")
@@ -151,6 +168,29 @@ async def create_account(
 
     if session.exec(select(User).where(User.email == email)).first():
         error("user_exists")
+
+    existing_users = session.exec(select(User)).all()
+
+    if any(normalize_phone(user.phone) == phone for user in existing_users if user.phone):
+        error("phone_exists")
+
+    if account_type == "employer":
+        normalized_company_name = normalize_company_name(company_name)
+        normalized_registration_number = normalize_registration_number(company_registration_number)
+
+        if any(
+            normalize_company_name(user.company_name) == normalized_company_name
+            for user in existing_users
+            if user.company_name
+        ):
+            error("company_name_exists")
+
+        if company_registration_number and any(
+            normalize_registration_number(user.company_registration_number) == normalized_registration_number
+            for user in existing_users
+            if user.company_registration_number
+        ):
+            error("company_registration_number_exists")
 
     user = User(
         full_name=full_name,
