@@ -65,11 +65,33 @@
           <template v-if="!isEmployerCompanyStep">
             <div class="field">
               <input
+                v-model.trim="fullName"
+                type="text"
+                :placeholder="t('register.fullName')"
+                class="input"
+                autocomplete="name"
+                @input="error = ''"
+              />
+            </div>
+
+            <div class="field">
+              <input
                 v-model.trim="email"
                 type="email"
                 placeholder="Email"
                 class="input"
                 autocomplete="email"
+                @input="error = ''"
+              />
+            </div>
+
+            <div class="field">
+              <input
+                v-model.trim="phone"
+                type="tel"
+                :placeholder="t('register.phone')"
+                class="input"
+                autocomplete="tel"
                 @input="error = ''"
               />
             </div>
@@ -230,12 +252,14 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'registered', 'open-login'])
+const emit = defineEmits(['close', 'registered', 'open-login', 'register-error'])
 const { t } = useI18n()
 
 const selectedAccountType = ref('candidate')
 const currentStep = ref(1)
+const fullName = ref('')
 const email = ref('')
+const phone = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
@@ -275,7 +299,9 @@ const isPasswordValid = computed(() => {
 const doPasswordsMatch = computed(() => password.value === confirmPassword.value && confirmPassword.value !== '')
 
 function resetForm() {
+  fullName.value = ''
   email.value = ''
+  phone.value = ''
   password.value = ''
   confirmPassword.value = ''
   showPassword.value = false
@@ -304,8 +330,8 @@ function selectAccountType(type) {
 }
 
 function validateAccountStep() {
-  if (!email.value || !password.value || !confirmPassword.value) {
-    error.value = t('register.fillEmailAndPassword')
+  if (!fullName.value || !email.value || !phone.value || !password.value || !confirmPassword.value) {
+    error.value = t('register.fillRequiredFields')
     return false
   }
 
@@ -336,6 +362,18 @@ function validateCompanyStep() {
   return true
 }
 
+function getErrorMessage(requestError) {
+  const key = requestError?.key || requestError?.message
+
+  if (key === 'user_exists') return t('register.userExists')
+  if (key === 'missing_company_fields') return t('register.fillCompanyFields')
+  if (key === 'missing_fields') return t('register.fillRequiredFields')
+  if (key === 'invalid_account_type') return t('register.createAccountFailed')
+  if (key === 'network_error') return t('register.networkError')
+
+  return t('register.createAccountFailed')
+}
+
 async function handleSubmit() {
   error.value = ''
 
@@ -357,7 +395,9 @@ async function handleSubmit() {
 
   try {
     const payload = await createAccount({
+      fullName: fullName.value.trim(),
       email: email.value.trim(),
+      phone: phone.value.trim(),
       password: password.value,
       accountType: selectedAccountType.value,
       companyName: selectedAccountType.value === 'employer' ? companyName.value : '',
@@ -366,7 +406,13 @@ async function handleSubmit() {
       companyRegistrationNumber: selectedAccountType.value === 'employer' ? companyRegistrationNumber.value : '',
     })
 
-    emit('registered', payload)
+    emit('registered', {
+      ...payload,
+      accountType: selectedAccountType.value,
+      fullName: fullName.value.trim(),
+      email: email.value.trim(),
+      companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
+    })
 
     if (selectedAccountType.value === 'candidate') {
       emit('open-login')
@@ -374,7 +420,11 @@ async function handleSubmit() {
       close()
     }
   } catch (requestError) {
-    error.value = requestError?.message || t('register.createAccountFailed')
+    error.value = getErrorMessage(requestError)
+    emit('register-error', {
+      key: requestError?.key || requestError?.message || 'create_account_failed',
+      message: error.value,
+    })
   } finally {
     loading.value = false
   }

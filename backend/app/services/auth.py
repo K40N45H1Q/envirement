@@ -12,7 +12,7 @@ from app.models.user import User
 
 
 ALGORITHM = "HS256"
-PUBLIC_ACCOUNT_TYPES = {"user", "employer"}
+PUBLIC_ACCOUNT_TYPES = {"candidate", "employer"}
 
 
 def auth_error(key: str, status_code: int = status.HTTP_400_BAD_REQUEST) -> HTTPException:

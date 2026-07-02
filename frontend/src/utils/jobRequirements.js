@@ -59,7 +59,17 @@ export const getLanguageOptions = () => languageValues.map((value) => ({
 
 export const languageOptions = getLanguageOptions()
 export const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
-export const licenseOptions = licenseLabels.map((label) => ({ value: label, label }))
+export const getLicenseOptions = () => {
+  const language = getLanguage()
+  const noLicenseLabel = language === 'en' ? 'No license' : 'Нет лицензий'
+
+  return [
+    { value: noLicenseLabel, label: noLicenseLabel },
+    ...licenseLabels.map((label) => ({ value: label, label })),
+  ]
+}
+
+export const licenseOptions = getLicenseOptions()
 
 const toText = (value) => (value == null ? '' : String(value))
 

@@ -17,10 +17,17 @@ if not UPLOAD_DIR:
     UPLOAD_DIR = path.join(base_dir, "uploads")
 
 
+def store_logo_file(logo: UploadFile) -> str:
+    filename = f"{secrets.token_hex(8)}_{logo.filename}"
+    file_path = path.join(UPLOAD_DIR, filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(logo.file, buffer)
+    return f"/uploads/{filename}"
+
+
 @router.post("/create_job")
 async def create_job(
     title: str = Form(...),
-    company: str = Form(...),
     salary: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
@@ -29,25 +36,27 @@ async def create_job(
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
+    company_name = (current_user.company_name or "").strip()
+    if not company_name:
+        raise HTTPException(status_code=400, detail={"key": "missing_company_profile"})
+
     if not logo and not logo_url:
         raise HTTPException(status_code=400, detail={"key": "missing_logo"})
 
     makedirs(UPLOAD_DIR, exist_ok=True)
 
     if logo:
-        filename = f"{secrets.token_hex(8)}_{logo.filename}"
-        file_path = path.join(UPLOAD_DIR, filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(logo.file, buffer)
-        logo_path = f"/uploads/{filename}"
+        logo_path = store_logo_file(logo)
+        current_user.company_logo_url = logo_path
+        session.add(current_user)
     else:
-        logo_path = logo_url
+        logo_path = logo_url or current_user.company_logo_url or ""
 
     job_status = "approved" if current_user.account_type == "admin" else "pending"
 
     job = Job(
         title=title,
-        company=company,
+        company=company_name,
         salary=salary,
         location=location,
         description=description,
@@ -82,7 +91,6 @@ def get_my_jobs(
 async def update_job(
     job_id: int = Path(...),
     title: str = Form(...),
-    company: str = Form(...),
     salary: str = Form(...),
     location: str = Form(...),
     description: str = Form(...),
@@ -91,6 +99,10 @@ async def update_job(
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
+    company_name = (current_user.company_name or "").strip()
+    if not company_name:
+        raise HTTPException(status_code=400, detail={"key": "missing_company_profile"})
+
     job = session.get(Job, job_id)
     if not job or job.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -99,11 +111,7 @@ async def update_job(
     makedirs(UPLOAD_DIR, exist_ok=True)
 
     if logo:
-        filename = f"{secrets.token_hex(8)}_{logo.filename}"
-        file_path = path.join(UPLOAD_DIR, filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(logo.file, buffer)
-        new_logo_path = f"/uploads/{filename}"
+        new_logo_path = store_logo_file(logo)
         if old_logo and old_logo.startswith("/uploads/"):
             try:
                 full_old_path = path.join(
@@ -115,11 +123,17 @@ async def update_job(
             except Exception:
                 pass
         job.logo = new_logo_path
+        current_user.company_logo_url = new_logo_path
+        session.add(current_user)
     elif logo_url:
         job.logo = logo_url
+        current_user.company_logo_url = logo_url
+        session.add(current_user)
+    elif current_user.company_logo_url:
+        job.logo = current_user.company_logo_url
 
     job.title = title
-    job.company = company
+    job.company = company_name
     job.salary = salary
     job.location = location
     job.description = description

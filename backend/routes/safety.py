@@ -41,6 +41,15 @@ def hash_password(password: str) -> str:
     return sha256(password.encode()).hexdigest()
 
 
+def split_full_name(full_name: str) -> tuple[str, str]:
+    normalized_parts = [part for part in full_name.strip().split() if part]
+    if not normalized_parts:
+        return "", ""
+    if len(normalized_parts) == 1:
+        return normalized_parts[0], ""
+    return normalized_parts[0], " ".join(normalized_parts[1:])
+
+
 def ensure_default_admin():
     with Session(engine) as session:
         default_accounts = [
@@ -122,7 +131,9 @@ async def create_account(
     session=Depends(get_session),
 ):
     data = await request.json()
-    email = data.get("email")
+    full_name = (data.get("full_name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    phone = (data.get("phone") or "").strip()
     password = data.get("password")
     account_type = data.get("account_type", "candidate")
     company_name = data.get("company_name")
@@ -130,7 +141,7 @@ async def create_account(
     company_industry = data.get("company_industry")
     company_registration_number = data.get("company_registration_number")
 
-    if not email or not password:
+    if not full_name or not email or not phone or not password:
         error("missing_fields")
     if account_type not in PUBLIC_ACCOUNT_TYPES:
         error("invalid_account_type")
@@ -142,7 +153,9 @@ async def create_account(
         error("user_exists")
 
     user = User(
+        full_name=full_name,
         email=email,
+        phone=phone,
         account_type=account_type,
         hashed_password=hash_password(password),
         company_name=company_name if account_type == "employer" else None,
@@ -156,6 +169,18 @@ async def create_account(
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    if account_type == "candidate":
+        first_name, last_name = split_full_name(full_name)
+        session.add(
+            CandidateProfile(
+                user_id=user.id,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+            )
+        )
+        session.commit()
 
     return {"status": "ok", "user_id": user.id}
 

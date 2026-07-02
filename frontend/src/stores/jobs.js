@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { getJobs } from '@/api/jobs'
 import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
-import { getCountrySearchValues, normalizeText, resolveCountryMeta } from '@/utils/countries'
+import { formatJobLocation, getJobLocationSearchValues, normalizeText, resolveCountryMeta } from '@/utils/countries'
 import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
 import { normalizeJob } from '@/utils/jobs'
 
@@ -57,21 +57,11 @@ const includesAllTokens = (value = '', tokens = []) => {
   return tokens.every((token) => haystack.includes(token))
 }
 
-const keywordHaystack = (job, categoryLabel = '') => [
+const keywordHaystack = (job) => [
   job.title,
-  job.company,
-  job.description,
-  job.location,
-  job.countryLabel,
-  categoryLabel,
 ].filter(Boolean).join(' ')
 
-const locationHaystack = (job) => [
-  job.location,
-  job.displayLocation,
-  job.countryLabel,
-  ...getCountrySearchValues(job.countryKey),
-].filter(Boolean).join(' ')
+const locationHaystack = (job) => getJobLocationSearchValues(job).join(' ')
 
 const readBookmarks = () => {
   try {
@@ -194,6 +184,11 @@ export const useJobsStore = defineStore('jobs', {
           countryKey,
           countryLabel: country?.label || resolvedCountry.countryLabel || t('jobsStore.europe'),
           countryFlagCode: country?.flagCode || resolvedCountry.countryFlagCode || 'eu',
+          displayLocation: formatJobLocation({
+            ...job,
+            country_key: countryKey,
+            country_label: country?.label || resolvedCountry.countryLabel || '',
+          }),
           timeLabel: timeLabel(job.created_at),
           isHot: index < 2,
           isNew: index < 3,
@@ -248,7 +243,7 @@ export const useJobsStore = defineStore('jobs', {
       const salaryFrom = Number(this.filters.salaryFrom) || 0
 
       if (qTokens.length) {
-        result = result.filter((job) => includesAllTokens(keywordHaystack(job, job.categoryLabel), qTokens))
+        result = result.filter((job) => includesAllTokens(keywordHaystack(job), qTokens))
       }
 
       if (locTokens.length) {

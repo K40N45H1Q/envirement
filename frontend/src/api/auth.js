@@ -1,7 +1,9 @@
 import { apiRequest, clearAuthToken, setAuthToken } from './client'
 
 export const createAccount = ({
+  fullName,
   email,
+  phone,
   password,
   accountType = 'candidate',
   companyName = '',
@@ -12,7 +14,9 @@ export const createAccount = ({
   return apiRequest('/create_account', {
     method: 'POST',
     body: JSON.stringify({
+      full_name: fullName,
       email,
+      phone,
       password,
       account_type: accountType,
       company_name: companyName,

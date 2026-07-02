@@ -6,6 +6,7 @@ import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { getJobs, getMyApplications } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
+import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useMessagingStore } from '@/stores/messaging'
 import { normalizeJob } from '@/utils/jobs'
@@ -14,6 +15,86 @@ const route = useRoute()
 const router = useRouter()
 const { state } = useAuth()
 const messaging = useMessagingStore()
+const { language } = useI18n()
+
+const isEnglish = computed(() => language.value === 'en')
+const copy = computed(() => (
+  isEnglish.value
+    ? {
+      sections: {
+        messages: 'Messages',
+        profile: 'Profile',
+        jobs: 'Jobs',
+        resume: 'Resume',
+      },
+      fallbackCandidate: 'candidate',
+      stats: {
+        profile: 'Profile completion',
+        applications: 'My applications',
+        conversations: 'Conversations',
+        recommendations: 'Recommendations',
+      },
+      onlyCandidate: 'This dashboard is available to candidates only.',
+      loadJobsError: 'Failed to load the jobs list.',
+      loadCandidateDataError: 'Part of the profile data could not be loaded. Please verify the candidate account type.',
+      noPublishedJobs: 'There are no published vacancies yet.',
+      loadDashboardError: 'Failed to load the dashboard data.',
+      eyebrow: 'Candidate dashboard',
+      titleMessages: 'Messages',
+      titleGreeting: 'Hello, {name}',
+      description: 'Track applications, update your profile, and keep your conversations in one place.',
+      findJob: 'Find a job',
+      recommendationsEyebrow: 'Recommendations',
+      recommendationsTitle: 'Jobs to apply for',
+      refresh: 'Refresh',
+      loadingJobs: 'Loading jobs...',
+      apply: 'Apply now',
+      noRecommendations: 'There are no new jobs to apply for yet.',
+      activityEyebrow: 'My applications',
+      activityTitle: 'Latest activity',
+      chatPending: 'Chat is awaiting approval',
+      completeProfile: 'Complete your profile and start applying',
+      messagesHint: 'All active conversations for approved applications',
+    }
+    : {
+      sections: {
+        messages: 'Сообщения',
+        profile: 'Профиль',
+        jobs: 'Вакансии',
+        resume: 'Резюме',
+      },
+      fallbackCandidate: 'кандидат',
+      stats: {
+        profile: 'Заполнение профиля',
+        applications: 'Моих откликов',
+        conversations: 'Диалогов',
+        recommendations: 'Рекомендаций',
+      },
+      onlyCandidate: 'Этот кабинет доступен только кандидату.',
+      loadJobsError: 'Не удалось загрузить список вакансий.',
+      loadCandidateDataError: 'Часть данных профиля не загрузилась. Проверьте тип аккаунта кандидата.',
+      noPublishedJobs: 'Пока опубликованных вакансий нет.',
+      loadDashboardError: 'Не удалось загрузить данные кабинета.',
+      eyebrow: 'Личный кабинет соискателя',
+      titleMessages: 'Сообщения',
+      titleGreeting: 'Привет, {name}',
+      description: 'Следите за откликами, обновляйте профиль и держите переписку внутри одного кабинета.',
+      findJob: 'Найти работу',
+      recommendationsEyebrow: 'Рекомендации',
+      recommendationsTitle: 'Вакансии для отклика',
+      refresh: 'Обновить',
+      loadingJobs: 'Загрузка вакансий...',
+      apply: 'Откликнуться',
+      noRecommendations: 'Новых вакансий для отклика пока нет.',
+      activityEyebrow: 'Мои отклики',
+      activityTitle: 'Последняя активность',
+      chatPending: 'Чат ждёт подтверждения',
+      completeProfile: 'Заполнить профиль и начать откликаться',
+      messagesHint: 'Все активные диалоги по подтверждённым откликам',
+    }
+))
+
+const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 const jobs = ref([])
 const applications = ref([])
@@ -24,12 +105,12 @@ const notice = ref('')
 const applicationsRefreshTimer = ref(null)
 const activeSection = ref(typeof route.query.section === 'string' ? route.query.section : 'dashboard')
 
-const shellSections = [
-  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
-  { id: 'profile', label: 'Профиль', icon: 'fas fa-user', to: '/profile' },
-  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/jobs' },
-  { id: 'resume', label: 'Резюме', icon: 'fas fa-file-lines', to: '/resume-builder' },
-]
+const shellSections = computed(() => ([
+  { id: 'messages', label: copy.value.sections.messages, icon: 'fas fa-message', to: '/dashboard?section=messages' },
+  { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/profile' },
+  { id: 'jobs', label: copy.value.sections.jobs, icon: 'fas fa-briefcase', to: '/jobs' },
+  { id: 'resume', label: copy.value.sections.resume, icon: 'fas fa-file-lines', to: '/resume-builder' },
+]))
 
 const normalizeAccountType = (accountType) => {
   if (accountType === 'user') return 'candidate'
@@ -43,15 +124,11 @@ const conversations = computed(() => messaging.conversations)
 const userName = computed(() => {
   const profileName = [profile.value?.first_name, profile.value?.last_name].filter(Boolean).join(' ').trim()
   if (profileName) return profileName
-  return state.user?.email?.split('@')[0] || 'кандидат'
+  return state.user?.email?.split('@')[0] || copy.value.fallbackCandidate
 })
 
 const appliedJobIds = computed(() => new Set(applications.value.map((item) => item.job_id)))
-
-const availableJobs = computed(() => (
-  jobs.value.filter((job) => !appliedJobIds.value.has(job.id))
-))
-
+const availableJobs = computed(() => jobs.value.filter((job) => !appliedJobIds.value.has(job.id)))
 const recommendedJobs = computed(() => availableJobs.value.slice(0, 3))
 
 const profileScore = computed(() => {
@@ -60,11 +137,17 @@ const profileScore = computed(() => {
 })
 
 const shellStats = computed(() => ([
-  { value: `${profileScore.value}%`, label: 'Заполнение профиля' },
-  { value: applications.value.length, label: 'Моих откликов' },
-  { value: conversations.value.length, label: 'Диалогов' },
-  { value: availableJobs.value.length, label: 'Рекомендаций' },
+  { value: `${profileScore.value}%`, label: copy.value.stats.profile },
+  { value: applications.value.length, label: copy.value.stats.applications },
+  { value: conversations.value.length, label: copy.value.stats.conversations },
+  { value: availableJobs.value.length, label: copy.value.stats.recommendations },
 ]))
+
+const dashboardTitle = computed(() => (
+  activeSection.value === 'messages'
+    ? copy.value.titleMessages
+    : interpolate(copy.value.titleGreeting, { name: userName.value })
+))
 
 const getSettledValue = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback)
 
@@ -111,28 +194,28 @@ const loadRecommendations = async () => {
     )
 
     if (!isCandidateAccount.value && state.user) {
-      notice.value = 'Этот кабинет доступен только кандидату.'
+      notice.value = copy.value.onlyCandidate
       return
     }
 
     if (jobsResult.status === 'rejected') {
-      notice.value = 'Не удалось загрузить список вакансий.'
+      notice.value = copy.value.loadJobsError
       return
     }
 
     if (hasCandidateDataError) {
-      notice.value = 'Часть данных профиля не загрузилась. Проверьте тип аккаунта кандидата.'
+      notice.value = copy.value.loadCandidateDataError
       return
     }
 
     if (!jobs.value.length && activeSection.value === 'dashboard') {
-      notice.value = 'Пока опубликованных вакансий нет.'
+      notice.value = copy.value.noPublishedJobs
     }
   } catch {
     jobs.value = []
     applications.value = []
     profile.value = null
-    notice.value = 'Не удалось загрузить данные кабинета.'
+    notice.value = copy.value.loadDashboardError
   } finally {
     isLoading.value = false
   }
@@ -202,16 +285,16 @@ onBeforeUnmount(() => {
       class="candidate-dashboard-shell"
       :sections="shellSections"
       :active-section="activeSection"
-      eyebrow="Личный кабинет соискателя"
-      :title="activeSection === 'messages' ? 'Сообщения' : `Привет, ${userName}`"
-      description="Следите за откликами, обновляйте профиль и держите переписку внутри одного кабинета."
+      :eyebrow="copy.eyebrow"
+      :title="dashboardTitle"
+      :description="copy.description"
       :stats="shellStats"
       @select-section="setSection"
     >
       <template #actions>
         <RouterLink v-if="activeSection === 'dashboard'" to="/jobs" class="btn-primary">
           <i class="fas fa-magnifying-glass"></i>
-          Найти работу
+          {{ copy.findJob }}
         </RouterLink>
       </template>
 
@@ -219,17 +302,17 @@ onBeforeUnmount(() => {
         <div class="panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow compact">Рекомендации</p>
-              <h2>Вакансии для отклика</h2>
+              <p class="eyebrow compact">{{ copy.recommendationsEyebrow }}</p>
+              <h2>{{ copy.recommendationsTitle }}</h2>
             </div>
 
-            <button class="icon-button" type="button" aria-label="Обновить" @click="loadRecommendations">
+            <button class="icon-button" type="button" :aria-label="copy.refresh" @click="loadRecommendations">
               <i class="fas fa-rotate-right"></i>
             </button>
           </div>
 
           <p v-if="notice" class="notice">{{ notice }}</p>
-          <p v-else-if="isLoading" class="state">Загрузка вакансий...</p>
+          <p v-else-if="isLoading" class="state">{{ copy.loadingJobs }}</p>
 
           <div v-else-if="recommendedJobs.length" class="jobs-list">
             <RouterLink
@@ -245,22 +328,22 @@ onBeforeUnmount(() => {
 
               <div class="job-info">
                 <h3>{{ job.title }}</h3>
-                <p>{{ job.company }} · {{ job.location }}</p>
+                <p>{{ job.company }} · {{ job.displayLocation || job.location }}</p>
                 <strong>{{ job.salary }}</strong>
               </div>
 
-              <span class="job-action">Откликнуться</span>
+              <span class="job-action">{{ copy.apply }}</span>
             </RouterLink>
           </div>
 
-          <p v-else class="state">Новых вакансий для отклика пока нет.</p>
+          <p v-else class="state">{{ copy.noRecommendations }}</p>
         </div>
 
         <div class="panel panel-activity">
           <div class="panel-header">
             <div>
-              <p class="eyebrow compact">Мои отклики</p>
-              <h2>Последняя активность</h2>
+              <p class="eyebrow compact">{{ copy.activityEyebrow }}</p>
+              <h2>{{ copy.activityTitle }}</h2>
             </div>
           </div>
 
@@ -277,14 +360,14 @@ onBeforeUnmount(() => {
               <div class="activity-info">
                 <span class="activity-title">{{ application.job_title }}</span>
                 <span class="activity-company">
-                  {{ application.job_company }}{{ application.chat_approved ? '' : ' · Чат ждёт подтверждения' }}
+                  {{ application.job_company }}{{ application.chat_approved ? '' : ` · ${copy.chatPending}` }}
                 </span>
               </div>
             </button>
 
             <RouterLink v-if="!applications.length" to="/profile" class="activity-item empty">
               <i class="fas fa-user-pen"></i>
-              <span>Заполнить профиль и начать откликаться</span>
+              <span>{{ copy.completeProfile }}</span>
             </RouterLink>
           </div>
         </div>
@@ -293,7 +376,7 @@ onBeforeUnmount(() => {
       <section v-else class="message-shell">
         <MessagesPanel
           embedded
-          hint="Все активные диалоги по подтверждённым откликам"
+          :hint="copy.messagesHint"
           @open="openDashboardConversation"
         />
       </section>
@@ -500,7 +583,6 @@ h2 {
   padding: 1.5rem 1rem;
 }
 
-/* Верхняя сетка статистики внутри DashboardShell: 4 карточки в ряд */
 .candidate-dashboard-shell :deep(.shell-stats),
 .candidate-dashboard-shell :deep(.dashboard-stats),
 .candidate-dashboard-shell :deep(.dashboard-shell-stats),

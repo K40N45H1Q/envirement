@@ -7,10 +7,13 @@ from sqlalchemy import event
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    full_name: Optional[str] = None
     email: str
+    phone: Optional[str] = None
     hashed_password: str
     account_type: str
     company_name: Optional[str] = None
+    company_logo_url: Optional[str] = None
     company_country: Optional[str] = None
     company_industry: Optional[str] = None
     company_registration_number: Optional[str] = None
@@ -168,10 +171,13 @@ def ensure_user_columns():
         }
 
         additions = {
+            "full_name": "ALTER TABLE user ADD COLUMN full_name VARCHAR",
             "company_name": "ALTER TABLE user ADD COLUMN company_name VARCHAR",
+            "company_logo_url": "ALTER TABLE user ADD COLUMN company_logo_url VARCHAR",
             "company_country": "ALTER TABLE user ADD COLUMN company_country VARCHAR",
             "company_industry": "ALTER TABLE user ADD COLUMN company_industry VARCHAR",
             "company_registration_number": "ALTER TABLE user ADD COLUMN company_registration_number VARCHAR",
+            "phone": "ALTER TABLE user ADD COLUMN phone VARCHAR",
         }
 
         for column, statement in additions.items():

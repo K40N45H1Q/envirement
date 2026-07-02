@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
+import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
   createJob,
@@ -17,15 +18,15 @@ import {
 import { useMessagingStore } from '@/stores/messaging'
 import {
   getLanguageOptions,
+  getLicenseOptions,
   languageLevelOptions,
-  licenseOptions,
   normalizeLanguages,
   normalizeLicenses,
 } from '@/utils/jobRequirements'
 import {
-  citiesByCountry,
   countryByKey,
   countryDropdownOptions,
+  getCityOptions,
   resolveCountryMeta,
   salaryCurrencyOptions,
 } from '@/utils/countries'
@@ -36,6 +37,7 @@ import { normalizeJob } from '@/utils/jobs'
 const route = useRoute()
 const router = useRouter()
 const messaging = useMessagingStore()
+const auth = useAuth()
 const { language: currentLanguage, t } = useI18n()
 const employmentTypeOptions = [
   { id: 'full-time', ru: 'Полная занятость', en: 'Full-time' },
@@ -113,6 +115,7 @@ const copy = computed(() => (
       title: 'Title',
       titlePlaceholder: 'Electrician',
       company: 'Company',
+      companyLockedHint: 'Taken from your employer profile and used for every vacancy.',
       salary: 'Salary',
       salaryAmount: 'Salary amount',
       salaryAmountPlaceholder: '2 200 - 2 800',
@@ -217,6 +220,7 @@ const copy = computed(() => (
       title: 'Название',
       titlePlaceholder: 'Электрик',
       company: 'Компания',
+      companyLockedHint: 'Берется из профиля работодателя и используется для каждой вакансии.',
       salary: 'Зарплата',
       salaryAmount: 'Сумма зарплаты',
       salaryAmountPlaceholder: '2 200 - 2 800',
@@ -320,6 +324,7 @@ const localizedSections = computed(() => sections.map((section) => ({
 })))
 
 const localizedLanguageOptions = computed(() => getLanguageOptions())
+const localizedLicenseOptions = computed(() => getLicenseOptions())
 const localizedCategoryOptions = computed(() => ([
   {
     value: '',
@@ -376,13 +381,15 @@ const logoPreview = ref('')
 const objectUrl = ref('')
 const newLanguage = ref(localizedLanguageOptions.value[0]?.value || 'English')
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref(licenseOptions[4].value)
+const newLicense = ref(isEnglish.value ? 'No license' : 'Нет лицензий')
 const expandedResponseJobIds = ref([])
 const brokenAvatars = ref(new Set())
 const dashboardRefreshTimer = ref(null)
 
 const conversations = computed(() => messaging.conversations)
 const isEditing = computed(() => editingId.value !== null)
+const employerCompanyName = computed(() => String(auth.user?.company_name || '').trim())
+const employerCompanyLogo = computed(() => String(auth.user?.company_logo_url || '').trim())
 const approvedCount = computed(() => jobs.value.filter((job) => job.status === 'approved').length)
 const canAddLanguage = computed(() => !form.value.languages.some((language) => (
   language.name === newLanguage.value && language.level === newLanguageLevel.value
@@ -390,11 +397,12 @@ const canAddLanguage = computed(() => !form.value.languages.some((language) => (
 const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId) || localizedPlans.value[1])
 const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
 const cityOptions = computed(() => {
-  const availableCities = selectedCountry.value ? (citiesByCountry[selectedCountry.value.key] || []) : []
+  const availableCities = selectedCountry.value ? getCityOptions(selectedCountry.value.key) : []
   const currentLocation = String(form.value.location || '').trim()
-  const options = availableCities.map((city) => ({ value: city, label: city }))
+  const knownValues = availableCities.map((city) => city.value)
+  const options = [...availableCities]
 
-  if (currentLocation && !availableCities.includes(currentLocation)) {
+  if (currentLocation && !knownValues.includes(currentLocation)) {
     options.unshift({ value: currentLocation, label: currentLocation })
   }
 
@@ -646,8 +654,11 @@ function stopDashboardRealtime() {
 
 function resetForm() {
   editingId.value = null
-  form.value = blankForm()
-  logoPreview.value = ''
+  form.value = {
+    ...blankForm(),
+    company: employerCompanyName.value,
+  }
+  logoPreview.value = employerCompanyLogo.value
   revokeLogoPreview()
 }
 
@@ -695,7 +706,7 @@ async function editJob(job) {
   editingId.value = job.id
   form.value = {
     title: job.title,
-    company: job.company,
+    company: employerCompanyName.value || job.company,
     salary: salaryParts.amount,
     salary_currency: salaryParts.currency,
     category: job.category || inferJobCategory(job),
@@ -709,7 +720,7 @@ async function editJob(job) {
     has_transport: Boolean(job.has_transport),
     logo: null,
   }
-  logoPreview.value = job.logo || ''
+  logoPreview.value = job.logo || employerCompanyLogo.value
   status.value = ''
   error.value = ''
   await setSection('jobs')
@@ -738,6 +749,7 @@ async function submitJob() {
 
     const payload = {
       ...formPayload,
+      company: employerCompanyName.value,
       salary: formatSalaryValue(form.value.salary, form.value.salary_currency),
       category: form.value.category,
       country_key: selectedCountry.value.key,
@@ -755,6 +767,7 @@ async function submitJob() {
       status.value = copy.value.jobSaved
     }
 
+    await auth.loadUser({ force: true })
     resetForm()
     await loadDashboard()
     await setSection('jobs')
@@ -829,11 +842,20 @@ function statusLabel(value) {
 }
 
 watch(
+  () => isEnglish.value,
+  () => {
+    if (newLicense.value === 'No license' || newLicense.value === 'Нет лицензий') {
+      newLicense.value = isEnglish.value ? 'No license' : 'Нет лицензий'
+    }
+  },
+)
+
+watch(
   () => form.value.country_key,
   (nextCountryKey, previousCountryKey) => {
     if (!nextCountryKey || nextCountryKey === previousCountryKey) return
 
-    const availableCities = citiesByCountry[nextCountryKey] || []
+    const availableCities = getCityOptions(nextCountryKey).map((city) => city.value)
     if (availableCities.length && !availableCities.includes(form.value.location)) {
       form.value.location = ''
     }
@@ -869,6 +891,10 @@ watch(
 )
 
 onMounted(async () => {
+  if (!auth.user) {
+    await auth.loadUser()
+  }
+  resetForm()
   await loadDashboard()
   startDashboardRealtime()
   messaging.startRealtime()
@@ -913,7 +939,7 @@ onBeforeUnmount(() => {
               </label>
               <label>
                 {{ copy.company }}
-                <input v-model="form.company" required placeholder="Build Solutions GmbH" />
+                <input v-model="form.company" readonly disabled />
               </label>
             </div>
 
@@ -1058,7 +1084,7 @@ onBeforeUnmount(() => {
                   v-model="newLicense"
                   :aria-label="copy.licenseAria"
                   full-width
-                  :options="licenseOptions"
+                  :options="localizedLicenseOptions"
                 />
                 <button type="button" class="btn-secondary" @click="addLicense">{{ copy.add }}</button>
               </div>
@@ -1611,6 +1637,13 @@ label {
   font-weight: 700;
 }
 
+.field-note {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 input,
 textarea {
   width: 100%;
@@ -1621,6 +1654,13 @@ textarea {
   background: var(--surface-secondary);
   color: var(--text-primary);
   font: inherit;
+}
+
+input[readonly],
+input:disabled {
+  cursor: not-allowed;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-secondary) 90%, #f4f7f6);
 }
 
 textarea {

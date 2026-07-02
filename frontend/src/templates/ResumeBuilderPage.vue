@@ -206,7 +206,13 @@ const languageOptions = computed(() => languageCatalog.map((entry) => ({
   label: labelByLocale(entry),
 })))
 
-const licenseOptions = computed(() => licenseValues.map((label) => ({ value: label, label })))
+const licenseOptions = computed(() => {
+  const noLicenseLabel = isEnglish.value ? 'No license' : 'Нет лицензий'
+  return [
+    { value: noLicenseLabel, label: noLicenseLabel },
+    ...licenseValues.map((label) => ({ value: label, label })),
+  ]
+})
 const permitOptions = computed(() => permitCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
 const baseAvailabilityOptions = computed(() => availabilityCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
 
@@ -334,7 +340,7 @@ const selectedSector = ref('')
 const selectedSectorExperience = ref(DEFAULT_SECTOR_EXPERIENCE)
 const newLanguage = ref(languageCatalog[0].value)
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref(licenseValues[4])
+const newLicense = ref(isEnglish.value ? 'No license' : 'Нет лицензий')
 const cvDocumentRef = ref(null)
 const avatarInputRef = ref(null)
 const resumeInputRef = ref(null)

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/i18n'
@@ -15,6 +15,9 @@ const router = useRouter()
 const jobsListRef = ref(null)
 const jobsStore = useJobsStore()
 const { t } = useI18n()
+const draftSearchTitle = ref('')
+const draftSearchLocation = ref('')
+const draftSelectedCategory = ref('all')
 
 const {
   isLoading,
@@ -31,6 +34,12 @@ const {
 
 const hasQueryChanged = (left, right) => JSON.stringify(left) !== JSON.stringify(right)
 
+const syncSearchDrafts = () => {
+  draftSearchTitle.value = filters.value.searchTitle
+  draftSearchLocation.value = filters.value.searchLocation
+  draftSelectedCategory.value = filters.value.selectedCategory
+}
+
 const syncRoute = async () => {
   const nextQuery = jobsStore.routeQuery
   const currentQuery = { ...route.query }
@@ -38,11 +47,6 @@ const syncRoute = async () => {
   if (hasQueryChanged(nextQuery, currentQuery)) {
     await router.replace({ path: route.path, query: nextQuery, hash: route.hash })
   }
-}
-
-const selectCategory = async (value) => {
-  jobsStore.setFilter('selectedCategory', value)
-  await syncRoute()
 }
 
 const selectCountry = async (value) => {
@@ -57,12 +61,16 @@ const selectTab = async (value) => {
 }
 
 const runSearch = async () => {
+  jobsStore.setFilter('searchTitle', draftSearchTitle.value.trim())
+  jobsStore.setFilter('searchLocation', draftSearchLocation.value.trim())
+  jobsStore.setFilter('selectedCategory', draftSelectedCategory.value)
   await syncRoute()
   jobsListRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const resetFilters = async () => {
   jobsStore.resetFilters()
+  syncSearchDrafts()
   await syncRoute()
 }
 
@@ -70,11 +78,13 @@ watch(
   () => route.query,
   (query) => {
     jobsStore.applyRouteQuery(query)
+    syncSearchDrafts()
   },
 )
 
 onMounted(async () => {
   await jobsStore.initialize(route.query)
+  syncSearchDrafts()
 })
 
 const categoryConfigs = computed(() => jobsStore.categoryConfigs)
@@ -95,35 +105,6 @@ const focusJob = (jobId) => {
   const target = document.getElementById(`job-card-${jobId}`)
   target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
-
-let routeSyncTimer = null
-
-const scheduleRouteSync = () => {
-  if (routeSyncTimer) {
-    window.clearTimeout(routeSyncTimer)
-  }
-
-  routeSyncTimer = window.setTimeout(() => {
-    syncRoute()
-  }, 200)
-}
-
-watch(
-  () => [
-    filters.value.searchTitle,
-    filters.value.searchLocation,
-    filters.value.salaryFrom,
-  ],
-  () => {
-    scheduleRouteSync()
-  },
-)
-
-onBeforeUnmount(() => {
-  if (routeSyncTimer) {
-    window.clearTimeout(routeSyncTimer)
-  }
-})
 </script>
 
 <template>
@@ -146,7 +127,7 @@ onBeforeUnmount(() => {
               <label>
                 <span>{{ t('search.lookingFor') }}</span>
                 <div class="input-wrap">
-                  <input v-model="filters.searchTitle" :placeholder="t('search.lookingPlaceholder')" />
+                  <input v-model="draftSearchTitle" :placeholder="t('search.lookingPlaceholder')" />
                   <i class="fas fa-magnifying-glass"></i>
                 </div>
               </label>
@@ -154,7 +135,7 @@ onBeforeUnmount(() => {
               <label>
                 <span>{{ t('search.where') }}</span>
                 <div class="input-wrap">
-                  <input v-model="filters.searchLocation" :placeholder="t('search.wherePlaceholder')" />
+                  <input v-model="draftSearchLocation" :placeholder="t('search.wherePlaceholder')" />
                   <i class="fas fa-location-dot"></i>
                 </div>
               </label>
@@ -162,13 +143,12 @@ onBeforeUnmount(() => {
               <label>
                 <span>{{ t('search.category') }}</span>
                 <BaseDropdown
-                  v-model="filters.selectedCategory"
+                  v-model="draftSelectedCategory"
                   :aria-label="t('search.category')"
                   class="search-dropdown"
                   :options="categoryDropdownOptions"
                   full-width
                   :show-selected-hint="false"
-                  @change="selectCategory($event.value)"
                 />
               </label>
 
@@ -183,8 +163,8 @@ onBeforeUnmount(() => {
                 :key="category.id"
                 type="button"
                 class="category-pill"
-                :class="{ 'category-pill--active': filters.selectedCategory === category.id }"
-                @click="selectCategory(category.id)"
+                :class="{ 'category-pill--active': draftSelectedCategory === category.id }"
+                @click="draftSelectedCategory = category.id"
               >
                 <i :class="category.icon"></i>
                 <span>{{ category.label }}</span>
@@ -264,7 +244,7 @@ onBeforeUnmount(() => {
 
                   <div class="job-location">
                     <AppFlag :code="job.countryFlagCode" :alt="job.countryLabel" />
-                    <span>{{ job.countryLabel }}, {{ job.location }}</span>
+                    <span>{{ job.displayLocation }}</span>
                   </div>
 
                   <div class="job-tags">

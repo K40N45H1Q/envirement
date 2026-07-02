@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { getProfile, updateProfile } from '@/api/profile'
+import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 
 const props = defineProps({
@@ -13,6 +14,7 @@ const props = defineProps({
 })
 
 const { state } = useAuth()
+const { language } = useI18n()
 
 const profile = ref({
   first_name: '',
@@ -32,7 +34,129 @@ const isSaving = ref(false)
 const saveMessage = ref('')
 const errorMessage = ref('')
 
+const isEnglish = computed(() => language.value === 'en')
 const user = computed(() => state.user)
+
+const copy = computed(() =>
+  isEnglish.value
+    ? {
+        notAuth: 'Log in to open your profile.',
+        candidateProfile: 'Candidate profile',
+        employerProfile: 'Employer profile',
+        adminProfile: 'Administrator profile',
+        fillProfile: 'Complete your profile',
+        profileDescriptionCandidate: 'Add your core information, photo, and resume to apply for jobs faster.',
+        profileDescriptionEmployer: 'Keep contact details, avatar, and account documents updated in one place.',
+        profileDescriptionAdmin: 'Keep account data and attached files up to date.',
+        completed: 'completed',
+        accountType: 'Account type',
+        filesInProfile: 'Files in profile',
+        contactPhone: 'Contact phone',
+        yes: 'Yes',
+        no: 'No',
+        present: 'Present',
+        mainData: 'Main details',
+        personalInformation: 'Personal information',
+        loadingProfile: 'Loading profile...',
+        uploadAvatar: 'Upload avatar',
+        profileAvatar: 'Profile avatar',
+        uploadPhoto: 'Upload photo',
+        firstName: 'First name',
+        lastName: 'Last name',
+        phone: 'Phone number',
+        currentRole: 'Current role',
+        currentRolePlaceholder: 'For example, Recruiter or MIG/MAG Welder',
+        about: 'About',
+        aboutPlaceholder: 'Briefly describe your experience, skills, and current work focus',
+        saving: 'Saving...',
+        saveProfile: 'Save profile',
+        files: 'Files',
+        resumeAndDocuments: 'Resume and documents',
+        uploadResume: 'Upload a resume or document',
+        dropHint: 'PDF, DOC, DOCX. You can drag and drop the file here.',
+        openCurrentFile: 'Open current file',
+        hints: 'Hints',
+        improve: 'What to improve',
+        hintNameDone: 'First and last name are filled in',
+        hintNameTodo: 'Add your first and last name',
+        hintPhoneDone: 'Phone number added',
+        hintPhoneTodo: 'Add a phone number',
+        hintResumeDone: 'Profile file attached',
+        hintResumeTodo: 'Attach a resume or document',
+        hintSummaryDone: 'Profile summary added',
+        hintSummaryTodo: 'Add a short summary',
+        loadProfileError: 'Failed to load the profile.',
+        saveProfileSuccess: 'Profile saved successfully.',
+        saveProfileError: 'Failed to save the profile.',
+        accountCandidate: 'Candidate',
+        accountEmployer: 'Employer',
+        accountAdmin: 'Administrator',
+        accountFallback: 'Account',
+        navMessages: 'Messages',
+        navProfile: 'Profile',
+        navJobs: 'Jobs',
+        navResume: 'Resume',
+      }
+    : {
+        notAuth: 'Войдите в аккаунт, чтобы открыть профиль.',
+        candidateProfile: 'Профиль кандидата',
+        employerProfile: 'Профиль работодателя',
+        adminProfile: 'Профиль администратора',
+        fillProfile: 'Заполните профиль',
+        profileDescriptionCandidate: 'Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться на вакансии.',
+        profileDescriptionEmployer: 'Обновляйте контактные данные, аватар и документы аккаунта в одном месте.',
+        profileDescriptionAdmin: 'Поддерживайте данные аккаунта и прикрепленные файлы в актуальном состоянии.',
+        completed: 'заполнено',
+        accountType: 'Тип аккаунта',
+        filesInProfile: 'Файлы в профиле',
+        contactPhone: 'Контактный номер',
+        yes: 'Да',
+        no: 'Нет',
+        present: 'Есть',
+        mainData: 'Основные данные',
+        personalInformation: 'Личная информация',
+        loadingProfile: 'Загрузка профиля...',
+        uploadAvatar: 'Загрузить аватар',
+        profileAvatar: 'Аватар профиля',
+        uploadPhoto: 'Загрузить фото',
+        firstName: 'Имя',
+        lastName: 'Фамилия',
+        phone: 'Номер телефона',
+        currentRole: 'Текущая роль',
+        currentRolePlaceholder: 'Например, Recruiter или MIG/MAG Welder',
+        about: 'О себе',
+        aboutPlaceholder: 'Коротко опишите опыт, навыки и текущий фокус работы',
+        saving: 'Сохранение...',
+        saveProfile: 'Сохранить профиль',
+        files: 'Файлы',
+        resumeAndDocuments: 'Резюме и документы',
+        uploadResume: 'Загрузите резюме или документ',
+        dropHint: 'PDF, DOC, DOCX. Можно перетащить файл в эту область.',
+        openCurrentFile: 'Открыть текущий файл',
+        hints: 'Подсказки',
+        improve: 'Что улучшить',
+        hintNameDone: 'Имя и фамилия заполнены',
+        hintNameTodo: 'Добавьте имя и фамилию',
+        hintPhoneDone: 'Контактный номер добавлен',
+        hintPhoneTodo: 'Укажите номер телефона',
+        hintResumeDone: 'Файл профиля прикреплен',
+        hintResumeTodo: 'Прикрепите резюме или документ',
+        hintSummaryDone: 'Описание профиля заполнено',
+        hintSummaryTodo: 'Добавьте короткое описание',
+        loadProfileError: 'Не удалось загрузить профиль.',
+        saveProfileSuccess: 'Профиль успешно сохранен.',
+        saveProfileError: 'Не удалось сохранить профиль.',
+        accountCandidate: 'Кандидат',
+        accountEmployer: 'Работодатель',
+        accountAdmin: 'Администратор',
+        accountFallback: 'Аккаунт',
+        navMessages: 'Сообщения',
+        navProfile: 'Профиль',
+        navJobs: 'Вакансии',
+        navResume: 'Резюме',
+      },
+)
+
 const fullName = computed(() => `${profile.value.first_name || ''} ${profile.value.last_name || ''}`.trim())
 const initials = computed(() => {
   if (fullName.value) {
@@ -46,27 +170,31 @@ const initials = computed(() => {
 
   return (user.value?.email || 'CV').slice(0, 2).toUpperCase()
 })
+
 const accountTypeLabel = computed(() => {
   const type = user.value?.account_type
-  if (type === 'user') return 'Соискатель'
-  if (type === 'employer') return 'Работодатель'
-  if (type === 'admin') return 'Администратор'
-  return 'Аккаунт'
+  if (type === 'user') return copy.value.accountCandidate
+  if (type === 'employer') return copy.value.accountEmployer
+  if (type === 'admin') return copy.value.accountAdmin
+  return copy.value.accountFallback
 })
+
 const profileEyebrow = computed(() => {
-  if (user.value?.account_type === 'employer') return 'Профиль работодателя'
-  if (user.value?.account_type === 'admin') return 'Профиль администратора'
-  return 'Профиль кандидата'
+  if (user.value?.account_type === 'employer') return copy.value.employerProfile
+  if (user.value?.account_type === 'admin') return copy.value.adminProfile
+  return copy.value.candidateProfile
 })
+
 const profileDescription = computed(() => {
   if (user.value?.account_type === 'employer') {
-    return 'Обновляйте контактные данные, аватар и документы аккаунта в одном месте.'
+    return copy.value.profileDescriptionEmployer
   }
   if (user.value?.account_type === 'admin') {
-    return 'Поддерживайте данные аккаунта и прикрепленные файлы в актуальном состоянии.'
+    return copy.value.profileDescriptionAdmin
   }
-  return 'Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться на вакансии.'
+  return copy.value.profileDescriptionCandidate
 })
+
 const avatarPreview = computed(() => avatarObjectUrl.value || profile.value.avatar_url || '')
 const profileProgress = computed(() => {
   const fields = [
@@ -80,25 +208,29 @@ const profileProgress = computed(() => {
   ]
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 })
+
 const profileHints = computed(() => [
   {
     icon: 'fas fa-circle-check',
-    text: profile.value.first_name && profile.value.last_name ? 'Имя и фамилия заполнены' : 'Добавьте имя и фамилию',
+    text:
+      profile.value.first_name && profile.value.last_name
+        ? copy.value.hintNameDone
+        : copy.value.hintNameTodo,
     done: !!profile.value.first_name && !!profile.value.last_name,
   },
   {
     icon: 'fas fa-phone',
-    text: profile.value.phone ? 'Контактный номер добавлен' : 'Укажите номер телефона',
+    text: profile.value.phone ? copy.value.hintPhoneDone : copy.value.hintPhoneTodo,
     done: !!profile.value.phone,
   },
   {
     icon: 'fas fa-file-arrow-up',
-    text: profile.value.resume_name ? 'Файл профиля прикреплен' : 'Прикрепите резюме или документ',
+    text: profile.value.resume_name ? copy.value.hintResumeDone : copy.value.hintResumeTodo,
     done: !!profile.value.resume_name,
   },
   {
     icon: 'fas fa-user-pen',
-    text: profile.value.summary ? 'Описание профиля заполнено' : 'Добавьте короткое описание',
+    text: profile.value.summary ? copy.value.hintSummaryDone : copy.value.hintSummaryTodo,
     done: !!profile.value.summary,
   },
 ])
@@ -110,7 +242,7 @@ async function loadProfile() {
   try {
     profile.value = await getProfile()
   } catch {
-    errorMessage.value = 'Не удалось загрузить профиль.'
+    errorMessage.value = copy.value.loadProfileError
   } finally {
     isLoading.value = false
   }
@@ -163,9 +295,9 @@ async function saveProfileData() {
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()
-    saveMessage.value = 'Профиль успешно сохранен.'
+    saveMessage.value = copy.value.saveProfileSuccess
   } catch {
-    errorMessage.value = 'Не удалось сохранить профиль.'
+    errorMessage.value = copy.value.saveProfileError
   } finally {
     isSaving.value = false
   }
@@ -177,41 +309,41 @@ onBeforeUnmount(revokeAvatarPreview)
 
 <template>
   <main class="page" :class="{ 'page--embedded': props.embedded }">
-    <div v-if="!user" class="not-auth">Войдите в аккаунт, чтобы открыть профиль.</div>
+    <div v-if="!user" class="not-auth">{{ copy.notAuth }}</div>
 
     <template v-else>
       <aside v-if="!props.embedded" class="sidebar">
-        <RouterLink to="/messages"><i class="fas fa-message"></i> Сообщения</RouterLink>
-        <RouterLink to="/profile"><i class="fas fa-user"></i> Профиль</RouterLink>
-        <RouterLink to="/jobs"><i class="fas fa-briefcase"></i> Вакансии</RouterLink>
-        <RouterLink to="/resume-builder"><i class="fas fa-file-lines"></i> Резюме</RouterLink>
+        <RouterLink to="/messages"><i class="fas fa-message"></i> {{ copy.navMessages }}</RouterLink>
+        <RouterLink to="/profile"><i class="fas fa-user"></i> {{ copy.navProfile }}</RouterLink>
+        <RouterLink to="/jobs"><i class="fas fa-briefcase"></i> {{ copy.navJobs }}</RouterLink>
+        <RouterLink to="/resume-builder"><i class="fas fa-file-lines"></i> {{ copy.navResume }}</RouterLink>
       </aside>
 
       <section class="content">
         <section v-if="!props.embedded" class="head">
           <div>
             <p class="eyebrow">{{ profileEyebrow }}</p>
-            <h1>{{ fullName || 'Заполните профиль' }}</h1>
+            <h1>{{ fullName || copy.fillProfile }}</h1>
             <p>{{ profileDescription }}</p>
           </div>
           <div class="head-badge">
             <strong>{{ profileProgress }}%</strong>
-            <span>заполнено</span>
+            <span>{{ copy.completed }}</span>
           </div>
         </section>
 
         <section v-if="!props.embedded" class="cards">
           <article>
             <strong>{{ accountTypeLabel }}</strong>
-            <span>Тип аккаунта</span>
+            <span>{{ copy.accountType }}</span>
           </article>
           <article>
-            <strong>{{ profile.resume_name ? 'Есть' : 'Нет' }}</strong>
-            <span>Файлы в профиле</span>
+            <strong>{{ profile.resume_name ? copy.present : copy.no }}</strong>
+            <span>{{ copy.filesInProfile }}</span>
           </article>
           <article>
-            <strong>{{ profile.phone ? 'Да' : 'Нет' }}</strong>
-            <span>Контактный номер</span>
+            <strong>{{ profile.phone ? copy.yes : copy.no }}</strong>
+            <span>{{ copy.contactPhone }}</span>
           </article>
         </section>
 
@@ -219,19 +351,19 @@ onBeforeUnmount(revokeAvatarPreview)
           <section class="panel profile-panel">
             <div class="panel-title">
               <div>
-                <p class="eyebrow compact">Основные данные</p>
-                <h2>Личная информация</h2>
+                <p class="eyebrow compact">{{ copy.mainData }}</p>
+                <h2>{{ copy.personalInformation }}</h2>
               </div>
             </div>
 
-            <div v-if="isLoading" class="notice">Загрузка профиля...</div>
+            <div v-if="isLoading" class="notice">{{ copy.loadingProfile }}</div>
 
             <template v-else>
               <div class="avatar-row">
-                <label class="avatar" aria-label="Загрузить аватар">
-                  <img v-if="avatarPreview" :src="avatarPreview" alt="Аватар профиля" />
+                <label class="avatar" :aria-label="copy.uploadAvatar">
+                  <img v-if="avatarPreview" :src="avatarPreview" :alt="copy.profileAvatar" />
                   <span v-else class="avatar-fallback">{{ initials }}</span>
-                  <div class="avatar-hover">Загрузить фото</div>
+                  <div class="avatar-hover">{{ copy.uploadPhoto }}</div>
                   <input type="file" accept="image/*" hidden @change="onAvatarChange" />
                 </label>
 
@@ -244,38 +376,43 @@ onBeforeUnmount(revokeAvatarPreview)
 
               <div class="field-grid">
                 <label>
-                  Имя
-                  <input v-model="profile.first_name" type="text" placeholder="Имя" class="input" />
+                  {{ copy.firstName }}
+                  <input v-model="profile.first_name" type="text" :placeholder="copy.firstName" class="input" />
                 </label>
                 <label>
-                  Фамилия
-                  <input v-model="profile.last_name" type="text" placeholder="Фамилия" class="input" />
+                  {{ copy.lastName }}
+                  <input v-model="profile.last_name" type="text" :placeholder="copy.lastName" class="input" />
                 </label>
               </div>
 
               <div class="field-grid">
                 <label>
-                  Номер телефона
-                  <input v-model="profile.phone" type="text" placeholder="Номер телефона" class="input" />
+                  {{ copy.phone }}
+                  <input v-model="profile.phone" type="text" :placeholder="copy.phone" class="input" />
                 </label>
                 <label>
-                  Текущая роль
-                  <input v-model="profile.current_role" type="text" placeholder="Например, Recruiter или MIG/MAG Welder" class="input" />
+                  {{ copy.currentRole }}
+                  <input
+                    v-model="profile.current_role"
+                    type="text"
+                    :placeholder="copy.currentRolePlaceholder"
+                    class="input"
+                  />
                 </label>
               </div>
 
               <label class="summary-label">
-                О себе
+                {{ copy.about }}
                 <textarea
                   v-model="profile.summary"
                   rows="5"
-                  placeholder="Коротко опишите опыт, навыки и текущий фокус работы"
+                  :placeholder="copy.aboutPlaceholder"
                   class="input textarea"
                 ></textarea>
               </label>
 
               <button class="btn-primary save-btn" :disabled="isSaving" @click="saveProfileData">
-                {{ isSaving ? 'Сохранение...' : 'Сохранить профиль' }}
+                {{ isSaving ? copy.saving : copy.saveProfile }}
               </button>
 
               <p v-if="saveMessage" class="status status--success">{{ saveMessage }}</p>
@@ -287,15 +424,15 @@ onBeforeUnmount(revokeAvatarPreview)
             <section class="panel side-card">
               <div class="panel-title">
                 <div>
-                  <p class="eyebrow compact">Файлы</p>
-                  <h2>Резюме и документы</h2>
+                  <p class="eyebrow compact">{{ copy.files }}</p>
+                  <h2>{{ copy.resumeAndDocuments }}</h2>
                 </div>
               </div>
 
               <label class="resume-dropzone" @dragover.prevent @drop.prevent="onDropResume">
                 <input type="file" accept=".pdf,.doc,.docx" hidden @change="onResumeChange" />
-                <div class="drop-title">{{ profile.resume_name || 'Загрузите резюме или документ' }}</div>
-                <span>PDF, DOC, DOCX. Можно перетащить файл в эту область.</span>
+                <div class="drop-title">{{ profile.resume_name || copy.uploadResume }}</div>
+                <span>{{ copy.dropHint }}</span>
               </label>
 
               <a
@@ -305,15 +442,15 @@ onBeforeUnmount(revokeAvatarPreview)
                 rel="noreferrer"
                 class="btn-secondary resume-link"
               >
-                Открыть текущий файл
+                {{ copy.openCurrentFile }}
               </a>
             </section>
 
             <section class="panel side-card">
               <div class="panel-title">
                 <div>
-                  <p class="eyebrow compact">Подсказки</p>
-                  <h2>Что улучшить</h2>
+                  <p class="eyebrow compact">{{ copy.hints }}</p>
+                  <h2>{{ copy.improve }}</h2>
                 </div>
               </div>
 
@@ -384,7 +521,11 @@ onBeforeUnmount(revokeAvatarPreview)
 }
 
 .sidebar a.router-link-active {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-base) 22%, transparent), color-mix(in srgb, var(--brand-strong) 14%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-base) 22%, transparent),
+    color-mix(in srgb, var(--brand-strong) 14%, transparent)
+  );
   border: 0.0625rem solid var(--border-strong);
 }
 

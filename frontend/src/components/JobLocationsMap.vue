@@ -50,7 +50,7 @@ const locationCoordinates = [
 
 const markerJobs = computed(() => props.jobs
   .map((job) => {
-    const location = `${job.location || ''} ${job.countryLabel || ''}`
+    const location = `${job.displayLocation || job.location || ''} ${job.countryLabel || ''}`
     const matched = locationCoordinates.find((item) => item.match.test(location))
     const coords = matched?.coords || fallbackCoordinates[job.countryKey] || fallbackCoordinates.other
 
@@ -59,7 +59,7 @@ const markerJobs = computed(() => props.jobs
       title: job.title,
       company: job.company,
       salary: job.salary,
-      location: job.location,
+      location: job.displayLocation || job.location,
       coords,
       color: job.id === props.activeJobId ? '#0f8a56' : '#1da86b',
     }
