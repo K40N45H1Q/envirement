@@ -179,6 +179,8 @@ router.beforeEach(async (to) => {
     ? getLocaleFromPath(to.path)
     : normalizeLanguage(uiStore.language)
   const logicalPath = stripLocaleFromPath(to.path)
+  const routeLogicalPath = typeof to.meta.logicalPath === 'string' ? to.meta.logicalPath : logicalPath
+  const isJobDetailRoute = to.matched.some((record) => record.meta?.logicalPath === '/jobs/:id')
 
   if (!hasLocalePrefix(to.path)) {
     return localizeFullPath(to.fullPath, locale)
@@ -186,6 +188,17 @@ router.beforeEach(async (to) => {
 
   if (uiStore.language !== locale) {
     uiStore.setLanguage(locale)
+  }
+
+  if (isJobDetailRoute && !token) {
+    return localizeRouteLocation({
+      path: '/jobs',
+      query: {
+        ...to.query,
+        auth: 'login',
+        redirect: to.fullPath,
+      },
+    }, locale)
   }
 
   if (to.meta.requiresAuth) {
@@ -222,7 +235,7 @@ router.beforeEach(async (to) => {
 
     const normalizedType = normalizeAccountType(auth.state.user.account_type)
 
-    if (logicalPath === '/profile') {
+    if (routeLogicalPath === '/profile') {
       const target = localizeFullPath('/dashboard?section=profile', locale)
 
       if (to.fullPath !== target) {
@@ -232,7 +245,7 @@ router.beforeEach(async (to) => {
       return true
     }
 
-    if (logicalPath === '/messages') {
+    if (routeLogicalPath === '/messages') {
       if (normalizedType === 'candidate') {
         return localizeRouteLocation({
           path: '/dashboard',
@@ -254,7 +267,7 @@ router.beforeEach(async (to) => {
       }
     }
 
-    if (logicalPath === '/responses' && ['employer', 'admin'].includes(normalizedType)) {
+    if (routeLogicalPath === '/responses' && ['employer', 'admin'].includes(normalizedType)) {
       return localizeRouteLocation({
         path: '/dashboard',
         query: { section: 'responses' },
@@ -272,7 +285,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (logicalPath === '/signin' && token) {
+  if (routeLogicalPath === '/signin' && token) {
     await auth.initialize()
 
     if (auth.state.user) {

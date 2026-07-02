@@ -1,4 +1,6 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const STARTUP_RETRY_ATTEMPTS = 6
+const STARTUP_RETRY_DELAY_MS = 250
 
 export class ApiError extends Error {
   constructor(key, status, payload = null) {
@@ -42,6 +44,31 @@ const parseResponseBody = (text) => {
   }
 }
 
+const wait = (ms) => new Promise((resolve) => {
+  window.setTimeout(resolve, ms)
+})
+
+const shouldRetryRequest = (method, attempt, error) => {
+  if (attempt >= STARTUP_RETRY_ATTEMPTS) return false
+  if (!(error instanceof TypeError)) return false
+
+  const normalizedMethod = String(method || 'GET').toUpperCase()
+  return normalizedMethod === 'GET'
+}
+
+const executeRequest = async (url, options, attempt = 0) => {
+  try {
+    return await fetch(url, options)
+  } catch (error) {
+    if (!shouldRetryRequest(options.method, attempt, error)) {
+      throw error
+    }
+
+    await wait(STARTUP_RETRY_DELAY_MS)
+    return executeRequest(url, options, attempt + 1)
+  }
+}
+
 export const apiRequest = async (path, options = {}) => {
   const token = getAuthToken()
   const headers = new Headers(options.headers || {})
@@ -63,7 +90,7 @@ export const apiRequest = async (path, options = {}) => {
   let response
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await executeRequest(`${API_BASE_URL}${path}`, {
       ...options,
       headers,
     })
