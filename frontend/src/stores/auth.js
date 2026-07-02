@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { getAuthToken } from '@/api/client'
 import { getMe, logout as logoutRequest } from '@/api/auth'
 
+const normalizeAccountType = (accountType) => {
+  if (accountType === 'user') return 'candidate'
+  return accountType || ''
+}
+
 export const useAuth = defineStore('auth', {
   state: () => ({
     state: {
@@ -12,6 +17,26 @@ export const useAuth = defineStore('auth', {
     },
     bootstrapPromise: null,
   }),
+
+  getters: {
+    user: (store) => store.state.user,
+
+    accountType: (store) => {
+      return normalizeAccountType(store.state.user?.account_type)
+    },
+
+    isCandidate: (store) => {
+      return normalizeAccountType(store.state.user?.account_type) === 'candidate'
+    },
+
+    isEmployer: (store) => {
+      return normalizeAccountType(store.state.user?.account_type) === 'employer'
+    },
+
+    isAdmin: (store) => {
+      return normalizeAccountType(store.state.user?.account_type) === 'admin'
+    },
+  },
 
   actions: {
     resetState() {

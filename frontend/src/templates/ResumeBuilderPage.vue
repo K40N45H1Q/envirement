@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import Logo from '@/components/Logo.vue'
 import { getProfile, updateProfile } from '@/api/profile'
+import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
 
@@ -19,7 +20,7 @@ const RESUME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
 
-const sectorExperienceOptions = [
+const legacySectorExperienceOptions = [
   { value: '1+ год', label: '1+ год' },
   { value: '2+ года', label: '2+ года' },
   { value: '3+ года', label: '3+ года' },
@@ -29,13 +30,13 @@ const sectorExperienceOptions = [
   { value: '10+ лет', label: '10+ лет' },
 ]
 
-const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceOptions[0].value
+const LEGACY_DEFAULT_SECTOR_EXPERIENCE = legacySectorExperienceOptions[0].value
 const MAX_PRINT_SECTORS = 6
 const MAX_PRINT_SKILLS = 10
 const MAX_PRINT_LANGUAGES = 5
 const MAX_PRINT_LICENSES = 5
 
-const languageNames = [
+const legacyLanguageNames = [
   'Английский',
   'Русский',
   'Немецкий',
@@ -48,9 +49,9 @@ const languageNames = [
 
 const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-const languageOptions = languageNames.map((label) => ({ value: label, label }))
+const legacyLanguageOptions = legacyLanguageNames.map((label) => ({ value: label, label }))
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
-const licenseOptions = [
+const legacyLicenseOptions = [
   'AM',
   'A1',
   'A2',
@@ -71,14 +72,14 @@ const licenseOptions = [
   'VCA',
 ].map((label) => ({ value: label, label }))
 
-const permitOptions = [
+const legacyPermitOptions = [
   { value: '', label: 'Выберите' },
   { value: 'EU гражданин', label: 'EU гражданин' },
   { value: 'Есть виза', label: 'Есть виза' },
   { value: 'Нужен sponsorship', label: 'Нужен sponsorship' },
 ]
 
-const baseAvailabilityOptions = [
+const legacyAvailabilityOptions = [
   { value: '', label: 'Выберите' },
   { value: 'Immediate', label: 'Немедленно' },
   { value: '1 week notice', label: 'Через 1 неделю' },
@@ -86,6 +87,234 @@ const baseAvailabilityOptions = [
   { value: '1 month notice', label: 'Через 1 месяц' },
   { value: 'By agreement', label: 'По договорённости' },
 ]
+
+const { language } = useI18n()
+const isEnglish = computed(() => language.value === 'en')
+
+const labelByLocale = (entry) => (isEnglish.value ? entry.en : entry.ru)
+
+const sectorExperienceCatalog = [
+  { value: '1_year', ru: '1+ год', en: '1+ year' },
+  { value: '2_years', ru: '2+ года', en: '2+ years' },
+  { value: '3_years', ru: '3+ года', en: '3+ years' },
+  { value: '4_years', ru: '4+ года', en: '4+ years' },
+  { value: '5_years', ru: '5+ лет', en: '5+ years' },
+  { value: '7_years', ru: '7+ лет', en: '7+ years' },
+  { value: '10_years', ru: '10+ лет', en: '10+ years' },
+]
+
+const languageCatalog = [
+  { value: 'english', ru: 'Английский', en: 'English' },
+  { value: 'russian', ru: 'Русский', en: 'Russian' },
+  { value: 'german', ru: 'Немецкий', en: 'German' },
+  { value: 'polish', ru: 'Польский', en: 'Polish' },
+  { value: 'latvian', ru: 'Латышский', en: 'Latvian' },
+  { value: 'lithuanian', ru: 'Литовский', en: 'Lithuanian' },
+  { value: 'estonian', ru: 'Эстонский', en: 'Estonian' },
+  { value: 'french', ru: 'Французский', en: 'French' },
+]
+
+const licenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE', 'Код 95', 'ADR', 'Forklift', 'VCA']
+
+const permitCatalog = [
+  { value: '', ru: 'Выберите', en: 'Choose' },
+  { value: 'eu_citizen', ru: 'EU гражданин', en: 'EU citizen' },
+  { value: 'has_visa', ru: 'Есть виза', en: 'Visa available' },
+  { value: 'needs_sponsorship', ru: 'Нужен sponsorship', en: 'Needs sponsorship' },
+]
+
+const availabilityCatalog = [
+  { value: '', ru: 'Выберите', en: 'Choose' },
+  { value: 'Immediate', ru: 'Немедленно', en: 'Immediate' },
+  { value: '1 week notice', ru: 'Через 1 неделю', en: 'In 1 week' },
+  { value: '2 weeks notice', ru: 'Через 2 недели', en: 'In 2 weeks' },
+  { value: '1 month notice', ru: 'Через 1 месяц', en: 'In 1 month' },
+  { value: 'By agreement', ru: 'По договорённости', en: 'By agreement' },
+]
+
+const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceCatalog[0].value
+
+const sectorExperienceAliases = {
+  [LEGACY_DEFAULT_SECTOR_EXPERIENCE]: DEFAULT_SECTOR_EXPERIENCE,
+  '1+ год': '1_year',
+  '1+ year': '1_year',
+  '2+ года': '2_years',
+  '2+ years': '2_years',
+  '3+ года': '3_years',
+  '3+ years': '3_years',
+  '4+ года': '4_years',
+  '4+ years': '4_years',
+  '5+ лет': '5_years',
+  '5+ years': '5_years',
+  '7+ лет': '7_years',
+  '7+ years': '7_years',
+  '10+ лет': '10_years',
+  '10+ years': '10_years',
+}
+
+const languageAliases = {
+  english: 'english',
+  'Английский': 'english',
+  English: 'english',
+  russian: 'russian',
+  'Русский': 'russian',
+  Russian: 'russian',
+  german: 'german',
+  'Немецкий': 'german',
+  German: 'german',
+  polish: 'polish',
+  'Польский': 'polish',
+  Polish: 'polish',
+  latvian: 'latvian',
+  'Латышский': 'latvian',
+  Latvian: 'latvian',
+  lithuanian: 'lithuanian',
+  'Литовский': 'lithuanian',
+  Lithuanian: 'lithuanian',
+  estonian: 'estonian',
+  'Эстонский': 'estonian',
+  Estonian: 'estonian',
+  french: 'french',
+  'Французский': 'french',
+  French: 'french',
+}
+
+const permitAliases = {
+  eu_citizen: 'eu_citizen',
+  'EU гражданин': 'eu_citizen',
+  'EU citizen': 'eu_citizen',
+  has_visa: 'has_visa',
+  'Есть виза': 'has_visa',
+  'Visa available': 'has_visa',
+  needs_sponsorship: 'needs_sponsorship',
+  'Нужен sponsorship': 'needs_sponsorship',
+  'Needs sponsorship': 'needs_sponsorship',
+}
+
+const getLocalizedLabel = (catalog, value, fallback = '') => {
+  const option = catalog.find((entry) => entry.value === value)
+  return option ? labelByLocale(option) : fallback || value
+}
+
+const sectorExperienceOptions = computed(() => sectorExperienceCatalog.map((entry) => ({
+  value: entry.value,
+  label: labelByLocale(entry),
+})))
+
+const languageOptions = computed(() => languageCatalog.map((entry) => ({
+  value: entry.value,
+  label: labelByLocale(entry),
+})))
+
+const licenseOptions = computed(() => licenseValues.map((label) => ({ value: label, label })))
+const permitOptions = computed(() => permitCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
+const baseAvailabilityOptions = computed(() => availabilityCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
+
+const normalizeSectorExperience = (value) => sectorExperienceAliases[toText(value).trim()] || DEFAULT_SECTOR_EXPERIENCE
+const normalizeLanguageName = (value) => languageAliases[toText(value).trim()] || toText(value).trim()
+const normalizePermit = (value) => permitAliases[toText(value).trim()] || toText(value).trim()
+const displayLanguageName = (value) => getLocalizedLabel(languageCatalog, normalizeLanguageName(value), toText(value).trim())
+const displaySectorExperience = (value) => getLocalizedLabel(sectorExperienceCatalog, normalizeSectorExperience(value), toText(value).trim())
+const displayPermit = (value) => getLocalizedLabel(permitCatalog, normalizePermit(value), toText(value).trim())
+const displayAvailability = (value) => {
+  const normalized = toText(value).trim()
+  if (isDateAvailability(normalized)) {
+    return isEnglish.value ? `Date: ${normalized}` : `Дата: ${normalized}`
+  }
+
+  const option = availabilityCatalog.find((entry) => entry.value === normalized)
+  return option ? labelByLocale(option) : normalized
+}
+
+const copy = computed(() => (isEnglish.value ? {
+  jobsCount: 'jobs',
+  sectorHint: 'Work area',
+  sectorChoose: 'Choose work area',
+  sectorListHint: 'Categories match the jobs page',
+  steps: [
+    { id: 1, title: 'Basics', subtitle: 'Contacts and role' },
+    { id: 2, title: 'Experience', subtitle: 'Skills and conditions' },
+    { id: 3, title: 'Ready CV', subtitle: 'Photo, review and PDF' },
+  ],
+  loadingProfile: 'Loading profile...',
+  saving: 'Saving...',
+  unsaved: 'You have unsaved changes.',
+  candidateName: 'CVHOLD Candidate',
+  candidateRole: 'Specialist',
+  summaryRole: 'Role',
+  summarySectors: 'Work areas',
+  summarySkills: 'Key skills',
+  summaryFallback: 'The candidate profile will appear after the main information is filled in.',
+  readyToStart: 'Available from',
+  workPermit: 'Work permit',
+  notSpecified: 'Not specified',
+  guestDraftLoaded: 'Resume draft loaded from this browser.',
+  guestMode: 'Guest mode: the draft will be saved only in this browser.',
+  loadProfileError: 'Failed to load profile.',
+  saveDraftSuccess: 'Draft saved in this browser.',
+  saveDraftError: 'Failed to save the local draft.',
+  saveLatest: 'Saving your latest changes...',
+  saveSuccess: 'Profile saved successfully.',
+  saveError: 'Failed to save profile.',
+  firstNameRequired: 'Enter your first name.',
+  lastNameRequired: 'Enter your last name.',
+  roleRequired: 'Enter your desired role.',
+  availabilityInvalid: 'Choose availability from the list.',
+  requiredFields: 'Check the required fields.',
+  fileNotSelected: 'file not selected',
+  fileUnsupported: 'unsupported file format',
+  fileTooLarge: 'file is too large',
+  sectorDuplicate: 'This work area has already been added.',
+  licenseDuplicate: 'This license or certificate has already been added.',
+  avatarLabel: 'Avatar',
+  resumeLabel: 'CV',
+  pdfPrepareError: 'Failed to prepare the CV for PDF.',
+  printHint: 'Open the system print dialog and choose "Save as PDF".',
+} : {
+  jobsCount: 'вакансий',
+  sectorHint: 'Сфера деятельности',
+  sectorChoose: 'Выберите сферу деятельности',
+  sectorListHint: 'Категории как на странице вакансий',
+  steps: [
+    { id: 1, title: 'Основное', subtitle: 'Контакты и позиция' },
+    { id: 2, title: 'Опыт', subtitle: 'Навыки и условия' },
+    { id: 3, title: 'Готовое CV', subtitle: 'Фото, проверка и PDF' },
+  ],
+  loadingProfile: 'Загрузка профиля...',
+  saving: 'Сохраняем...',
+  unsaved: 'Есть несохранённые изменения.',
+  candidateName: 'Кандидат CVHOLD',
+  candidateRole: 'Специалист',
+  summaryRole: 'Специалист',
+  summarySectors: 'Сферы деятельности',
+  summarySkills: 'Ключевые навыки',
+  summaryFallback: 'Профиль кандидата будет сформирован после заполнения основной информации.',
+  readyToStart: 'Готов приступить',
+  workPermit: 'Разрешение на работу',
+  notSpecified: 'Не указано',
+  guestDraftLoaded: 'Черновик резюме загружен из этого браузера.',
+  guestMode: 'Гостевой режим: черновик будет сохраняться только в этом браузере.',
+  loadProfileError: 'Не удалось загрузить профиль.',
+  saveDraftSuccess: 'Черновик сохранен в этом браузере.',
+  saveDraftError: 'Не удалось сохранить черновик локально.',
+  saveLatest: 'Сохраняем последние изменения...',
+  saveSuccess: 'Профиль успешно сохранён.',
+  saveError: 'Не удалось сохранить профиль.',
+  firstNameRequired: 'Укажите имя.',
+  lastNameRequired: 'Укажите фамилию.',
+  roleRequired: 'Укажите желаемую позицию.',
+  availabilityInvalid: 'Выберите доступность из списка.',
+  requiredFields: 'Проверьте обязательные поля.',
+  fileNotSelected: 'файл не выбран',
+  fileUnsupported: 'неподдерживаемый формат файла',
+  fileTooLarge: 'файл слишком большой',
+  sectorDuplicate: 'Такая сфера уже добавлена.',
+  licenseDuplicate: 'Такая лицензия или сертификат уже добавлены.',
+  avatarLabel: 'Аватар',
+  resumeLabel: 'CV',
+  pdfPrepareError: 'Не удалось подготовить CV к PDF.',
+  printHint: 'Откройте системное окно печати и выберите «Сохранить в PDF».',
+}))
 
 const { state } = useAuth()
 const jobsStore = useJobsStore()
@@ -103,10 +332,12 @@ const resumeFile = ref(null)
 const avatarObjectUrl = ref('')
 const selectedSector = ref('')
 const selectedSectorExperience = ref(DEFAULT_SECTOR_EXPERIENCE)
-const newLanguage = ref(languageOptions[0].value)
+const newLanguage = ref(languageCatalog[0].value)
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref(licenseOptions[4].value)
+const newLicense = ref(licenseValues[4])
 const cvDocumentRef = ref(null)
+const avatarInputRef = ref(null)
+const resumeInputRef = ref(null)
 
 let autosaveTimer = null
 let savePromise = null
@@ -115,6 +346,7 @@ let isApplyingServerProfile = false
 let printFrame = null
 
 const createEmptyProfile = () => ({
+  email: '',
   first_name: '',
   last_name: '',
   phone: '',
@@ -228,10 +460,10 @@ const removePrintFrame = () => {
 const user = computed(() => state.user)
 const isAuthenticated = computed(() => !!user.value)
 const fullName = computed(() => `${profile.value.first_name} ${profile.value.last_name}`.trim())
-const profileEmail = computed(() => user.value?.email || '')
+const profileEmail = computed(() => user.value?.email || profile.value.email || '')
 const avatarPreview = computed(() => avatarObjectUrl.value || profile.value.avatar_url || '')
 
-const jobCategoryOptions = computed(() => {
+const legacyJobCategoryOptions = computed(() => {
   const categoriesFromCounts = (categoryCounts.value || [])
     .filter((category) => category.id && category.id !== 'all')
     .map((category) => ({
@@ -253,7 +485,7 @@ const jobCategoryOptions = computed(() => {
     }))
 })
 
-const sectorDropdownOptions = computed(() => [
+const legacySectorDropdownOptions = computed(() => [
   {
     value: '',
     label: 'Выберите сферу деятельности',
@@ -263,12 +495,12 @@ const sectorDropdownOptions = computed(() => [
   ...jobCategoryOptions.value,
 ])
 
-const sectorOptionsByValue = computed(() => new Map(
-  jobCategoryOptions.value.map((option) => [option.value, option]),
+const legacySectorOptionsByValue = computed(() => new Map(
+  legacyJobCategoryOptions.value.map((option) => [option.value, option]),
 ))
 
-const sectorOptionsByLabel = computed(() => new Map(
-  jobCategoryOptions.value.map((option) => [option.label.toLowerCase(), option]),
+const legacySectorOptionsByLabel = computed(() => new Map(
+  legacyJobCategoryOptions.value.map((option) => [option.label.toLowerCase(), option]),
 ))
 
 const getSectorOption = (sector) => {
@@ -280,7 +512,7 @@ const getSectorOption = (sector) => {
   return byId || byLabel || null
 }
 
-const selectedSectorOption = computed(() => sectorOptionsByValue.value.get(selectedSector.value) || null)
+const legacySelectedSectorOption = computed(() => legacySectorOptionsByValue.value.get(selectedSector.value) || null)
 
 const canAddSector = computed(() => {
   const option = selectedSectorOption.value
@@ -297,9 +529,9 @@ const isDateAvailability = (value) => (
   || /^\d{4}-\d{2}-\d{2}$/.test(value)
 )
 
-const availabilityDropdownOptions = computed(() => {
+const legacyAvailabilityDropdownOptions = computed(() => {
   const currentValue = profile.value.availability.trim()
-  const exists = baseAvailabilityOptions.some((option) => option.value === currentValue)
+  const exists = baseAvailabilityOptions.value.some((option) => option.value === currentValue)
 
   if (currentValue && !exists && isDateAvailability(currentValue)) {
     return [
@@ -311,7 +543,7 @@ const availabilityDropdownOptions = computed(() => {
   return baseAvailabilityOptions
 })
 
-const availabilityLabel = computed(() => {
+const legacyAvailabilityLabel = computed(() => {
   const currentValue = profile.value.availability.trim()
   return availabilityDropdownOptions.value.find((option) => option.value === currentValue)?.label || currentValue
 })
@@ -319,7 +551,7 @@ const availabilityLabel = computed(() => {
 const isValidAvailability = (value) => {
   const cleanValue = value.trim()
   if (!cleanValue) return true
-  if (baseAvailabilityOptions.some((option) => option.value === cleanValue)) return true
+  if (baseAvailabilityOptions.value.some((option) => option.value === cleanValue)) return true
   return isDateAvailability(cleanValue)
 }
 
@@ -336,11 +568,74 @@ const avatarInitials = computed(() => {
   return (profileEmail.value || 'CV').slice(0, 2).toUpperCase()
 })
 
-const steps = [
+const legacySteps = [
   { id: 1, title: 'Основное', subtitle: 'Контакты и позиция' },
   { id: 2, title: 'Опыт', subtitle: 'Навыки и условия' },
   { id: 3, title: 'Готовое CV', subtitle: 'Фото, проверка и PDF' },
 ]
+
+const jobCategoryOptions = computed(() => {
+  const categoriesFromCounts = (categoryCounts.value || [])
+    .filter((category) => category.id && category.id !== 'all')
+    .map((category) => ({
+      value: category.id,
+      label: category.label,
+      hint: `${category.count} ${copy.value.jobsCount}`,
+      iconClass: category.icon,
+    }))
+
+  if (categoriesFromCounts.length) return categoriesFromCounts
+
+  return (jobsStore.categoryConfigs || [])
+    .filter((category) => category.id && category.id !== 'all')
+    .map((category) => ({
+      value: category.id,
+      label: category.label,
+      hint: copy.value.sectorHint,
+      iconClass: category.icon,
+    }))
+})
+
+const sectorDropdownOptions = computed(() => [
+  {
+    value: '',
+    label: copy.value.sectorChoose,
+    hint: copy.value.sectorListHint,
+    iconClass: 'fas fa-layer-group',
+  },
+  ...jobCategoryOptions.value,
+])
+
+const sectorOptionsByValue = computed(() => new Map(
+  jobCategoryOptions.value.map((option) => [option.value, option]),
+))
+
+const sectorOptionsByLabel = computed(() => new Map(
+  jobCategoryOptions.value.map((option) => [option.label.toLowerCase(), option]),
+))
+
+const selectedSectorOption = computed(() => sectorOptionsByValue.value.get(selectedSector.value) || null)
+
+const availabilityDropdownOptions = computed(() => {
+  const currentValue = profile.value.availability.trim()
+  const exists = baseAvailabilityOptions.value.some((option) => option.value === currentValue)
+
+  if (currentValue && !exists && isDateAvailability(currentValue)) {
+    return [
+      ...baseAvailabilityOptions.value,
+      { value: currentValue, label: displayAvailability(currentValue) },
+    ]
+  }
+
+  return baseAvailabilityOptions.value
+})
+
+const availabilityLabel = computed(() => {
+  const currentValue = profile.value.availability.trim()
+  return availabilityDropdownOptions.value.find((option) => option.value === currentValue)?.label || currentValue
+})
+
+const steps = computed(() => copy.value.steps)
 
 const normalizeSectors = (value) => toArray(value)
   .map((sector) => {
@@ -355,7 +650,7 @@ const normalizeSectors = (value) => toArray(value)
     return {
       id: option.value,
       name: option.label,
-      experience: toText(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
+      experience: normalizeSectorExperience(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
       iconClass: option.iconClass,
     }
   })
@@ -363,7 +658,7 @@ const normalizeSectors = (value) => toArray(value)
 
 const normalizeLanguages = (value) => toArray(value)
   .map((language) => ({
-    name: toText(language?.name).trim(),
+    name: normalizeLanguageName(language?.name),
     level: toText(language?.level || languageLevelOptions[2].value),
   }))
   .filter((language) => language.name)
@@ -379,6 +674,7 @@ const normalizeProfile = (value = {}) => {
   return {
     ...createEmptyProfile(),
     ...source,
+    email: toText(source.email).trim(),
     first_name: toText(source.first_name).trim(),
     last_name: toText(source.last_name).trim(),
     phone: toText(source.phone),
@@ -389,7 +685,7 @@ const normalizeProfile = (value = {}) => {
     languages: normalizeLanguages(source.languages ?? source.languages_json),
     licenses: normalizeLicenses(source.licenses ?? source.licenses_json),
     mobility: toText(source.mobility),
-    work_permit: toText(source.work_permit),
+    work_permit: normalizePermit(source.work_permit),
     availability: toText(source.availability),
     resume_name: toText(source.resume_name),
     resume_url: toText(source.resume_url),
@@ -409,6 +705,7 @@ const fileSignature = (file) => {
 }
 
 const snapshotProfile = () => JSON.stringify({
+  email: profile.value.email,
   first_name: profile.value.first_name,
   last_name: profile.value.last_name,
   phone: profile.value.phone,
@@ -430,6 +727,7 @@ const snapshotProfile = () => JSON.stringify({
 const hasUnsavedChanges = computed(() => isLoaded.value && snapshotProfile() !== savedSnapshot.value)
 
 const progressChecks = computed(() => [
+  profileEmail.value,
   profile.value.first_name,
   profile.value.last_name,
   profile.value.phone,
@@ -440,8 +738,7 @@ const progressChecks = computed(() => [
   profile.value.languages.length,
   profile.value.work_permit,
   profile.value.availability,
-  profile.value.avatar_url || avatarFile.value,
-  profile.value.resume_name || resumeFile.value,
+  avatarPreview.value,
 ])
 
 const filledFields = computed(() => progressChecks.value.filter(Boolean).length)
@@ -451,7 +748,7 @@ const canAddLanguage = computed(() => !profile.value.languages.some((language) =
   language.name === newLanguage.value && language.level === newLanguageLevel.value
 )))
 
-const statusMessage = computed(() => {
+const legacyStatusMessage = computed(() => {
   if (isLoading.value) return 'Загрузка профиля...'
   if (isSaving.value) return 'Сохраняем...'
   if (status.value) return status.value
@@ -462,7 +759,7 @@ const statusMessage = computed(() => {
 const cvName = computed(() => fullName.value || 'Кандидат CVHOLD')
 const cvRole = computed(() => profile.value.current_role.trim() || 'Специалист')
 const cvSkills = computed(() => splitTextList(profile.value.skills))
-const cvSectors = computed(() => profile.value.sectors
+const legacyCvSectors = computed(() => profile.value.sectors
   .map((sector) => {
     const option = getSectorOption(sector)
     if (!option) return null
@@ -487,14 +784,14 @@ const cvMoreLanguagesCount = computed(() => Math.max(0, cvLanguages.value.length
 const cvMoreLicensesCount = computed(() => Math.max(0, cvLicenses.value.length - cvVisibleLicenses.value.length))
 
 const cvId = computed(() => {
-  const source = `${profileEmail.value}-${profile.value.phone}-${cvName.value}`
+  const source = `${profileEmail.value}-${profile.value.phone}-${displayCvName.value}`
   const number = (hashText(source) % 900000) + 100000
   return `CVH-${number}`
 })
 
 const cvPublicUrl = computed(() => `cvhold.com/profile/${cvId.value}`)
 
-const cvSummaryParagraphs = computed(() => {
+const legacyCvSummaryParagraphs = computed(() => {
   const summary = profile.value.summary.trim()
 
   if (summary) {
@@ -529,7 +826,7 @@ const cvContactItems = computed(() => [
   },
 ].filter((item) => item.value))
 
-const cvAdditionalItems = computed(() => [
+const legacyCvAdditionalItems = computed(() => [
   {
     icon: 'far fa-calendar-check',
     label: 'Готов приступить',
@@ -539,6 +836,62 @@ const cvAdditionalItems = computed(() => [
     icon: 'far fa-id-card',
     label: 'Разрешение на работу',
     value: profile.value.work_permit || 'Не указано',
+  },
+])
+
+const statusMessage = computed(() => {
+  if (isLoading.value) return copy.value.loadingProfile
+  if (isSaving.value) return copy.value.saving
+  if (status.value) return status.value
+  if (hasUnsavedChanges.value) return copy.value.unsaved
+  return ''
+})
+
+const displayCvName = computed(() => fullName.value || copy.value.candidateName)
+const displayCvRole = computed(() => profile.value.current_role.trim() || copy.value.candidateRole)
+
+const cvSectors = computed(() => profile.value.sectors
+  .map((sector) => {
+    const option = getSectorOption(sector)
+    if (!option) return null
+
+    return {
+      ...option,
+      experience: displaySectorExperience(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
+    }
+  })
+  .filter(Boolean))
+
+const cvSummaryParagraphs = computed(() => {
+  const summary = profile.value.summary.trim()
+
+  if (summary) {
+    return summary
+      .split(/\n{2,}/)
+      .map((paragraph) => limitText(paragraph, 280))
+      .filter(Boolean)
+      .slice(0, 2)
+  }
+
+  const fallbackParts = [
+    profile.value.current_role ? `${copy.value.summaryRole}: ${profile.value.current_role}.` : '',
+    cvSectors.value.length ? `${copy.value.summarySectors}: ${cvSectors.value.map((sector) => `${sector.label} (${sector.experience})`).join(', ')}.` : '',
+    cvSkills.value.length ? `${copy.value.summarySkills}: ${cvSkills.value.slice(0, 8).join(', ')}.` : '',
+  ].filter(Boolean)
+
+  return [limitText(fallbackParts.join(' ') || copy.value.summaryFallback, 520)]
+})
+
+const cvAdditionalItems = computed(() => [
+  {
+    icon: 'far fa-calendar-check',
+    label: copy.value.readyToStart,
+    value: availabilityLabel.value || copy.value.notSpecified,
+  },
+  {
+    icon: 'far fa-id-card',
+    label: copy.value.workPermit,
+    value: displayPermit(profile.value.work_permit) || copy.value.notSpecified,
   },
 ])
 
@@ -594,14 +947,23 @@ const getErrorMessage = (error, fallback) => (
   || fallback
 )
 
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+
+  reader.onload = () => resolve(toText(reader.result))
+  reader.onerror = () => reject(new Error('Failed to read file.'))
+  reader.readAsDataURL(file)
+})
+
 const saveGuestDraft = () => {
   if (typeof window === 'undefined') return
 
   const draft = {
     ...buildPayload(),
+    email: profile.value.email.trim(),
     avatar: null,
     resume: null,
-    avatar_url: profile.value.avatar_url,
+    avatar_url: profile.value.avatar_url || avatarPreview.value,
     resume_url: profile.value.resume_url,
     resume_name: profile.value.resume_name,
   }
@@ -641,8 +1003,8 @@ const loadProfile = async () => {
     profile.value = normalizeProfile(guestDraft || {})
     savedSnapshot.value = snapshotProfile()
     status.value = guestDraft
-      ? 'Черновик резюме загружен из этого браузера.'
-      : 'Гостевой режим: черновик будет сохраняться только в этом браузере.'
+      ? copy.value.guestDraftLoaded
+      : copy.value.guestMode
     isLoading.value = false
     isLoaded.value = true
     return
@@ -654,7 +1016,7 @@ const loadProfile = async () => {
   } catch (error) {
     profile.value = createEmptyProfile()
     savedSnapshot.value = snapshotProfile()
-    status.value = getErrorMessage(error, 'Не удалось загрузить профиль.')
+    status.value = getErrorMessage(error, copy.value.loadProfileError)
   } finally {
     isLoading.value = false
     isLoaded.value = true
@@ -715,10 +1077,10 @@ const performSave = async ({ silent = false, force = false } = {}) => {
       saveGuestDraft()
       savedSnapshot.value = snapshotProfile()
       clearErrors()
-      status.value = silent ? '' : 'Черновик сохранен в этом браузере.'
+      status.value = silent ? '' : copy.value.saveDraftSuccess
       return true
     } catch (error) {
-      status.value = getErrorMessage(error, 'Не удалось сохранить черновик локально.')
+      status.value = getErrorMessage(error, copy.value.saveDraftError)
       return false
     } finally {
       isSaving.value = false
@@ -731,7 +1093,7 @@ const performSave = async ({ silent = false, force = false } = {}) => {
 
     if (changedDuringRequest) {
       shouldSaveAgain = true
-      if (!silent) status.value = 'Сохраняем последние изменения...'
+      if (!silent) status.value = copy.value.saveLatest
       return true
     }
 
@@ -740,10 +1102,10 @@ const performSave = async ({ silent = false, force = false } = {}) => {
     revokeAvatarPreview()
     applyServerProfile(serverProfile)
     clearErrors()
-    status.value = silent ? '' : 'Профиль успешно сохранён.'
+    status.value = silent ? '' : copy.value.saveSuccess
     return true
   } catch (error) {
-    status.value = getErrorMessage(error, 'Не удалось сохранить профиль.')
+    status.value = getErrorMessage(error, copy.value.saveError)
     return false
   } finally {
     isSaving.value = false
@@ -801,21 +1163,21 @@ const validateStep = (stepId) => {
 
   if (stepId === 1) {
     if (!profile.value.first_name.trim()) {
-      nextErrors.first_name = 'Укажите имя.'
+      nextErrors.first_name = copy.value.firstNameRequired
       isValid = false
     } else {
       delete nextErrors.first_name
     }
 
     if (!profile.value.last_name.trim()) {
-      nextErrors.last_name = 'Укажите фамилию.'
+      nextErrors.last_name = copy.value.lastNameRequired
       isValid = false
     } else {
       delete nextErrors.last_name
     }
 
     if (!profile.value.current_role.trim()) {
-      nextErrors.current_role = 'Укажите желаемую позицию.'
+      nextErrors.current_role = copy.value.roleRequired
       isValid = false
     } else {
       delete nextErrors.current_role
@@ -826,7 +1188,7 @@ const validateStep = (stepId) => {
     const availability = profile.value.availability.trim()
 
     if (!isValidAvailability(availability)) {
-      nextErrors.availability = 'Выберите доступность из списка.'
+      nextErrors.availability = copy.value.availabilityInvalid
       isValid = false
     } else {
       delete nextErrors.availability
@@ -840,13 +1202,13 @@ const validateStep = (stepId) => {
 const validateBeforeFinalSave = () => {
   if (!validateStep(1)) {
     step.value = 1
-    status.value = 'Проверьте обязательные поля.'
+    status.value = copy.value.requiredFields
     return false
   }
 
   if (!validateStep(2)) {
     step.value = 2
-    status.value = 'Проверьте обязательные поля.'
+    status.value = copy.value.requiredFields
     return false
   }
 
@@ -854,9 +1216,9 @@ const validateBeforeFinalSave = () => {
 }
 
 const validateFile = (file, { types, maxSize, label }) => {
-  if (!file) return `${label}: файл не выбран.`
-  if (!types.includes(file.type)) return `${label}: неподдерживаемый формат файла.`
-  if (file.size > maxSize) return `${label}: файл слишком большой.`
+  if (!file) return `${label}: ${copy.value.fileNotSelected}.`
+  if (!types.includes(file.type)) return `${label}: ${copy.value.fileUnsupported}.`
+  if (file.size > maxSize) return `${label}: ${copy.value.fileTooLarge}.`
   return ''
 }
 
@@ -865,7 +1227,7 @@ const addSector = () => {
   if (!option) return
 
   if (!canAddSector.value) {
-    setError('sectors', 'Такая сфера уже добавлена.')
+    setError('sectors', copy.value.sectorDuplicate)
     return
   }
 
@@ -905,7 +1267,7 @@ const addLicense = () => {
 
   const exists = profile.value.licenses.some((license) => license.toLowerCase() === value.toLowerCase())
   if (exists) {
-    setError('licenses', 'Такая лицензия или сертификат уже добавлены.')
+    setError('licenses', copy.value.licenseDuplicate)
     return
   }
 
@@ -918,7 +1280,15 @@ const removeLicense = (index) => {
   clearError('licenses')
 }
 
-const onAvatarChange = (event) => {
+const openAvatarPicker = () => {
+  avatarInputRef.value?.click()
+}
+
+const openResumePicker = () => {
+  resumeInputRef.value?.click()
+}
+
+const onAvatarChange = async (event) => {
   const file = event.target.files?.[0]
   event.target.value = ''
   if (!file) return
@@ -926,7 +1296,7 @@ const onAvatarChange = (event) => {
   const error = validateFile(file, {
     types: AVATAR_TYPES,
     maxSize: MAX_AVATAR_SIZE,
-    label: 'Аватар',
+    label: copy.value.avatarLabel,
   })
 
   if (error) {
@@ -934,11 +1304,23 @@ const onAvatarChange = (event) => {
     return
   }
 
-  avatarFile.value = file
-  revokeAvatarPreview()
-  avatarObjectUrl.value = URL.createObjectURL(file)
-  clearError('avatar')
-  scheduleAutosave()
+  try {
+    if (!isAuthenticated.value) {
+      const avatarDataUrl = await readFileAsDataUrl(file)
+      avatarFile.value = null
+      revokeAvatarPreview()
+      profile.value.avatar_url = avatarDataUrl
+    } else {
+      avatarFile.value = file
+      revokeAvatarPreview()
+      avatarObjectUrl.value = URL.createObjectURL(file)
+    }
+
+    clearError('avatar')
+    scheduleAutosave()
+  } catch (error) {
+    setError('avatar', getErrorMessage(error, copy.value.saveDraftError))
+  }
 }
 
 const onResumeChange = (event) => {
@@ -949,7 +1331,7 @@ const onResumeChange = (event) => {
   const error = validateFile(file, {
     types: RESUME_TYPES,
     maxSize: MAX_RESUME_SIZE,
-    label: 'CV',
+    label: copy.value.resumeLabel,
   })
 
   if (error) {
@@ -965,7 +1347,7 @@ const onResumeChange = (event) => {
 
 const saveCurrentStep = async () => {
   if (!validateStep(step.value)) {
-    status.value = 'Проверьте обязательные поля.'
+    status.value = copy.value.requiredFields
     return false
   }
 
@@ -986,7 +1368,7 @@ const goToStep = async (targetStep) => {
 
 const goNext = async () => {
   const saved = await saveCurrentStep()
-  if (saved && step.value < steps.length) {
+  if (saved && step.value < steps.value.length) {
     step.value += 1
   }
 }
@@ -1464,7 +1846,7 @@ const buildPrintableDocument = () => {
         <meta charset="utf-8">
         <meta name="viewport" content="width=794, initial-scale=1">
         <base href="${document.baseURI}">
-        <title>${cvName.value} — CVHOLD CV</title>
+        <title>${displayCvName.value} — CVHOLD CV</title>
       </head>
       <body class="cv-print-body"></body>
     </html>
@@ -1504,7 +1886,7 @@ const printCv = async () => {
   const printable = buildPrintableDocument()
 
   if (!printable) {
-    status.value = 'Не удалось подготовить CV к PDF.'
+    status.value = copy.value.pdfPrepareError
     return
   }
 
@@ -1531,7 +1913,7 @@ const printCv = async () => {
 
   printWindow.addEventListener('afterprint', cleanup)
   printWindow.focus()
-  status.value = 'Откройте системное окно печати и выберите «Сохранить в PDF».'
+  status.value = copy.value.printHint
   printWindow.print()
 
   window.setTimeout(cleanup, 8000)
@@ -1564,12 +1946,13 @@ onBeforeUnmount(() => {
       <section class="hero no-print">
         <div class="hero-copy">
           <div class="title-row">
-            <h1>Резюме кандидата</h1>
+            <h1>{{ isEnglish ? 'Candidate Resume' : 'Резюме кандидата' }}</h1>
           </div>
 
           <p>
-            Заполните профиль по шагам: основная информация, опыт и навыки, затем реальные файлы.
-            Всё сохраняется в аккаунт и используется в откликах на вакансии.
+            {{ isEnglish
+              ? 'Fill in your profile step by step: core details, experience and skills, then final files. Everything is saved to your account and used when applying for jobs.'
+              : 'Заполните профиль по шагам: основная информация, опыт и навыки, затем реальные файлы. Всё сохраняется в аккаунт и используется в откликах на вакансии.' }}
           </p>
         </div>
 
@@ -1595,65 +1978,71 @@ onBeforeUnmount(() => {
       <section class="builder">
         <div class="main-card">
           <div class="card-head no-print">
-            <h2 v-if="step === 1">Шаг 1. Основная информация</h2>
-            <h2 v-else-if="step === 2">Шаг 2. Опыт и навыки</h2>
-            <h2 v-else>Шаг 3. Фото, CV и финальная проверка</h2>
+            <h2 v-if="step === 1">{{ isEnglish ? 'Step 1. Core information' : 'Шаг 1. Основная информация' }}</h2>
+            <h2 v-else-if="step === 2">{{ isEnglish ? 'Step 2. Experience and skills' : 'Шаг 2. Опыт и навыки' }}</h2>
+            <h2 v-else>{{ isEnglish ? 'Step 3. Photo, CV and final review' : 'Шаг 3. Фото, CV и финальная проверка' }}</h2>
             <p v-if="statusMessage" class="hint">{{ statusMessage }}</p>
           </div>
 
           <template v-if="step === 1">
             <div class="grid-two">
               <label>
-                Имя
-                <input v-model="profile.first_name" placeholder="Иван" @input="clearError('first_name')" />
+                {{ isEnglish ? 'First name' : 'Имя' }}
+                <input v-model="profile.first_name" :placeholder="isEnglish ? 'John' : 'Иван'" @input="clearError('first_name')" />
                 <span v-if="errors.first_name" class="field-error">{{ errors.first_name }}</span>
               </label>
 
               <label>
-                Фамилия
-                <input v-model="profile.last_name" placeholder="Иванов" @input="clearError('last_name')" />
+                {{ isEnglish ? 'Last name' : 'Фамилия' }}
+                <input v-model="profile.last_name" :placeholder="isEnglish ? 'Doe' : 'Иванов'" @input="clearError('last_name')" />
                 <span v-if="errors.last_name" class="field-error">{{ errors.last_name }}</span>
               </label>
 
               <label>
                 Email
-                <input :value="profileEmail" disabled />
+                <input
+                  v-if="!isAuthenticated"
+                  v-model="profile.email"
+                  type="email"
+                  placeholder="email@example.com"
+                />
+                <input v-else :value="profileEmail" disabled />
               </label>
 
               <label>
-                Телефон
+                {{ isEnglish ? 'Phone' : 'Телефон' }}
                 <input v-model="profile.phone" placeholder="+371 2X XXX XXX" />
               </label>
 
               <label class="grid-span-2">
-                Желаемая позиция
+                {{ isEnglish ? 'Desired role' : 'Желаемая позиция' }}
                 <input
                   v-model="profile.current_role"
-                  placeholder="Например, Сварщик MIG/MAG"
+                  :placeholder="isEnglish ? 'For example, MIG/MAG Welder' : 'Например, Сварщик MIG/MAG'"
                   @input="clearError('current_role')"
                 />
                 <span v-if="errors.current_role" class="field-error">{{ errors.current_role }}</span>
               </label>
 
               <label class="grid-span-2">
-                Ключевые навыки
-                <input v-model="profile.skills" placeholder="MIG/MAG, TIG, монтаж, чтение чертежей" />
+                {{ isEnglish ? 'Key skills' : 'Ключевые навыки' }}
+                <input v-model="profile.skills" :placeholder="isEnglish ? 'MIG/MAG, TIG, installation, blueprint reading' : 'MIG/MAG, TIG, монтаж, чтение чертежей'" />
               </label>
             </div>
 
             <label>
-              О себе
+              {{ isEnglish ? 'About me' : 'О себе' }}
               <textarea
                 v-model="profile.summary"
                 rows="6"
-                placeholder="Кратко опишите ваш опыт, сильные стороны и формат работы, который ищете."
+                :placeholder="isEnglish ? 'Briefly describe your experience, strengths, and the kind of work you are looking for.' : 'Кратко опишите ваш опыт, сильные стороны и формат работы, который ищете.'"
               ></textarea>
             </label>
           </template>
 
           <template v-else-if="step === 2">
             <div class="section">
-              <label class="section-label">Сферы деятельности</label>
+              <label class="section-label">{{ isEnglish ? 'Work areas' : 'Сферы деятельности' }}</label>
 
               <div class="chips sector-chips">
                 <span
@@ -1666,7 +2055,7 @@ onBeforeUnmount(() => {
                   </span>
                   <span class="sector-chip__copy">
                     <strong>{{ getSectorOption(sector)?.label }}</strong>
-                    <small>{{ sector.experience || DEFAULT_SECTOR_EXPERIENCE }}</small>
+                    <small>{{ displaySectorExperience(sector.experience || DEFAULT_SECTOR_EXPERIENCE) }}</small>
                   </span>
                   <button type="button" @click="removeSector(index)">×</button>
                 </span>
@@ -1675,7 +2064,7 @@ onBeforeUnmount(() => {
               <div class="inline-add sector-add">
                 <BaseDropdown
                   v-model="selectedSector"
-                  aria-label="Сфера деятельности"
+                  :aria-label="isEnglish ? 'Work area' : 'Сфера деятельности'"
                   class="sector-dropdown"
                   :options="sectorDropdownOptions"
                   full-width
@@ -1685,14 +2074,14 @@ onBeforeUnmount(() => {
 
                 <BaseDropdown
                   v-model="selectedSectorExperience"
-                  aria-label="Опыт в сфере"
+                  :aria-label="isEnglish ? 'Experience in this area' : 'Опыт в сфере'"
                   class="sector-dropdown sector-dropdown--experience"
                   :options="sectorExperienceOptions"
                   full-width
                 />
 
                 <button type="button" class="ghost-button" :disabled="!canAddSector" @click="addSector">
-                  Добавить
+                  {{ isEnglish ? 'Add' : 'Добавить' }}
                 </button>
               </div>
 
@@ -1700,7 +2089,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="section">
-              <label class="section-label">Языки</label>
+              <label class="section-label">{{ isEnglish ? 'Languages' : 'Языки' }}</label>
 
               <div class="chips">
                 <span
@@ -1708,7 +2097,7 @@ onBeforeUnmount(() => {
                   :key="`${language.name}-${language.level}-${index}`"
                   class="chip"
                 >
-                  <span>{{ language.name }}</span>
+                  <span>{{ displayLanguageName(language.name) }}</span>
                   <b>{{ language.level }}</b>
                   <button type="button" @click="removeLanguage(index)">×</button>
                 </span>
@@ -1717,14 +2106,14 @@ onBeforeUnmount(() => {
               <div class="grid-two">
                 <BaseDropdown
                   v-model="newLanguage"
-                  aria-label="Язык"
+                  :aria-label="isEnglish ? 'Language' : 'Язык'"
                   full-width
                   :options="languageOptions"
                 />
 
                 <BaseDropdown
                   v-model="newLanguageLevel"
-                  aria-label="Уровень языка"
+                  :aria-label="isEnglish ? 'Language level' : 'Уровень языка'"
                   full-width
                   :options="languageLevelOptions"
                 />
@@ -1736,26 +2125,26 @@ onBeforeUnmount(() => {
                 :disabled="!canAddLanguage"
                 @click="addLanguage"
               >
-                Добавить язык
+                {{ isEnglish ? 'Add language' : 'Добавить язык' }}
               </button>
             </div>
 
             <div class="grid-two">
               <label>
-                Разрешение на работу
+                {{ isEnglish ? 'Work permit' : 'Разрешение на работу' }}
                 <BaseDropdown
                   v-model="profile.work_permit"
-                  aria-label="Разрешение на работу"
+                  :aria-label="isEnglish ? 'Work permit' : 'Разрешение на работу'"
                   full-width
                   :options="permitOptions"
                 />
               </label>
 
               <label>
-                Доступность
+                {{ isEnglish ? 'Availability' : 'Доступность' }}
                 <BaseDropdown
                   v-model="profile.availability"
-                  aria-label="Доступность"
+                  :aria-label="isEnglish ? 'Availability' : 'Доступность'"
                   full-width
                   :options="availabilityDropdownOptions"
                   @change="clearError('availability')"
@@ -1765,7 +2154,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="section">
-              <label class="section-label">Права, лицензии и сертификаты</label>
+              <label class="section-label">{{ isEnglish ? 'Licenses and certificates' : 'Права, лицензии и сертификаты' }}</label>
 
               <div class="chips">
                 <span v-for="(license, index) in profile.licenses" :key="`${license}-${index}`" class="chip">
@@ -1777,12 +2166,12 @@ onBeforeUnmount(() => {
               <div class="inline-add inline-add--dropdown">
                 <BaseDropdown
                   v-model="newLicense"
-                  aria-label="Категория прав, лицензия или сертификат"
+                  :aria-label="isEnglish ? 'License category, certificate or permit' : 'Категория прав, лицензия или сертификат'"
                   full-width
                   :options="licenseOptions"
                   @change="clearError('licenses')"
                 />
-                <button type="button" class="ghost-button" @click="addLicense">Добавить</button>
+                <button type="button" class="ghost-button" @click="addLicense">{{ isEnglish ? 'Add' : 'Добавить' }}</button>
               </div>
 
               <span v-if="errors.licenses" class="field-error">{{ errors.licenses }}</span>
@@ -1791,21 +2180,22 @@ onBeforeUnmount(() => {
 
           <template v-else>
             <div class="final-tools no-print">
-
               <div class="review-card">
                 <div>
-                  <h3>Готовое CV</h3>
+                  <h3>{{ isEnglish ? 'Ready CV' : 'Готовое CV' }}</h3>
                   <p>
-                    CV собирается автоматически из данных профиля. Проверьте результат ниже и сохраните PDF.
+                    {{ isEnglish
+                      ? 'Your CV is generated automatically from the profile data. Review the result below and save it as PDF.'
+                      : 'CV собирается автоматически из данных профиля. Проверьте результат ниже и сохраните PDF.' }}
                   </p>
                 </div>
 
                 <div class="review-actions">
-                  <button type="button" class="btn-light" :disabled="isSaving" @click="handleFinalSave">
-                    {{ isSaving ? 'Сохраняем...' : 'Сохранить' }}
+                  <button v-if="isAuthenticated" type="button" class="btn-light" :disabled="isSaving" @click="handleFinalSave">
+                    {{ isSaving ? copy.saving : (isEnglish ? 'Save' : 'Сохранить') }}
                   </button>
                   <button type="button" class="btn-primary" :disabled="isSaving" @click="printCv">
-                    Скачать PDF
+                    {{ isEnglish ? 'Download PDF' : 'Скачать PDF' }}
                   </button>
                 </div>
               </div>
@@ -1822,13 +2212,13 @@ onBeforeUnmount(() => {
                 <section class="cv-top">
                   <div class="cv-person">
                     <div class="cv-avatar">
-                      <img v-if="avatarPreview" :src="avatarPreview" :alt="cvName" />
+                      <img v-if="avatarPreview" :src="avatarPreview" :alt="displayCvName" />
                       <span v-else>{{ avatarInitials }}</span>
                     </div>
 
                     <div>
-                      <h1>{{ cvName }}</h1>
-                      <p>{{ cvRole }}</p>
+                      <h1>{{ displayCvName }}</h1>
+                      <p>{{ displayCvRole }}</p>
 
                       <ul class="cv-contact-list">
                         <li v-for="item in cvContactItems" :key="item.value">
@@ -1858,7 +2248,7 @@ onBeforeUnmount(() => {
                 <section class="cv-body">
                   <main class="cv-main">
                     <section class="cv-section cv-section--summary">
-                      <h2>О себе</h2>
+                      <h2>{{ isEnglish ? 'About me' : 'О себе' }}</h2>
                       <p
                         v-for="paragraph in cvSummaryParagraphs"
                         :key="paragraph"
@@ -1869,7 +2259,7 @@ onBeforeUnmount(() => {
                     </section>
 
                     <section v-if="cvVisibleSectors.length" class="cv-section">
-                      <h2>Сферы деятельности</h2>
+                      <h2>{{ isEnglish ? 'Work areas' : 'Сферы деятельности' }}</h2>
                       <div class="cv-sector-grid">
                         <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
                           <i :class="sector.iconClass"></i>
@@ -1879,17 +2269,17 @@ onBeforeUnmount(() => {
                           </span>
                         </div>
                         <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
-                          <span>+ ещё {{ cvMoreSectorsCount }}</span>
+                          <span>{{ isEnglish ? `+ ${cvMoreSectorsCount} more` : `+ ещё ${cvMoreSectorsCount}` }}</span>
                         </div>
                       </div>
                     </section>
 
                     <section v-if="cvVisibleSkills.length" class="cv-section">
-                      <h2>Навыки</h2>
+                      <h2>{{ isEnglish ? 'Skills' : 'Навыки' }}</h2>
                       <ul class="cv-list">
                         <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
                         <li v-if="cvMoreSkillsCount" class="cv-more-item">
-                          + ещё {{ cvMoreSkillsCount }}
+                          {{ isEnglish ? `+ ${cvMoreSkillsCount} more` : `+ ещё ${cvMoreSkillsCount}` }}
                         </li>
                       </ul>
                     </section>
@@ -1897,29 +2287,29 @@ onBeforeUnmount(() => {
 
                   <aside class="cv-aside">
                     <section v-if="cvVisibleLanguages.length" class="cv-section">
-                      <h2>Языки</h2>
+                      <h2>{{ isEnglish ? 'Languages' : 'Языки' }}</h2>
                       <ul class="cv-list">
                         <li v-for="language in cvVisibleLanguages" :key="`${language.name}-${language.level}`">
-                          {{ language.name }} — {{ language.level }}
+                          {{ displayLanguageName(language.name) }} — {{ language.level }}
                         </li>
                         <li v-if="cvMoreLanguagesCount" class="cv-more-item">
-                          + ещё {{ cvMoreLanguagesCount }}
+                          {{ isEnglish ? `+ ${cvMoreLanguagesCount} more` : `+ ещё ${cvMoreLanguagesCount}` }}
                         </li>
                       </ul>
                     </section>
 
                     <section v-if="cvVisibleLicenses.length" class="cv-section">
-                      <h2>Сертификаты и лицензии</h2>
+                      <h2>{{ isEnglish ? 'Certificates and licenses' : 'Сертификаты и лицензии' }}</h2>
                       <ul class="cv-list">
                         <li v-for="license in cvVisibleLicenses" :key="license">{{ license }}</li>
                         <li v-if="cvMoreLicensesCount" class="cv-more-item">
-                          + ещё {{ cvMoreLicensesCount }}
+                          {{ isEnglish ? `+ ${cvMoreLicensesCount} more` : `+ ещё ${cvMoreLicensesCount}` }}
                         </li>
                       </ul>
                     </section>
 
                     <section class="cv-section">
-                      <h2>Дополнительно</h2>
+                      <h2>{{ isEnglish ? 'Additional details' : 'Дополнительно' }}</h2>
                       <ul class="cv-extra-list">
                         <li v-for="item in cvAdditionalItems" :key="item.label">
                           <i :class="item.icon"></i>
@@ -1944,38 +2334,49 @@ onBeforeUnmount(() => {
 
           <div class="footer-actions no-print">
             <button type="button" class="btn-light" :disabled="step === 1 || isSaving" @click="goPrev">
-              Назад
+              {{ isEnglish ? 'Back' : 'Назад' }}
             </button>
 
             <button v-if="step < 3" type="button" class="btn-primary" :disabled="isSaving" @click="goNext">
-              {{ isSaving ? 'Сохраняем...' : 'Далее' }}
+              {{ isSaving ? copy.saving : (isEnglish ? 'Next' : 'Далее') }}
             </button>
           </div>
         </div>
 
         <aside class="sidebar no-print">
           <div class="side-card profile-card">
+            <input
+              ref="avatarInputRef"
+              class="upload-card__input"
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+              @change="onAvatarChange"
+            />
             <div class="profile-card__top">
-              <div class="profile-avatar">
-                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" alt="Аватар" />
+              <button type="button" class="profile-avatar profile-avatar--button" @click="openAvatarPicker">
+                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="isEnglish ? 'Avatar' : 'Аватар'" />
                 <span v-else>{{ avatarInitials }}</span>
-              </div>
+              </button>
 
               <div>
-                <strong>{{ fullName || 'Ваше имя' }}</strong>
-                <p>{{ profile.current_role || 'Профессия' }}</p>
+                <strong>{{ fullName || (isEnglish ? 'Your name' : 'Ваше имя') }}</strong>
+                <p>{{ profile.current_role || (isEnglish ? 'Profession' : 'Профессия') }}</p>
               </div>
             </div>
 
             <div class="profile-meta">
               <span>{{ profileEmail || 'email@example.com' }}</span>
               <span>{{ profile.phone || '+000 00 000 000' }}</span>
+              <button type="button" class="text-link-button" @click="openAvatarPicker">
+                {{ avatarPreview ? (isEnglish ? 'Change avatar' : 'Изменить аватар') : (isEnglish ? 'Upload avatar' : 'Загрузить аватар') }}
+              </button>
+              <span v-if="errors.avatar" class="field-error">{{ errors.avatar }}</span>
             </div>
           </div>
 
           <div class="side-card">
             <div class="side-card__head">
-              <strong>Заполненность профиля</strong>
+              <strong>{{ isEnglish ? 'Profile completion' : 'Заполненность профиля' }}</strong>
               <span class="shield">✓</span>
             </div>
 
@@ -1985,33 +2386,33 @@ onBeforeUnmount(() => {
               <span class="progress-bar" :style="{ width: `${progress}%` }"></span>
             </div>
 
-            <p>Готовый профиль ускоряет отклик на вакансии и делает кандидата понятнее работодателю.</p>
+            <p>{{ isEnglish ? 'A complete profile speeds up applications and makes the candidate clearer to employers.' : 'Готовый профиль ускоряет отклик на вакансии и делает кандидата понятнее работодателю.' }}</p>
           </div>
 
           <div class="side-card side-card--dashed">
-            <h3>Что должно быть в хорошем CV</h3>
+            <h3>{{ isEnglish ? 'What a strong CV should include' : 'Что должно быть в хорошем CV' }}</h3>
 
             <div class="feature">
               <span class="feature-icon">1</span>
               <div class="feature-text">
-                <strong>Понятная роль</strong>
-                <small>Укажите специализацию и сильные стороны в нескольких словах.</small>
+                <strong>{{ isEnglish ? 'Clear role' : 'Понятная роль' }}</strong>
+                <small>{{ isEnglish ? 'State your specialization and strongest points in a few words.' : 'Укажите специализацию и сильные стороны в нескольких словах.' }}</small>
               </div>
             </div>
 
             <div class="feature">
               <span class="feature-icon">2</span>
               <div class="feature-text">
-                <strong>Сферы деятельности и опыт</strong>
-                <small>Добавьте направления работы, опыт по каждой сфере и языки.</small>
+                <strong>{{ isEnglish ? 'Work areas and experience' : 'Сферы деятельности и опыт' }}</strong>
+                <small>{{ isEnglish ? 'Add your fields of work, experience for each area, and languages.' : 'Добавьте направления работы, опыт по каждой сфере и языки.' }}</small>
               </div>
             </div>
 
             <div class="feature">
               <span class="feature-icon">3</span>
               <div class="feature-text">
-                <strong>Готовое CV</strong>
-                <small>На последнем шаге профиль собирается в аккуратное резюме для PDF.</small>
+                <strong>{{ isEnglish ? 'Ready CV' : 'Готовое CV' }}</strong>
+                <small>{{ isEnglish ? 'On the last step, the profile is assembled into a clean PDF-ready resume.' : 'На последнем шаге профиль собирается в аккуратное резюме для PDF.' }}</small>
               </div>
             </div>
           </div>
@@ -2344,9 +2745,17 @@ textarea:focus {
   cursor: pointer;
 }
 
+.upload-card__input {
+  display: none;
+}
+
 .upload-card__title {
   color: var(--text-primary);
   font-weight: 700;
+}
+
+.upload-card__button {
+  width: fit-content;
 }
 
 .avatar,
@@ -2364,12 +2773,37 @@ textarea:focus {
   flex: 0 0 5.2rem;
 }
 
+.profile-avatar--button {
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 0 0 0 transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar--button:hover,
+.profile-avatar--button:focus-visible {
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.14);
+}
+
 .avatar__image,
 .profile-avatar__image {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover;
   display: block;
+}
+
+.text-link-button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
 }
 
 .review-card {

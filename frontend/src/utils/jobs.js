@@ -71,6 +71,7 @@ export const normalizeJob = (job, index = 0) => {
     company: job.company || 'Компания',
     location: job.location || 'Локация не указана',
     displayLocation: formatJobLocation(job),
+    employment_type: job.employment_type || job.employmentType || '',
     countryKey: country.countryKey,
     countryLabel: country.countryLabel || 'Европа',
     countryFlagCode: country.countryFlagCode || 'eu',

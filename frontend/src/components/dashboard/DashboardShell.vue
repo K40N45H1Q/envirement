@@ -1,5 +1,8 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
 
 defineProps({
   sections: {
@@ -35,7 +38,7 @@ defineEmits(['select-section'])
   <main class="dashboard-shell">
     <aside class="dashboard-sidebar">
       <div class="dashboard-sidebar__top">
-        <p class="dashboard-sidebar__eyebrow">Разделы кабинета</p>
+        <p class="dashboard-sidebar__eyebrow">{{ t('dashboardShell.sectionsTitle') }}</p>
       </div>
       <component
         :is="section.to ? RouterLink : 'button'"
@@ -145,7 +148,7 @@ defineEmits(['select-section'])
 }
 
 .dashboard-sidebar__item:hover,
- .dashboard-sidebar__item:focus-visible {
+.dashboard-sidebar__item:focus-visible {
   background: color-mix(in srgb, var(--brand-soft) 60%, transparent);
   color: var(--brand-strong);
 }

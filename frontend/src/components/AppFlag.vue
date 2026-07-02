@@ -2,9 +2,11 @@
 import { computed } from 'vue'
 
 import beFlag from 'flag-icons/flags/4x3/be.svg'
+import czFlag from 'flag-icons/flags/4x3/cz.svg'
 import deFlag from 'flag-icons/flags/4x3/de.svg'
 import eeFlag from 'flag-icons/flags/4x3/ee.svg'
 import euFlag from 'flag-icons/flags/4x3/eu.svg'
+import fiFlag from 'flag-icons/flags/4x3/fi.svg'
 import frFlag from 'flag-icons/flags/4x3/fr.svg'
 import lvFlag from 'flag-icons/flags/4x3/lv.svg'
 import nlFlag from 'flag-icons/flags/4x3/nl.svg'
@@ -23,16 +25,18 @@ const props = defineProps({
 
 const flagMap = {
   be: beFlag,
+  cz: czFlag,
   de: deFlag,
   ee: eeFlag,
   eu: euFlag,
+  fi: fiFlag,
   fr: frFlag,
   lv: lvFlag,
   nl: nlFlag,
   pl: plFlag,
 }
 
-const src = computed(() => flagMap[props.code] || euFlag)
+const src = computed(() => flagMap[String(props.code || '').trim().toLowerCase()] || euFlag)
 </script>
 
 <template>

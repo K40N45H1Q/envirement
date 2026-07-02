@@ -24,6 +24,7 @@ class Job(SQLModel, table=True):
     status: str = Field(default="pending")
     company: str
     location: str
+    employment_type: Optional[str] = None
     country_key: Optional[str] = None
     country_label: Optional[str] = None
     country_flag_code: Optional[str] = None
@@ -145,6 +146,11 @@ def ensure_job_columns():
         if "country_flag_code" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE job ADD COLUMN country_flag_code VARCHAR"
+            )
+
+        if "employment_type" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN employment_type VARCHAR"
             )
 
 

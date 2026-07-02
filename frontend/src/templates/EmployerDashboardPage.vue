@@ -22,7 +22,13 @@ import {
   normalizeLanguages,
   normalizeLicenses,
 } from '@/utils/jobRequirements'
-import { countryByKey, countryDropdownOptions, resolveCountryMeta } from '@/utils/countries'
+import {
+  citiesByCountry,
+  countryByKey,
+  countryDropdownOptions,
+  resolveCountryMeta,
+  salaryCurrencyOptions,
+} from '@/utils/countries'
 import { analyzeCandidateMatch } from '@/utils/matchScore'
 import { normalizeJob } from '@/utils/jobs'
 
@@ -30,6 +36,11 @@ const route = useRoute()
 const router = useRouter()
 const messaging = useMessagingStore()
 const { language: currentLanguage } = useI18n()
+const employmentTypeOptions = [
+  { id: 'full-time', ru: 'Полная занятость', en: 'Full-time' },
+  { id: 'shift', ru: 'Вахта / смены', en: 'Shift work' },
+  { id: 'contract', ru: 'Проект / контракт', en: 'Project / contract' },
+]
 
 const plans = [
   {
@@ -102,10 +113,15 @@ const copy = computed(() => (
       titlePlaceholder: 'Electrician',
       company: 'Company',
       salary: 'Salary',
+      salaryAmount: 'Salary amount',
+      salaryAmountPlaceholder: '2 200 - 2 800',
+      salaryCurrency: 'Currency',
+      employmentType: 'Employment type',
       country: 'Country',
       countryAria: 'Vacancy country',
-      location: 'Location',
-      locationPlaceholder: 'Berlin, Germany',
+      city: 'City',
+      cityAria: 'Vacancy city',
+      chooseCity: 'Choose city',
       selectedCountry: 'Selected country',
       notSelected: 'Not selected',
       vacancyPhoto: 'Vacancy photo',
@@ -120,8 +136,8 @@ const copy = computed(() => (
       description: 'Description',
       descriptionPlaceholder: 'Responsibilities, requirements, and working conditions',
       vacancyLanguages: 'Languages for the vacancy',
-      requiredLanguage: 'Required language',
-      requiredLanguageLevel: 'Required language level',
+      requiredLanguage: 'Languages',
+      requiredLanguageLevel: 'Category',
       addLanguage: 'Add language',
       licenses: 'Licences and certificates',
       licenseAria: 'Driving licence, certificate, or permit',
@@ -201,10 +217,15 @@ const copy = computed(() => (
       titlePlaceholder: 'Электрик',
       company: 'Компания',
       salary: 'Зарплата',
+      salaryAmount: 'Сумма зарплаты',
+      salaryAmountPlaceholder: '2 200 - 2 800',
+      salaryCurrency: 'Валюта',
+      employmentType: 'Тип занятости',
       country: 'Страна',
       countryAria: 'Страна вакансии',
-      location: 'Локация',
-      locationPlaceholder: 'Берлин, Германия',
+      city: 'Город',
+      cityAria: 'Город вакансии',
+      chooseCity: 'Выберите город',
       selectedCountry: 'Выбранная страна',
       notSelected: 'Не выбрана',
       vacancyPhoto: 'Фото вакансии',
@@ -298,6 +319,10 @@ const localizedSections = computed(() => sections.map((section) => ({
 })))
 
 const localizedLanguageOptions = computed(() => getLanguageOptions())
+const localizedEmploymentTypeOptions = computed(() => employmentTypeOptions.map((option) => ({
+  id: option.id,
+  label: isEnglish.value ? option.en : option.ru,
+})))
 const validSectionIds = sections.map((section) => section.id)
 const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'jobs')
 
@@ -305,6 +330,8 @@ const blankForm = () => ({
   title: '',
   company: '',
   salary: '',
+  salary_currency: 'EUR',
+  employment_type: 'full-time',
   country_key: '',
   location: '',
   description: '',
@@ -344,10 +371,39 @@ const canAddLanguage = computed(() => !form.value.languages.some((language) => (
 )))
 const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId) || localizedPlans.value[1])
 const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
+const cityOptions = computed(() => {
+  const availableCities = selectedCountry.value ? (citiesByCountry[selectedCountry.value.key] || []) : []
+  const currentLocation = String(form.value.location || '').trim()
+  const options = availableCities.map((city) => ({ value: city, label: city }))
+
+  if (currentLocation && !availableCities.includes(currentLocation)) {
+    options.unshift({ value: currentLocation, label: currentLocation })
+  }
+
+  return [{ value: '', label: copy.value.chooseCity }, ...options]
+})
 const scoredResponses = computed(() => responses.value.map((item) => ({
   ...item,
   matchAnalysis: analyzeCandidateMatch(item, item),
 })))
+
+function parseSalaryParts(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return { amount: '', currency: 'EUR' }
+
+  const match = raw.match(/^(.*?)(?:\s+([A-Z]{3}|€|\$))?$/)
+  const amount = String(match?.[1] || raw).trim()
+  const currencyToken = String(match?.[2] || '').trim().toUpperCase()
+  const currency = currencyToken === '€' ? 'EUR' : currencyToken === '$' ? 'USD' : currencyToken || 'EUR'
+
+  return { amount, currency }
+}
+
+function formatSalaryValue(amount, currency) {
+  const cleanAmount = String(amount || '').trim()
+  const cleanCurrency = String(currency || '').trim().toUpperCase()
+  return cleanAmount && cleanCurrency ? `${cleanAmount} ${cleanCurrency}` : cleanAmount
+}
 
 const groupedResponses = computed(() => {
   const groups = new Map()
@@ -616,11 +672,14 @@ function onLogoChange(event) {
 
 async function editJob(job) {
   const country = resolveCountryMeta(job)
+  const salaryParts = parseSalaryParts(job.salary)
   editingId.value = job.id
   form.value = {
     title: job.title,
     company: job.company,
-    salary: job.salary,
+    salary: salaryParts.amount,
+    salary_currency: salaryParts.currency,
+    employment_type: job.employment_type || job.employmentType || 'full-time',
     country_key: country.countryKey || '',
     location: job.location,
     description: job.description,
@@ -642,7 +701,12 @@ async function submitJob() {
   isSaving.value = true
 
   try {
-    const { languages, licenses, ...formPayload } = form.value
+    const {
+      languages,
+      licenses,
+      salary_currency: _salaryCurrency,
+      ...formPayload
+    } = form.value
     if (!selectedCountry.value) {
       error.value = copy.value.chooseCountryError
       return
@@ -650,6 +714,7 @@ async function submitJob() {
 
     const payload = {
       ...formPayload,
+      salary: formatSalaryValue(form.value.salary, form.value.salary_currency),
       country_key: selectedCountry.value.key,
       country_label: selectedCountry.value.label,
       country_flag_code: selectedCountry.value.flagCode,
@@ -739,6 +804,18 @@ function statusLabel(value) {
 }
 
 watch(
+  () => form.value.country_key,
+  (nextCountryKey, previousCountryKey) => {
+    if (!nextCountryKey || nextCountryKey === previousCountryKey) return
+
+    const availableCities = citiesByCountry[nextCountryKey] || []
+    if (availableCities.length && !availableCities.includes(form.value.location)) {
+      form.value.location = ''
+    }
+  },
+)
+
+watch(
   () => route.query.section,
   async (section) => {
     activeSection.value = normalizeSection(typeof section === 'string' ? section : 'jobs')
@@ -804,7 +881,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="field-grid">
+            <div class="fields-row">
               <label>
                 {{ copy.title }}
                 <input v-model="form.title" required :placeholder="copy.titlePlaceholder" />
@@ -815,11 +892,23 @@ onBeforeUnmount(() => {
               </label>
             </div>
 
-            <div class="field-grid">
+            <div class="fields-row">
               <label>
-                {{ copy.salary }}
-                <input v-model="form.salary" required placeholder="2 200 - 2 800 EUR" />
+                {{ copy.salaryAmount }}
+                <input v-model="form.salary" required :placeholder="copy.salaryAmountPlaceholder" />
               </label>
+              <label>
+                {{ copy.salaryCurrency }}
+                <BaseDropdown
+                  v-model="form.salary_currency"
+                  :aria-label="copy.salaryCurrency"
+                  full-width
+                  :options="salaryCurrencyOptions"
+                />
+              </label>
+            </div>
+
+            <div class="fields-row">
               <label>
                 {{ copy.country }}
                 <BaseDropdown
@@ -829,19 +918,60 @@ onBeforeUnmount(() => {
                   :options="countryDropdownOptions"
                 />
               </label>
+              <label>
+                {{ copy.city }}
+                <BaseDropdown
+                  v-model="form.location"
+                  :aria-label="copy.cityAria"
+                  full-width
+                  :options="cityOptions"
+                />
+              </label>
             </div>
 
-            <div class="field-grid">
+            <div class="fields-row">
               <label>
-                {{ copy.location }}
-                <input v-model="form.location" required :placeholder="copy.locationPlaceholder" />
+                {{ copy.requiredLanguage }}
+                <BaseDropdown
+                  v-model="newLanguage"
+                  :aria-label="copy.requiredLanguage"
+                  full-width
+                  :options="localizedLanguageOptions"
+                />
               </label>
-              <div class="field-hint">
-                <span>{{ copy.selectedCountry }}</span>
-                <strong>{{ selectedCountry?.label || copy.notSelected }}</strong>
+
+              <label>
+                {{ copy.requiredLanguageLevel }}
+                <BaseDropdown
+                  v-model="newLanguageLevel"
+                  :aria-label="copy.requiredLanguageLevel"
+                  full-width
+                  :options="languageLevelOptions"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              class="btn-secondary"
+              :disabled="!canAddLanguage"
+              @click="addLanguage"
+            >
+              {{ copy.addLanguage }}
+            </button>
+            <div class="section">
+              <div class="chips">
+                <span
+                  v-for="(language, index) in form.languages"
+                  :key="`${language.name}-${language.level}-${index}`"
+                  class="chip"
+                >
+                  <span>{{ language.name }}</span>
+                  <b>{{ language.level }}</b>
+                  <button type="button" @click="removeLanguage(index)">×</button>
+                </span>
               </div>
             </div>
-
+            
             <div class="upload-grid">
               <label class="upload-card">
                 <span class="upload-title">{{ copy.vacancyPhoto }}</span>
@@ -850,7 +980,7 @@ onBeforeUnmount(() => {
                 <span class="upload-filename">{{ form.logo?.name || copy.noFileSelected }}</span>
                 <input type="file" accept="image/*" @change="onLogoChange" />
               </label>
-
+              
               <div class="preview-card">
                 <img v-if="logoPreview" :src="logoPreview" :alt="copy.vacancyPreview" />
                 <div v-else class="preview-placeholder">
@@ -859,7 +989,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
-
             <div class="attribute-grid">
               <label class="attribute-card" :class="{ 'attribute-card--active': form.has_housing }">
                 <input v-model="form.has_housing" type="checkbox" />
@@ -879,53 +1008,6 @@ onBeforeUnmount(() => {
                 </span>
               </label>
             </div>
-
-            <label>
-              {{ copy.description }}
-              <textarea v-model="form.description" rows="6" required :placeholder="copy.descriptionPlaceholder"></textarea>
-            </label>
-
-            <div class="section">
-              <label class="section-label">{{ copy.vacancyLanguages }}</label>
-
-              <div class="chips">
-                <span
-                  v-for="(language, index) in form.languages"
-                  :key="`${language.name}-${language.level}-${index}`"
-                  class="chip"
-                >
-                  <span>{{ language.name }}</span>
-                  <b>{{ language.level }}</b>
-                  <button type="button" @click="removeLanguage(index)">×</button>
-                </span>
-              </div>
-
-              <div class="field-grid">
-                <BaseDropdown
-                  v-model="newLanguage"
-                  :aria-label="copy.requiredLanguage"
-                  full-width
-                  :options="localizedLanguageOptions"
-                />
-
-                <BaseDropdown
-                  v-model="newLanguageLevel"
-                  :aria-label="copy.requiredLanguageLevel"
-                  full-width
-                  :options="languageLevelOptions"
-                />
-              </div>
-
-              <button
-                type="button"
-                class="btn-secondary btn-secondary--compact"
-                :disabled="!canAddLanguage"
-                @click="addLanguage"
-              >
-                {{ copy.addLanguage }}
-              </button>
-            </div>
-
             <div class="section">
               <label class="section-label">{{ copy.licenses }}</label>
 
@@ -943,13 +1025,38 @@ onBeforeUnmount(() => {
                   full-width
                   :options="licenseOptions"
                 />
-                <button type="button" class="btn-secondary btn-secondary--compact" @click="addLicense">{{ copy.add }}</button>
+                <button type="button" class="btn-secondary" @click="addLicense">{{ copy.add }}</button>
               </div>
             </div>
+            <div class="field-grid">
+              <div class="field-group field-group--full">
+                <span class="field-label">{{ copy.employmentType }}</span>
+                <div class="stack-options">
+                  <button
+                    v-for="option in localizedEmploymentTypeOptions"
+                    :key="option.id"
+                    type="button"
+                    class="filter-chip"
+                    :class="{ 'filter-chip--active': form.employment_type === option.id }"
+                    @click="form.employment_type = option.id"
+                    >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+
+
+            <label>
+              {{ copy.description }}
+              <textarea v-model="form.description" rows="6" required :placeholder="copy.descriptionPlaceholder"></textarea>
+            </label>
+
+
 
             <div class="form-actions">
               <button class="btn-primary" type="submit" :disabled="isSaving">{{ localizedSubmitLabel }}</button>
-              <button v-if="isEditing" class="btn-secondary" type="button" @click="resetForm">{{ copy.reset }}</button>
             </div>
           </form>
 
@@ -1018,12 +1125,6 @@ onBeforeUnmount(() => {
           <p v-if="!responses.length" class="state">{{ copy.noResponsesYet }}</p>
 
           <template v-else>
-            <div class="response-stats">
-              <article v-for="item in localizedResponseStats" :key="item.label" class="response-stat-card">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </article>
-            </div>
 
             <div v-if="responseMatchSummary.length" class="response-summary">
               <span
@@ -1261,7 +1362,7 @@ onBeforeUnmount(() => {
 }
 
 .jobs-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 2fr));
   align-items: start;
 }
 
@@ -1292,7 +1393,6 @@ onBeforeUnmount(() => {
 }
 
 .panel-heading,
-.form-actions,
 .plan-card__top,
 .job-top,
 .job-footer,
@@ -1302,6 +1402,11 @@ onBeforeUnmount(() => {
   gap: 1rem;
   align-items: flex-start;
 }
+
+.form-actions button {
+  width: 100%;
+}
+
 
 .eyebrow {
   margin: 0 0 0.45rem;
@@ -1351,7 +1456,7 @@ p {
 
 .section {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.65rem;
 }
 
 .section-label {
@@ -1393,7 +1498,7 @@ p {
 
 .inline-add {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
   align-items: start;
 }
@@ -1415,6 +1520,45 @@ p {
 .field-hint strong {
   color: var(--text-primary);
   font-size: 0.95rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.field-group--full {
+  grid-column: 1 / -1;
+}
+
+.field-label {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.stack-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.filter-chip {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.9rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 999rem;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.filter-chip--active {
+  border-color: color-mix(in srgb, var(--brand-base) 26%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  color: var(--brand-strong);
 }
 
 .btn-secondary--compact {
@@ -1724,12 +1868,6 @@ textarea {
 .responses-subtitle {
   margin-top: 0.45rem;
   line-height: 1.5;
-}
-
-.response-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
 }
 
 .response-stat-card {
@@ -2205,9 +2343,14 @@ textarea {
   margin-top: auto;
 }
 
+.fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
 @media (max-width: 88rem) {
-  .pricing-grid,
-  .response-stats {
+  .pricing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2225,13 +2368,11 @@ textarea {
 
 @media (max-width: 56rem) {
   .pricing-grid,
-  .response-stats,
   .field-grid,
   .attribute-grid,
   .upload-grid,
   .inline-add,
   .panel-heading,
-  .form-actions,
   .job-row,
   .job-top,
   .job-footer {
@@ -2292,9 +2433,6 @@ textarea {
 }
 
 @media (max-width: 34rem) {
-  .response-stats {
-    grid-template-columns: 1fr;
-  }
 
   .response-avatar {
     width: 4rem;

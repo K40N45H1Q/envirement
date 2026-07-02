@@ -11,7 +11,6 @@ from routes.jobs import router as legacy_jobs_router
 from routes.profile import router as legacy_profile_router
 from routes.safety import (
     ensure_default_admin,
-    ensure_mvp_seed_data,
     router as legacy_safety_router,
 )
 
@@ -32,7 +31,6 @@ def create_app() -> FastAPI:
     environ["UPLOAD_DIR"] = str(uploads_dir)
 
     ensure_default_admin()
-    ensure_mvp_seed_data()
 
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     app.include_router(api_router, prefix="/api")

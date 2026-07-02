@@ -1,14 +1,101 @@
 export const countryMeta = [
-  { key: 'germany', label: 'Германия', flagCode: 'de' },
-  { key: 'finland', label: 'Финляндия', flagCode: 'fi' },
-  { key: 'czechia', label: 'Чехия', flagCode: 'cz' },
-  { key: 'netherlands', label: 'Нидерланды', flagCode: 'nl' },
-  { key: 'poland', label: 'Польша', flagCode: 'pl' },
-  { key: 'belgium', label: 'Бельгия', flagCode: 'be' },
-  { key: 'france', label: 'Франция', flagCode: 'fr' },
-  { key: 'latvia', label: 'Латвия', flagCode: 'lv' },
-  { key: 'estonia', label: 'Эстония', flagCode: 'ee' },
+  {
+    key: 'germany',
+    label: 'Германия',
+    canonicalLabel: 'Germany',
+    flagCode: 'de',
+    aliases: ['germany', 'deutschland', 'германия'],
+    cities: ['Berlin', 'Hamburg', 'Munich', 'Frankfurt', 'Leipzig', 'Stuttgart'],
+  },
+  {
+    key: 'finland',
+    label: 'Финляндия',
+    canonicalLabel: 'Finland',
+    flagCode: 'fi',
+    aliases: ['finland', 'suomi', 'финляндия'],
+    cities: ['Helsinki', 'Tampere', 'Turku', 'Oulu', 'Vantaa'],
+  },
+  {
+    key: 'czechia',
+    label: 'Чехия',
+    canonicalLabel: 'Czechia',
+    flagCode: 'cz',
+    aliases: ['czechia', 'czech republic', 'cesko', 'česko', 'чехия'],
+    cities: ['Prague', 'Brno', 'Ostrava', 'Pilsen'],
+  },
+  {
+    key: 'netherlands',
+    label: 'Нидерланды',
+    canonicalLabel: 'Netherlands',
+    flagCode: 'nl',
+    aliases: ['netherlands', 'nederland', 'holland', 'нидерланды'],
+    cities: ['Amsterdam', 'Rotterdam', 'The Hague', 'Utrecht', 'Eindhoven'],
+  },
+  {
+    key: 'poland',
+    label: 'Польша',
+    canonicalLabel: 'Poland',
+    flagCode: 'pl',
+    aliases: ['poland', 'polska', 'польша'],
+    cities: ['Warsaw', 'Krakow', 'Wroclaw', 'Gdansk', 'Poznan'],
+  },
+  {
+    key: 'belgium',
+    label: 'Бельгия',
+    canonicalLabel: 'Belgium',
+    flagCode: 'be',
+    aliases: ['belgium', 'belgie', 'belgique', 'бельгия'],
+    cities: ['Brussels', 'Antwerp', 'Ghent', 'Liege'],
+  },
+  {
+    key: 'france',
+    label: 'Франция',
+    canonicalLabel: 'France',
+    flagCode: 'fr',
+    aliases: ['france', 'francia', 'frankrijk', 'франция'],
+    cities: ['Paris', 'Lyon', 'Marseille', 'Lille', 'Toulouse'],
+  },
+  {
+    key: 'latvia',
+    label: 'Латвия',
+    canonicalLabel: 'Latvia',
+    flagCode: 'lv',
+    aliases: ['latvia', 'latvija', 'латвия'],
+    cities: ['Riga', 'Liepaja', 'Daugavpils', 'Jelgava', 'Ventspils'],
+  },
+  {
+    key: 'estonia',
+    label: 'Эстония',
+    canonicalLabel: 'Estonia',
+    flagCode: 'ee',
+    aliases: ['estonia', 'eesti', 'эстония'],
+    cities: ['Tallinn', 'Tartu', 'Narva', 'Parnu'],
+  },
 ]
+
+export const citiesByCountry = Object.fromEntries(
+  countryMeta.map((country) => [country.key, country.cities]),
+)
+
+export const salaryCurrencyOptions = [
+  { value: '€', label: '€' },
+  { value: '$', label: '$' },
+  { value: 'zł', label: 'zł' },
+  { value: 'Kč', label: 'Kč' },
+]
+
+const normalizeText = (value = '') => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-zа-яё0-9]+/gi, ' ')
+  .trim()
+
+const looksLikeMojibake = (value = '') => /[ÐÑ]/.test(String(value || ''))
+
+const countryAliases = Object.fromEntries(
+  countryMeta.flatMap((country) => country.aliases.map((alias) => [normalizeText(alias), country.key])),
+)
 
 export const countryDropdownOptions = countryMeta.map((country) => ({
   value: country.key,
@@ -18,35 +105,48 @@ export const countryDropdownOptions = countryMeta.map((country) => ({
 
 export const countryByKey = Object.fromEntries(countryMeta.map((country) => [country.key, country]))
 
-export const inferCountryFromLocation = (location = '') => {
-  const value = String(location || '').toLowerCase()
-  if (value.includes('герман') || value.includes('germany') || value.includes('berlin')) return 'germany'
-  if (value.includes('finland') || value.includes('финля') || value.includes('tampere')) return 'finland'
-  if (value.includes('czech') || value.includes('чех') || value.includes('prague') || value.includes('praha')) return 'czechia'
-  if (value.includes('нидер') || value.includes('netherlands') || value.includes('rotterdam')) return 'netherlands'
-  if (value.includes('польш') || value.includes('poland') || value.includes('warsaw')) return 'poland'
-  if (value.includes('бельг') || value.includes('belgium') || value.includes('antwerp')) return 'belgium'
-  if (value.includes('франц') || value.includes('france') || value.includes('paris')) return 'france'
-  if (value.includes('латв') || value.includes('latvia') || value.includes('riga')) return 'latvia'
-  if (value.includes('эстон') || value.includes('estonia') || value.includes('tallinn')) return 'estonia'
-  return ''
+export const inferCountryFromLabel = (value = '') => {
+  const normalized = normalizeText(value)
+  return countryAliases[normalized] || ''
 }
 
+export const inferCountryFromLocation = (location = '') => {
+  const normalizedLocation = normalizeText(location)
+  if (!normalizedLocation) return ''
+
+  const matchedCountry = countryMeta.find((country) => (
+    country.aliases.some((alias) => normalizedLocation.includes(normalizeText(alias)))
+      || country.cities.some((city) => normalizedLocation.includes(normalizeText(city)))
+  ))
+
+  return matchedCountry?.key || ''
+}
+
+const normalizeCountryKey = (value = '') => normalizeText(value).replace(/\s+/g, '')
+
 export const resolveCountryMeta = (job = {}) => {
-  const countryKey = String(job.country_key || job.countryKey || inferCountryFromLocation(job.location) || '').trim()
-  const country = countryByKey[countryKey] || null
+  const rawCountryKey = normalizeCountryKey(job.country_key || job.countryKey)
+  const rawFlagCode = String(job.country_flag_code || job.countryFlagCode || '').trim().toLowerCase()
+  const detectedCountryKey = rawCountryKey
+    || inferCountryFromLabel(job.country_label)
+    || inferCountryFromLabel(job.countryLabel)
+    || inferCountryFromLocation(job.location)
+  const country = countryByKey[detectedCountryKey] || null
+  const safeLabel = [job.countryLabel, job.country_label]
+    .map((value) => String(value || '').trim())
+    .find((value) => value && !looksLikeMojibake(value) && normalizeText(value) !== 'europe')
 
   return {
-    countryKey: country?.key || countryKey,
-    countryLabel: String(job.country_label || job.countryLabel || country?.label || '').trim(),
-    countryFlagCode: String(job.country_flag_code || job.countryFlagCode || country?.flagCode || '').trim(),
+    countryKey: country?.key || detectedCountryKey || '',
+    countryLabel: country?.label || safeLabel || '',
+    countryFlagCode: country?.flagCode || rawFlagCode || '',
   }
 }
 
 export const formatJobLocation = (job = {}) => {
-  const country = String(job.country_label || job.countryLabel || '').trim()
+  const { countryLabel } = resolveCountryMeta(job)
   const location = String(job.location || '').trim()
 
-  if (country && location) return `${country}, ${location}`
-  return country || location || 'Локация не указана'
+  if (countryLabel && location) return `${countryLabel}, ${location}`
+  return countryLabel || location || 'Локация не указана'
 }

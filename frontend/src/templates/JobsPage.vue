@@ -216,15 +216,7 @@ onBeforeUnmount(() => {
                   {{ t('jobsPage.allJobs') }}
                   <span>{{ jobsStore.enrichedJobs.length }}</span>
                 </button>
-                <button
-                  type="button"
-                  class="tab-button"
-                  :class="{ 'tab-button--active': filters.selectedTab === 'hot' }"
-                  @click="selectTab('hot')"
-                >
-                  {{ t('jobsPage.hotJobs') }}
-                  <span>{{ hotCount }}</span>
-                </button>
+
                 <button
                   type="button"
                   class="tab-button"

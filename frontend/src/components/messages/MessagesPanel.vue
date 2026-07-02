@@ -2,6 +2,11 @@
 import { computed } from 'vue'
 import { useI18n } from '@/i18n'
 import { useMessagingStore } from '@/stores/messaging'
+import { useAuth } from '@/stores/auth'
+
+const accountType = computed(
+  () => useAuth().accountType
+)
 
 const props = defineProps({
   embedded: {
@@ -90,6 +95,7 @@ const deleteConversation = async () => {
   if (!confirmed) return
   await messaging.deleteActiveConversation()
 }
+
 </script>
 
 <template>
@@ -122,9 +128,9 @@ const deleteConversation = async () => {
         <span class="chat-list__message">{{ conversation.last_message }}</span>
       </button>
 
-      <p v-if="!isLoading && !conversations.length" class="status">
-        {{ copy.emptyList }}
-      </p>
+        <p v-if="!isLoading && !conversations.length && accountType !== 'employer'" class="status">
+          {{ copy.emptyList }}
+        </p>
     </aside>
 
     <article class="chat">

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { getJobs } from '@/api/jobs'
 import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
+import { resolveCountryMeta } from '@/utils/countries'
 import { normalizeJob } from '@/utils/jobs'
 
 const BOOKMARKS_STORAGE_KEY = 'cvhold-job-bookmarks'
@@ -86,7 +87,7 @@ const inferCategory = (job) => {
   return 'construction'
 }
 
-const inferCountry = (location = '') => {
+const legacyInferCountry = (location = '') => {
   const value = location.toLowerCase()
   if (value.includes('герман') || value.includes('germany') || value.includes('berlin')) return 'germany'
   if (value.includes('финля') || value.includes('finland') || value.includes('tampere')) return 'finland'
@@ -112,6 +113,10 @@ const parseSalaryAmount = (salary = '') => {
 const inferHousing = (job) => job.has_housing ?? /(жиль|housing|accommodation|relocation|прожив)/i.test(`${job.title} ${job.description}`)
 const inferTransport = (job) => job.has_transport ?? /(transport|shuttle|car|vehicle|авто|транспорт|доставка)/i.test(`${job.title} ${job.description}`)
 const inferEmployment = (job) => {
+  if (job.employment_type || job.employmentType) {
+    return String(job.employment_type || job.employmentType)
+  }
+
   const haystack = `${job.title} ${job.description}`.toLowerCase()
   if (/(вахт|shift)/.test(haystack)) return 'shift'
   if (/(contract|project|проект|контракт)/.test(haystack)) return 'contract'
@@ -161,19 +166,21 @@ export const useJobsStore = defineStore('jobs', {
 
     enrichedJobs(state) {
       const countries = localizeCountryMeta()
+      const countriesByKey = Object.fromEntries(countries.map((country) => [country.key, country]))
 
       return state.jobs.map((job, index) => {
         const category = inferCategory(job)
-        const countryKey = inferCountry(job.location)
-        const country = countries.find((item) => item.key === countryKey)
+        const resolvedCountry = resolveCountryMeta(job)
+        const countryKey = resolvedCountry.countryKey || legacyInferCountry(job.location)
+        const country = countriesByKey[countryKey]
         const salaryAmount = parseSalaryAmount(job.salary)
 
         return {
           ...job,
           category,
           countryKey,
-          countryLabel: country?.label || t('jobsStore.europe'),
-          countryFlagCode: country?.flagCode || 'eu',
+          countryLabel: country?.label || resolvedCountry.countryLabel || t('jobsStore.europe'),
+          countryFlagCode: country?.flagCode || resolvedCountry.countryFlagCode || 'eu',
           timeLabel: timeLabel(job.created_at),
           isHot: index < 2,
           isNew: index < 3,

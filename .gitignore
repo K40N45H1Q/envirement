@@ -13,6 +13,7 @@ node_modules/
 .DS_Store
 dist/
 *.db
+!**/default.db
 .vscode/
 
 __pycache__/

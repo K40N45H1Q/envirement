@@ -1,18 +1,26 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from '@/i18n'
+import { useJobsStore } from '@/stores/jobs'
 
 const { t } = useI18n()
+const jobsStore = useJobsStore()
 
-const cards = computed(() => [
-  { title: t('categories.construction'), jobs: t('categories.jobsCount', { count: 200 }), category: 'construction', icon: 'fas fa-building' },
-  { title: t('categories.production'), jobs: t('categories.jobsCount', { count: 200 }), category: 'production', icon: 'fas fa-industry' },
-  { title: t('categories.logistics'), jobs: t('categories.jobsCount', { count: 200 }), category: 'logistics', icon: 'fas fa-truck-fast' },
-  { title: t('categories.it'), jobs: t('categories.jobsCount', { count: 200 }), category: 'it', icon: 'fas fa-desktop' },
-  { title: t('categories.health'), jobs: t('categories.jobsCount', { count: 200 }), category: 'health', icon: 'fas fa-briefcase-medical' },
-  { title: t('categories.hospitality'), jobs: t('categories.jobsCount', { count: 200 }), category: 'hospitality', icon: 'fas fa-hotel' },
-])
+const cards = computed(() => jobsStore.categoryCounts
+  .filter((category) => category.id !== 'all')
+  .map((category) => ({
+    title: category.label,
+    jobs: t('categories.jobsCount', { count: category.count }),
+    category: category.id,
+    icon: category.icon,
+  })))
+
+onMounted(async () => {
+  if (!jobsStore.jobs.length && !jobsStore.isLoading) {
+    await jobsStore.loadJobs()
+  }
+})
 </script>
 
 <template>
