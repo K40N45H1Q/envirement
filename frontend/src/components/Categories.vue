@@ -9,6 +9,7 @@ const jobsStore = useJobsStore()
 
 const cards = computed(() => jobsStore.categoryCounts
   .filter((category) => category.id !== 'all')
+  .slice(0, 6)
   .map((category) => ({
     title: category.label,
     jobs: t('categories.jobsCount', { count: category.count }),
@@ -31,7 +32,7 @@ onMounted(async () => {
           <p class="section-eyebrow">{{ t('categories.eyebrow') }}</p>
           <h2>{{ t('categories.title') }}</h2>
         </div>
-        <RouterLink :to="{ path: '/jobs' }" class="all-link">{{ t('categories.allJobs') }}</RouterLink>
+        <RouterLink :to="{ path: '/jobs/categories' }" class="all-link">{{ t('jobsStore.allCategories') }}</RouterLink>
       </div>
 
       <div class="popular-grid">

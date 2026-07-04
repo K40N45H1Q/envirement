@@ -24,7 +24,6 @@ const {
   error,
   filters,
   categoryCounts,
-  featuredCountries,
   countries,
   filteredJobs,
   bookmarkedCount,
@@ -88,6 +87,16 @@ onMounted(async () => {
 })
 
 const categoryConfigs = computed(() => jobsStore.categoryConfigs)
+const jobsHeroCategories = computed(() => (
+  categoryConfigs.value
+    .filter((category) => category.id !== 'all')
+    .slice(0, 6)
+    .map((category) => ({
+      id: category.id,
+      label: category.label,
+      icon: category.icon,
+    }))
+))
 const categoryDropdownOptions = computed(() => categoryCounts.value.map((category) => ({
   value: category.id,
   label: category.label,
@@ -159,7 +168,7 @@ const focusJob = (jobId) => {
 
             <div class="category-row">
               <button
-                v-for="category in categoryConfigs"
+                v-for="category in jobsHeroCategories"
                 :key="category.id"
                 type="button"
                 class="category-pill"
@@ -172,7 +181,7 @@ const focusJob = (jobId) => {
             </div>
           </section>
 
-          <section ref="jobsListRef" class="jobs-shell surface-card">
+          <section id="jobs-results" ref="jobsListRef" class="jobs-shell surface-card">
             <div class="results-banner">
               <div>
                 <strong>{{ resultsLabel }}</strong>
@@ -278,26 +287,6 @@ const focusJob = (jobId) => {
             </div>
           </section>
 
-          <section class="countries-strip surface-card">
-            <header class="strip-head">
-              <h3>{{ t('jobsPage.popularCountries') }}</h3>
-              <button type="button" class="link-button" @click="selectCountry('all')">{{ t('jobsPage.allCountries') }}</button>
-            </header>
-
-            <div class="country-cards">
-              <button
-                v-for="country in featuredCountries"
-                :key="country.key"
-                type="button"
-                class="country-card"
-                :class="{ 'country-card--active': filters.selectedCountry === country.key }"
-                @click="selectCountry(country.key)"
-              >
-                <strong><AppFlag :code="country.flagCode" :alt="country.label" /> {{ country.label }}</strong>
-                <span>{{ t('jobsPage.jobsCount', { count: country.count }) }}</span>
-              </button>
-            </div>
-          </section>
         </div>
 
         <aside class="sidebar-column">
@@ -315,7 +304,7 @@ const focusJob = (jobId) => {
             />
           </section>
 
-          <section class="filters-card surface-card">
+          <section id="jobs-filters" class="filters-card surface-card">
             <header class="sidebar-head">
               <h3>{{ t('jobsPage.filters') }}</h3>
               <button type="button" class="link-button" @click="resetFilters">
@@ -424,7 +413,7 @@ const focusJob = (jobId) => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 21rem;
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .main-column,
@@ -432,6 +421,14 @@ const focusJob = (jobId) => {
   display: grid;
   gap: 1.25rem;
   align-content: start;
+}
+
+.main-column {
+  grid-template-rows: auto 1fr;
+}
+
+.sidebar-column {
+  grid-template-rows: auto 1fr;
 }
 
 .search-shell,
@@ -449,6 +446,16 @@ const focusJob = (jobId) => {
   align-content: start;
 }
 
+.filters-card {
+  height: 100%;
+}
+
+.jobs-shell {
+  height: 100%;
+  display: grid;
+  align-content: start;
+}
+
 .map-card {
   gap: 0.75rem;
 }
@@ -461,6 +468,7 @@ const focusJob = (jobId) => {
 .sidebar-column {
   position: sticky;
   top: 5.75rem;
+  align-self: start;
 }
 
 .search-grid {
@@ -526,7 +534,7 @@ const focusJob = (jobId) => {
 
 .category-row {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
 }
@@ -547,6 +555,12 @@ const focusJob = (jobId) => {
 }
 
 .category-pill i {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  line-height: 1;
   color: var(--brand-strong);
 }
 

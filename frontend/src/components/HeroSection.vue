@@ -27,7 +27,7 @@ const featureKeys = [
         <p class="hero-description">{{ t('hero.description') }}</p>
 
         <div class="hero-actions">
-          <RouterLink to="/jobs" class="btn-primary">
+          <RouterLink to="/" class="btn-primary">
             <i class="fas fa-magnifying-glass"></i>
             {{ t('hero.findEmployees') }}
           </RouterLink>

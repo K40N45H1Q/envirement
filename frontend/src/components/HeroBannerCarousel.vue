@@ -138,8 +138,7 @@ onBeforeUnmount(() => {
 .hero-banner {
   width: 100%;
   position: relative;
-  min-height: 15rem;
-  height: 100%;
+  height: clamp(15rem, 28vw, 18.5rem);
   overflow: hidden;
   border-radius: 1.25rem;
   background: #111;
@@ -148,7 +147,6 @@ onBeforeUnmount(() => {
 
 .hero-banner__slide {
   position: relative;
-  min-height: 15rem;
   height: 100%;
   overflow: hidden;
 }
@@ -183,7 +181,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
   width: min(48%, 18rem);
-  min-height: 15rem;
+  height: 100%;
   margin-left: auto;
   padding: 2.15rem 1.35rem 1.65rem 0.75rem;
   display: flex;
@@ -277,11 +275,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .hero-banner {
-    min-height: 17rem;
+    height: 17rem;
   }
 
   .hero-banner__slide {
-    min-height: 17rem;
+    height: 100%;
   }
 
   .hero-banner__overlay {
@@ -296,7 +294,7 @@ onBeforeUnmount(() => {
 
   .hero-banner__content {
     width: 100%;
-    min-height: 17rem;
+    height: 100%;
     margin-left: 0;
     padding: 1.25rem 1.15rem 3.2rem;
     align-items: center;

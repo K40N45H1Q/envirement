@@ -31,7 +31,7 @@ const submit = () => {
   if (query.value.trim()) nextQuery.q = query.value.trim()
   if (location.value.trim()) nextQuery.loc = location.value.trim()
   if (category.value !== 'all') nextQuery.category = category.value
-  router.push({ path: '/jobs', query: nextQuery })
+  router.push({ path: '/', query: nextQuery })
 }
 
 onMounted(syncFromRoute)

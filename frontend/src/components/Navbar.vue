@@ -5,17 +5,57 @@
     </RouterLink>
 
     <nav class="desktop-nav">
-      <RouterLink
-        v-for="item in navItems"
-        :key="item.label"
-        :to="item.to"
-        class="nav-link"
-        :class="{ 'nav-link--active': isNavItemActive(item), 'nav-link--hash': item.hash }"
-        @click="handleNavClick(item, $event)"
-      >
-        <i :class="item.icon"></i>
-        <span>{{ item.label }}</span>
-      </RouterLink>
+      <template v-for="item in navItems" :key="item.label">
+        <div
+          v-if="item.menu === 'jobs'"
+          class="jobs-menu"
+        >
+          <button
+            type="button"
+            class="nav-link nav-link--button"
+            :class="{ 'nav-link--active': isNavItemActive(item) || isJobsMenuOpen }"
+            :aria-expanded="isJobsMenuOpen"
+            :aria-label="t('navbar.jobsMenuOpen')"
+            @click="toggleJobsMenu"
+          >
+            <i :class="item.icon"></i>
+            <span>{{ item.label }}</span>
+            <i class="fas fa-chevron-down jobs-menu__chevron" :class="{ 'jobs-menu__chevron--open': isJobsMenuOpen }"></i>
+          </button>
+
+          <transition name="menu-fade">
+            <div v-if="isJobsMenuOpen" class="jobs-menu__dropdown">
+              <div
+                v-for="section in jobsMenuSections"
+                :key="section.title"
+                class="jobs-menu__section"
+              >
+                <p class="jobs-menu__title">{{ section.title }}</p>
+                <RouterLink
+                  v-for="entry in section.items"
+                  :key="entry.label"
+                  :to="entry.to"
+                  class="jobs-menu__link"
+                  @click="closeAllMenus"
+                >
+                  {{ entry.label }}
+                </RouterLink>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <RouterLink
+          v-else
+          :to="item.to"
+          class="nav-link"
+          :class="{ 'nav-link--active': isNavItemActive(item), 'nav-link--hash': item.hash }"
+          @click="handleNavClick(item, $event)"
+        >
+          <i :class="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </RouterLink>
+      </template>
     </nav>
 
     <div class="actions">
@@ -39,7 +79,15 @@
           </button>
 
           <div v-if="isUserMenuOpen" class="user-dropdown">
-            <RouterLink class="dropdown-item" to="/profile" @click="isUserMenuOpen = false">
+            <RouterLink class="dropdown-item" :to="dashboardRoute" @click="isUserMenuOpen = false">
+              {{ t('navbar.dashboard') }}
+            </RouterLink>
+            <RouterLink
+              v-if="normalizedAccountType === 'admin'"
+              class="dropdown-item"
+              to="/profile"
+              @click="isUserMenuOpen = false"
+            >
               {{ t('navbar.profile') }}
             </RouterLink>
             <button class="dropdown-item dropdown-item--danger" type="button" @click="logout">
@@ -66,28 +114,66 @@
     <transition name="menu-fade">
       <div v-if="isMenuOpen" class="mobile-menu-overlay">
         <aside class="mobile-menu" @click.stop>
-          <div class="mobile-menu-links">
-            <RouterLink
-              v-for="item in navItems"
-              :key="item.label"
-              :to="item.to"
-              class="mobile-nav-link"
-              :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
-              @click="handleMobileNavClick(item, $event)"
-            >
-              <i :class="item.icon"></i>
-              <span>{{ item.label }}</span>
-            </RouterLink>
+          <div class="mobile-user-card">
+            <div class="mobile-user-card__avatar">
+              <img v-if="mobileUserAvatar" :src="mobileUserAvatar" :alt="mobileUserTitle" />
+              <span v-else>{{ mobileUserInitials }}</span>
+            </div>
 
-            <RouterLink
-              v-for="item in mobileSecondaryLinks"
-              :key="item.to"
-              :to="item.to"
-              class="mobile-nav-link mobile-nav-link--secondary"
-              @click="closeMenu"
-            >
-              <span>{{ item.label }}</span>
-            </RouterLink>
+            <div class="mobile-user-card__meta">
+              <span class="mobile-user-card__role">{{ mobileUserRole }}</span>
+              <strong>{{ mobileUserTitle }}</strong>
+            </div>
+          </div>
+
+          <div class="mobile-menu-links">
+            <template v-for="item in navItems" :key="item.label">
+              <div v-if="item.menu === 'jobs'" class="mobile-jobs-menu">
+                <button
+                  type="button"
+                  class="mobile-nav-link mobile-nav-link--button"
+                  :class="{ 'mobile-nav-link--active': isNavItemActive(item) || isMobileJobsMenuOpen }"
+                  @click="isMobileJobsMenuOpen = !isMobileJobsMenuOpen"
+                >
+                  <span class="mobile-nav-link__main">
+                    <i :class="item.icon"></i>
+                    <span>{{ item.label }}</span>
+                  </span>
+                  <i class="fas fa-chevron-down mobile-jobs-menu__chevron" :class="{ 'mobile-jobs-menu__chevron--open': isMobileJobsMenuOpen }"></i>
+                </button>
+
+                <div v-if="isMobileJobsMenuOpen" class="mobile-jobs-menu__dropdown">
+                  <div
+                    v-for="section in jobsMenuSections"
+                    :key="section.title"
+                    class="mobile-jobs-menu__section"
+                  >
+                    <p class="mobile-jobs-menu__title">{{ section.title }}</p>
+                    <RouterLink
+                      v-for="entry in section.items"
+                      :key="entry.label"
+                      :to="entry.to"
+                      class="mobile-jobs-menu__link"
+                      @click="closeMenu"
+                    >
+                      {{ entry.label }}
+                    </RouterLink>
+                  </div>
+                </div>
+              </div>
+
+              <RouterLink
+                v-else
+                :to="item.to"
+                class="mobile-nav-link"
+                :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
+                @click="handleMobileNavClick(item, $event)"
+              >
+                <i :class="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </RouterLink>
+            </template>
+
           </div>
 
           <div class="mobile-auth-buttons">
@@ -105,7 +191,6 @@
             </label>
 
             <template v-if="user">
-              <span class="mobile-user-email">{{ user.email }}</span>
               <RouterLink v-if="mobilePrimaryLink" class="btn-primary" :to="mobilePrimaryLink.to" @click="closeMenu">
                 {{ mobilePrimaryLink.label }}
               </RouterLink>
@@ -174,6 +259,8 @@ export default {
     return {
       isUserMenuOpen: false,
       isMenuOpen: false,
+      isJobsMenuOpen: false,
+      isMobileJobsMenuOpen: false,
       languageOptions: [
         { value: 'ru', label: 'RU', hint: 'Русский' },
         { value: 'en', label: 'EN', hint: 'English' },
@@ -200,12 +287,46 @@ export default {
     },
 
     navItems() {
-      return [
-        { label: this.t('navbar.jobs'), to: '/jobs', icon: 'fas fa-briefcase' },
-        { label: this.t('navbar.employers'), to: '/', icon: 'fas fa-users' },
+      const items = [
+        { label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
+        { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
         { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
         // { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
-        { label: this.t('navbar.pricing'), to: '/#pricing', icon: 'fas fa-tags', hash: '#pricing' },
+        { label: this.t('navbar.pricing'), to: '/employers#pricing', icon: 'fas fa-tags', hash: '#pricing', hashBasePath: '/employers' },
+      ]
+
+      if (this.user) {
+        items.push({
+          label: this.t('navbar.dashboard'),
+          to: this.dashboardRoute,
+          icon: 'fas fa-table-columns',
+        })
+      }
+
+      return items
+    },
+
+    jobsMenuSections() {
+      return [
+        {
+          title: this.t('navbar.jobsMenuBrowse'),
+          items: [
+            { label: this.t('navbar.jobsMenuAll'), to: { path: '/jobs', hash: '#jobs-results' } },
+            { label: this.t('navbar.jobsMenuCategories'), to: '/jobs/categories' },
+            { label: this.t('navbar.jobsMenuLocation'), to: '/jobs/latvia-cities' },
+            { label: this.t('navbar.jobsMenuAbroad'), to: { path: '/jobs', query: { abroad: '1' }, hash: '#jobs-results' } },
+            { label: this.t('navbar.jobsMenuHousing'), to: { path: '/jobs', query: { housing: '1' }, hash: '#jobs-results' } },
+            { label: this.t('navbar.jobsMenuTransport'), to: { path: '/jobs', query: { transport: '1' }, hash: '#jobs-results' } },
+          ],
+        },
+        {
+          title: this.t('navbar.jobsMenuTools'),
+          items: [
+            { label: this.t('navbar.jobsMenuSaved'), to: { path: '/jobs', query: { tab: 'favorites', bookmarked: '1' }, hash: '#jobs-results' } },
+            { label: this.t('navbar.jobsMenuSalary'), to: { path: '/jobs', query: { sort: 'salary' }, hash: '#jobs-results' } },
+            { label: this.t('navbar.jobsMenuCountries'), to: '/jobs/countries' },
+          ],
+        },
       ]
     },
 
@@ -224,27 +345,29 @@ export default {
       if (!this.user) return []
 
       if (this.normalizedAccountType === 'candidate') {
-        return [{ label: this.t('navbar.profile'), to: '/profile', primary: true }]
+        return [
+          { label: this.t('navbar.profile'), to: '/profile', primary: true, icon: 'fas fa-user' },
+          { label: this.t('navbar.dashboard'), to: '/dashboard', icon: 'fas fa-table-columns' },
+        ]
       }
 
       if (this.normalizedAccountType === 'admin') {
         return [
-          { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true },
-          { label: this.t('navbar.responses'), to: '/dashboard?section=responses' },
-          { label: this.t('navbar.messages'), to: '/dashboard?section=messages' },
-          { label: this.t('navbar.plans'), to: '/dashboard?section=pricing' },
-          { label: this.t('navbar.adminPanel'), to: '/admin' },
-          { label: this.t('navbar.profile'), to: '/profile' },
+          { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true, icon: 'fas fa-table-columns' },
+          { label: this.t('navbar.responses'), to: '/dashboard?section=responses', icon: 'fas fa-inbox' },
+          { label: this.t('navbar.messages'), to: '/dashboard?section=messages', icon: 'fas fa-message' },
+          { label: this.t('navbar.plans'), to: '/dashboard?section=pricing', icon: 'fas fa-credit-card' },
+          { label: this.t('navbar.adminPanel'), to: '/admin', icon: 'fas fa-shield-halved' },
+          { label: this.t('navbar.profile'), to: '/profile', icon: 'fas fa-user' },
         ]
       }
 
       return [
-        { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true },
-        { label: this.t('navbar.myJobs'), to: '/dashboard?section=jobs' },
-        { label: this.t('navbar.responses'), to: '/dashboard?section=responses' },
-        { label: this.t('navbar.messages'), to: '/dashboard?section=messages' },
-        { label: this.t('navbar.plans'), to: '/dashboard?section=pricing' },
-        { label: this.t('navbar.profile'), to: '/profile' },
+        { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true, icon: 'fas fa-table-columns' },
+        { label: this.t('navbar.myJobs'), to: '/dashboard?section=jobs', icon: 'fas fa-briefcase' },
+        { label: this.t('navbar.responses'), to: '/dashboard?section=responses', icon: 'fas fa-inbox' },
+        { label: this.t('navbar.messages'), to: '/dashboard?section=messages', icon: 'fas fa-message' },
+        { label: this.t('navbar.plans'), to: '/dashboard?section=pricing', icon: 'fas fa-credit-card' },
       ]
     },
 
@@ -252,13 +375,40 @@ export default {
       return this.mobileAccountLinks.find((item) => item.to === '/profile') || null
     },
 
-    mobileSecondaryLinks() {
-      return this.mobileAccountLinks.filter((item) => item.to !== '/profile')
+    mobileUserAvatar() {
+      return this.user?.avatar_url || this.user?.company_logo_url || ''
+    },
+
+    mobileGuestLabel() {
+      return this.currentLanguage === 'en' ? 'Guest' : 'Гость'
+    },
+
+    mobileUserRole() {
+      return this.user ? this.accountTypeLabel : this.mobileGuestLabel
+    },
+
+    mobileUserTitle() {
+      return this.user?.email || this.mobileGuestLabel
+    },
+
+    mobileUserInitials() {
+      const source = this.user?.full_name || this.user?.company_name || this.user?.email || this.mobileGuestLabel
+      return source
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase()
     },
   },
 
   methods: {
     isNavItemActive(item) {
+      if (item.menu === 'jobs') {
+        return this.$route.path === '/' || this.$route.path === '/jobs'
+      }
+
       if (item.hash) return false
       return this.$route.path === item.to
     },
@@ -299,12 +449,12 @@ export default {
     },
 
     handleNavClick(item, event) {
-      if (!item.hash || this.$route.path !== '/') return
+      if (!item.hash || this.$route.path !== (item.hashBasePath || '/')) return
 
       event.preventDefault()
 
       if (this.$route.hash !== item.hash) {
-        this.$router.push({ path: '/', hash: item.hash })
+        this.$router.push({ path: item.hashBasePath || '/', hash: item.hash })
         return
       }
 
@@ -314,6 +464,10 @@ export default {
     handleMobileNavClick(item, event) {
       this.closeMenu()
       this.handleNavClick(item, event)
+    },
+
+    toggleJobsMenu() {
+      this.isJobsMenuOpen = !this.isJobsMenuOpen
     },
 
     changeLanguage() {
@@ -331,7 +485,14 @@ export default {
 
     closeMenu() {
       this.isMenuOpen = false
+      this.isMobileJobsMenuOpen = false
       document.body.style.overflow = ''
+    },
+
+    closeAllMenus() {
+      this.isJobsMenuOpen = false
+      this.isUserMenuOpen = false
+      this.closeMenu()
     },
 
     openLoginFromMenu() {
@@ -348,6 +509,7 @@ export default {
       this.closeMenu()
       this.logoutAuth()
       this.isUserMenuOpen = false
+      this.isJobsMenuOpen = false
       this.$router.replace(localizeFullPath('/', this.currentLanguage))
     },
 
@@ -356,16 +518,38 @@ export default {
         this.closeMenu()
       }
     },
+
+    closeDesktopMenusOnOutsideClick(event) {
+      const target = event.target
+
+      if (!target.closest('.jobs-menu')) {
+        this.isJobsMenuOpen = false
+      }
+
+      if (!target.closest('.user-menu-wrapper')) {
+        this.isUserMenuOpen = false
+      }
+    },
   },
 
   mounted() {
     window.addEventListener('resize', this.handleResize)
+    document.addEventListener('click', this.closeDesktopMenusOnOutsideClick)
     this.uiStore.initialize()
   },
 
   beforeUnmount() {
     window.removeEventListener('resize', this.handleResize)
+    document.removeEventListener('click', this.closeDesktopMenusOnOutsideClick)
     document.body.style.overflow = ''
+  },
+
+  watch: {
+    $route() {
+      this.isJobsMenuOpen = false
+      this.isUserMenuOpen = false
+      this.isMobileJobsMenuOpen = false
+    },
   },
 }
 </script>
@@ -421,6 +605,13 @@ export default {
   white-space: nowrap;
 }
 
+.nav-link--button {
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
 .nav-link::after {
   content: '';
   position: absolute;
@@ -452,6 +643,63 @@ export default {
 
 .nav-link--hash.router-link-active::after {
   transform: scaleX(0);
+}
+
+.jobs-menu {
+  position: relative;
+}
+
+.jobs-menu__chevron {
+  font-size: 0.76rem;
+  transition: transform 0.2s ease;
+}
+
+.jobs-menu__chevron--open {
+  transform: rotate(180deg);
+}
+
+.jobs-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 0.9rem);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(12rem, 1fr));
+  gap: 1.1rem;
+  min-width: 32rem;
+  padding: 1.2rem 1.35rem;
+  border-radius: 1.35rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 248, 0.98));
+  box-shadow: 0 1.6rem 3rem rgba(15, 23, 42, 0.12);
+}
+
+.jobs-menu__section {
+  display: grid;
+  gap: 0.05rem;
+  align-content: start;
+  align-self: start;
+}
+
+.jobs-menu__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.jobs-menu__link {
+  display: block;
+  padding: 0.35rem 0;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: 0.7rem;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.jobs-menu__link:hover,
+.jobs-menu__link:focus-visible {
+  color: var(--brand-strong);
+  transform: translateX(0.15rem);
 }
 
 .actions {
@@ -487,8 +735,7 @@ export default {
   min-width: 8.5rem;
 }
 
-.user-email,
-.mobile-user-email {
+.user-email {
   max-width: 14rem;
   overflow: hidden;
   color: var(--text-primary);
@@ -541,11 +788,64 @@ export default {
   width: 75vw;
   max-width: 22rem;
   height: 100vh;
-  background: color-mix(in srgb, var(--surface-primary) 96%, white);
+  background: #fff;
   box-shadow: -1rem 0 2rem rgba(17, 24, 39, 0.08);
   padding: 5rem 1.5rem 2rem;
   overflow-y: auto;
   animation: slideIn 0.3s ease-out;
+}
+
+.mobile-user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 0 1.1rem;
+  margin-bottom: 0.95rem;
+  border-bottom: 0.0625rem solid var(--border-subtle);
+}
+
+.mobile-user-card__avatar {
+  width: 3.35rem;
+  height: 3.35rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-soft) 70%, white), color-mix(in srgb, var(--brand-base) 20%, white));
+  color: var(--brand-strong);
+  font-size: 1rem;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 0.0625rem color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+}
+
+.mobile-user-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-user-card__meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.mobile-user-card__meta strong {
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-user-card__role {
+  color: var(--brand-strong);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .mobile-menu-links {
@@ -563,6 +863,21 @@ export default {
   border-radius: 0.5rem;
 }
 
+.mobile-nav-link--button {
+  width: 100%;
+  justify-content: space-between;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mobile-nav-link__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .mobile-nav-link.router-link-active,
 .mobile-nav-link--active {
   color: var(--brand-strong);
@@ -578,6 +893,51 @@ export default {
   padding-left: 2.75rem;
   border: 0.0625rem solid var(--border-subtle);
   background: var(--surface-primary);
+}
+
+.mobile-jobs-menu {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mobile-jobs-menu__chevron {
+  font-size: 0.82rem;
+  transition: transform 0.2s ease;
+}
+
+.mobile-jobs-menu__chevron--open {
+  transform: rotate(180deg);
+}
+
+.mobile-jobs-menu__dropdown {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.25rem 0.35rem 0.35rem 2.8rem;
+}
+
+.mobile-jobs-menu__section {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.mobile-jobs-menu__title {
+  margin: 0 0 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mobile-jobs-menu__link {
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.35rem 0;
+}
+
+.mobile-jobs-menu__link:hover,
+.mobile-jobs-menu__link:focus-visible {
+  color: var(--brand-strong);
 }
 
 .mobile-auth-buttons {

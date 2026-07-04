@@ -3,6 +3,7 @@ import HomePage from '@/templates/HomePage.vue'
 import ProfilePage from '@/templates/ProfilePage.vue'
 import JobsPage from '@/templates/JobsPage.vue'
 import JobDetailPage from '@/templates/JobDetailPage.vue'
+import JobDirectoryPage from '@/templates/JobDirectoryPage.vue'
 import PricingPage from '@/templates/PricingPage.vue'
 import ResumeBuilderPage from '@/templates/ResumeBuilderPage.vue'
 import DashboardPage from '@/templates/DashboardPage.vue'
@@ -100,14 +101,18 @@ const shouldRedirect = (logicalPath, target) => {
 }
 
 const localizedChildren = [
-  { path: '', component: HomePage, meta: { logicalPath: '/' } },
+  { path: '', component: JobsPage, meta: { logicalPath: '/' } },
   { path: 'jobs', component: JobsPage, meta: { logicalPath: '/jobs' } },
+  { path: 'jobs/categories', component: JobDirectoryPage, meta: { logicalPath: '/jobs/categories', directory: 'categories' } },
+  { path: 'jobs/countries', component: JobDirectoryPage, meta: { logicalPath: '/jobs/countries', directory: 'countries' } },
+  { path: 'jobs/latvia-cities', component: JobDirectoryPage, meta: { logicalPath: '/jobs/latvia-cities', directory: 'latvia-cities' } },
   { path: 'jobs/:id', component: JobDetailPage, meta: { logicalPath: '/jobs/:id' } },
+  { path: 'employers', component: HomePage, meta: { logicalPath: '/employers' } },
   { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
   { path: 'resume-builder', component: ResumeBuilderPage, meta: { logicalPath: '/resume-builder' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
-  { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
+  { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
   { path: 'dashboard', component: DashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
   {
     path: 'employer-dashboard',
@@ -191,11 +196,11 @@ router.beforeEach(async (to) => {
   }
 
   if (isJobDetailRoute && !token) {
-    return localizeRouteLocation({
-      path: '/jobs',
-      query: {
-        ...to.query,
-        auth: 'login',
+      return localizeRouteLocation({
+        path: '/',
+        query: {
+          ...to.query,
+          auth: 'login',
         redirect: to.fullPath,
       },
     }, locale)
@@ -236,7 +241,9 @@ router.beforeEach(async (to) => {
     const normalizedType = normalizeAccountType(auth.state.user.account_type)
 
     if (routeLogicalPath === '/profile') {
-      const target = localizeFullPath('/dashboard?section=profile', locale)
+      const target = normalizedType === 'candidate'
+        ? localizeFullPath('/dashboard?section=profile', locale)
+        : localizeFullPath('/dashboard?section=jobs', locale)
 
       if (to.fullPath !== target) {
         return target

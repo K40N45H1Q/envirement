@@ -10,9 +10,9 @@
           <h1 id="login-title" class="title">{{ t('login.title') }}</h1>
 
           <Transition name="expand">
-            <div v-if="apiError" class="api-error-msg">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              <span>{{ apiError }}</span>
+            <div v-if="feedbackMessage" class="api-error-msg" :class="{ 'api-error-msg--success': feedbackType === 'success' }">
+              <i :class="feedbackType === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation'"></i>
+              <span>{{ feedbackMessage }}</span>
             </div>
           </Transition>
 
@@ -21,8 +21,8 @@
             type="email"
             placeholder="Email"
             class="input"
-            :class="{ error: apiError }"
-            @input="apiError = ''"
+            :class="{ error: feedbackType === 'error' && feedbackMessage }"
+            @input="clearFeedback"
           />
 
           <div class="password">
@@ -31,8 +31,8 @@
               :type="showPassword ? 'text' : 'password'"
               :placeholder="t('login.password')"
               class="input"
-              :class="{ error: apiError }"
-              @input="apiError = ''"
+              :class="{ error: feedbackType === 'error' && feedbackMessage }"
+              @input="clearFeedback"
             />
 
             <button
@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
 import { getMe, login } from '@/api/auth'
@@ -68,19 +68,40 @@ import { useAuth } from '@/stores/auth'
 import { defaultRouteForAccount } from '@/utils/auth'
 
 const emit = defineEmits(['close', 'open-register'])
+const props = defineProps({
+  notice: {
+    type: Object,
+    default: null,
+  },
+})
 const route = useRoute()
 const router = useRouter()
 const { setUser } = useAuth()
-const { t } = useI18n()
+const { language, t } = useI18n()
 
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const isSubmitting = ref(false)
-const apiError = ref('')
+const feedbackMessage = ref('')
+const feedbackType = ref('error')
 
 const close = () => emit('close')
 const openRegister = () => emit('open-register')
+const clearFeedback = () => {
+  feedbackMessage.value = ''
+  feedbackType.value = 'error'
+}
+
+const applyNotice = (notice) => {
+  if (!notice?.message) {
+    clearFeedback()
+    return
+  }
+
+  feedbackMessage.value = notice.message
+  feedbackType.value = notice.type === 'success' ? 'success' : 'error'
+}
 
 const handleKeydown = (event) => {
   if (event.key === 'Escape') {
@@ -90,12 +111,13 @@ const handleKeydown = (event) => {
 
 const submit = async () => {
   if (!email.value || !password.value) {
-    apiError.value = t('login.fillFields')
+    feedbackMessage.value = t('login.fillFields')
+    feedbackType.value = 'error'
     return
   }
 
   isSubmitting.value = true
-  apiError.value = ''
+  clearFeedback()
 
   try {
     await login({
@@ -105,11 +127,15 @@ const submit = async () => {
 
     const user = await getMe()
     setUser(user)
+    feedbackMessage.value = language.value === 'en' ? 'Signed in successfully.' : 'Вход выполнен успешно.'
+    feedbackType.value = 'success'
     const redirectTo = typeof route.query.redirect === 'string'
       ? route.query.redirect
       : defaultRouteForAccount(user.account_type)
-    close()
-    router.push(redirectTo)
+    window.setTimeout(() => {
+      close()
+      router.push(redirectTo)
+    }, 250)
   } catch (error) {
     const errorMessages = {
       invalid_credentials: t('login.invalidCredentials'),
@@ -119,7 +145,8 @@ const submit = async () => {
       unknown_error: t('login.unknownError'),
     }
 
-    apiError.value = errorMessages[error.key || error.message] || t('login.genericError', { message: error.message })
+    feedbackMessage.value = errorMessages[error.key || error.message] || t('login.genericError', { message: error.message })
+    feedbackType.value = 'error'
   } finally {
     isSubmitting.value = false
   }
@@ -128,6 +155,10 @@ const submit = async () => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
+
+watch(() => props.notice, (notice) => {
+  applyNotice(notice)
+}, { immediate: true, deep: true })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
@@ -295,8 +326,18 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.api-error-msg--success {
+  background: rgba(22, 163, 74, 0.08);
+  border: 0.0625rem solid rgba(22, 163, 74, 0.2);
+  color: #15803d;
+}
+
 .api-error-msg i {
   color: #ff4d4f;
+}
+
+.api-error-msg--success i {
+  color: #16a34a;
 }
 
 .modal-fade-enter-active,

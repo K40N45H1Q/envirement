@@ -9,18 +9,22 @@ import SiteFooter from '@/components/SiteFooter.vue'
 const route = useRoute()
 const router = useRouter()
 const activeModal = ref(null)
+const authModalNotice = ref(null)
 const isAuthModalOpen = computed(() => activeModal.value !== null)
 
-const openLoginModal = () => {
+const openLoginModal = (notice = null) => {
+  authModalNotice.value = notice
   activeModal.value = 'login'
 }
 
-const openRegisterModal = () => {
+const openRegisterModal = (notice = null) => {
+  authModalNotice.value = notice
   activeModal.value = 'register'
 }
 
 const closeAuthModal = () => {
   activeModal.value = null
+  authModalNotice.value = null
 
   if (route.query.auth) {
     const { auth, ...query } = route.query
@@ -29,12 +33,11 @@ const closeAuthModal = () => {
 }
 
 const handleRegistered = (payload) => {
-  const isEmployer = payload?.accountType === 'employer'
   closeAuthModal()
-
-  if (!isEmployer) {
-    openLoginModal()
-  }
+  openLoginModal({
+    type: 'success',
+    message: payload?.successMessage || '',
+  })
 }
 
 watch(() => route.query.auth, (auth) => {
@@ -62,14 +65,16 @@ onBeforeUnmount(() => {
 
   <LoginModal
     v-if="activeModal === 'login'"
+    :notice="activeModal === 'login' ? authModalNotice : null"
     @close="closeAuthModal"
-    @open-register="openRegisterModal"
+    @open-register="() => openRegisterModal()"
   />
   <RegisterModal
     v-if="activeModal === 'register'"
     :visible="true"
+    :notice="activeModal === 'register' ? authModalNotice : null"
     @close="closeAuthModal"
-    @open-login="openLoginModal"
+    @open-login="() => openLoginModal()"
     @registered="handleRegistered"
   />
 </template>

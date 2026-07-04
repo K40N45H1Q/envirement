@@ -6,7 +6,6 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
-import Profile from '@/components/Profile.vue'
 import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
@@ -79,7 +78,7 @@ const isEnglish = computed(() => currentLanguage.value === 'en')
 const copy = computed(() => (
   isEnglish.value
     ? {
-      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', profile: 'Profile', pricing: 'Plans' },
+      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', pricing: 'Plans' },
       stats: { jobs: 'Total jobs', published: 'Published', responses: 'Applications', conversations: 'Conversations' },
       fallbackSection: 'Jobs',
       saving: 'Saving...',
@@ -116,7 +115,7 @@ const copy = computed(() => (
       title: 'Title',
       titlePlaceholder: 'Electrician',
       company: 'Company',
-      companyLockedHint: 'Taken from your employer profile and used for every vacancy.',
+      companyLockedHint: 'Taken from your employer account and used for every vacancy.',
       salary: 'Salary',
       salaryAmount: 'Salary amount',
       salaryAmountPlaceholder: '2 200 - 2 800',
@@ -184,7 +183,7 @@ const copy = computed(() => (
       choosePlan: 'Choose plan',
     }
     : {
-      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', profile: 'Профиль', pricing: 'Тарифы' },
+      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', pricing: 'Тарифы' },
       stats: { jobs: 'Всего вакансий', published: 'Опубликовано', responses: 'Откликов', conversations: 'Диалогов' },
       fallbackSection: 'Вакансии',
       saving: 'Сохранение...',
@@ -221,7 +220,7 @@ const copy = computed(() => (
       title: 'Название',
       titlePlaceholder: 'Электрик',
       company: 'Компания',
-      companyLockedHint: 'Берется из профиля работодателя и используется для каждой вакансии.',
+      companyLockedHint: 'Берется из аккаунта работодателя и используется для каждой вакансии.',
       salary: 'Зарплата',
       salaryAmount: 'Сумма зарплаты',
       salaryAmountPlaceholder: '2 200 - 2 800',
@@ -296,7 +295,6 @@ const sections = [
   { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/dashboard?section=jobs' },
   { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/dashboard?section=responses' },
   { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
-  { id: 'profile', label: 'Профиль', icon: 'fas fa-user', to: '/dashboard?section=profile' },
   { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/dashboard?section=pricing' },
 ]
 
@@ -605,7 +603,7 @@ async function fetchDashboardData({ silent = false } = {}) {
     const [jobsData, responsesData] = await Promise.all([
       getMyJobs(),
       getResponses(),
-    ])
+    ]) 
 
     jobs.value = Array.isArray(jobsData) ? jobsData.map(normalizeJob) : []
     responses.value = Array.isArray(responsesData) ? responsesData : []
@@ -1348,10 +1346,6 @@ onBeforeUnmount(() => {
 
         <section v-if="activeSection === 'messages'" class="message-shell">
           <MessagesPanel embedded @open="openDashboardConversation" />
-        </section>
-
-        <section v-if="activeSection === 'profile'" class="message-shell">
-          <Profile embedded />
         </section>
 
         <section v-if="activeSection === 'pricing'" class="pricing-layout">
@@ -2511,6 +2505,7 @@ textarea {
   .response-action-button {
     width: 100%;
   }
+
 }
 
 @media (max-width: 34rem) {

@@ -247,6 +247,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  notice: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['close', 'registered', 'open-login'])
@@ -433,13 +437,10 @@ async function handleSubmit() {
       fullName: fullName.value.trim(),
       email: email.value.trim(),
       companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
+      successMessage: selectedAccountType.value === 'employer'
+        ? t('register.successEmployer')
+        : t('register.successCandidate'),
     })
-
-    if (selectedAccountType.value === 'candidate') {
-      emit('open-login')
-    } else {
-      close()
-    }
   } catch (requestError) {
     setError(getErrorMessage(requestError))
   } finally {

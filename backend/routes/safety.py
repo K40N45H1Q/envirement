@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from os import getenv
+from pathlib import Path
 from dotenv import load_dotenv
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -22,16 +23,41 @@ load_dotenv()
 router = APIRouter()
 
 
-SECRET_KEY = getenv("SECRET_KEY") or secrets.token_hex(32)
+def get_persistent_secret_key() -> str:
+    env_secret = getenv("SECRET_KEY")
+    if env_secret:
+        return env_secret
+
+    secret_path = Path(__file__).resolve().parent.parent / ".secret_key"
+    if secret_path.exists():
+        return secret_path.read_text(encoding="utf-8").strip()
+
+    generated_secret = secrets.token_hex(32)
+    secret_path.write_text(generated_secret, encoding="utf-8")
+    return generated_secret
+
+
+SECRET_KEY = get_persistent_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 PUBLIC_ACCOUNT_TYPES = {"candidate", "employer"}
-DEFAULT_ADMIN_EMAIL = getenv("DEFAULT_ADMIN_EMAIL", "admin@cvhold.local")
-DEFAULT_ADMIN_PASSWORD = getenv("DEFAULT_ADMIN_PASSWORD", "CVHOLD_Admin_2026_Secure!")
-DEFAULT_EMPLOYER_EMAIL = getenv("DEFAULT_EMPLOYER_EMAIL", "employer@cvhold.local")
-DEFAULT_EMPLOYER_PASSWORD = getenv("DEFAULT_EMPLOYER_PASSWORD", "CVHOLD_Employer_2026_Secure!")
-DEFAULT_CANDIDATE_EMAIL = getenv("DEFAULT_CANDIDATE_EMAIL", "candidate@cvhold.local")
-DEFAULT_CANDIDATE_PASSWORD = getenv("DEFAULT_CANDIDATE_PASSWORD", "CVHOLD_Candidate_2026_Secure!")
+
+
+def serialize_user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "full_name": user.full_name or "",
+        "email": user.email,
+        "phone": user.phone or "",
+        "account_type": user.account_type,
+        "company_name": user.company_name or "",
+        "company_logo_url": user.company_logo_url or "",
+        "company_country": user.company_country or "",
+        "company_industry": user.company_industry or "",
+        "company_registration_number": user.company_registration_number or "",
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
 
 
 def error(key: str, status: int = 400):
@@ -65,56 +91,6 @@ def normalize_company_name(value: str | None) -> str:
 
 def normalize_registration_number(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "", (value or "").strip().lower())
-
-
-def ensure_default_admin():
-    with Session(engine) as session:
-        default_accounts = [
-            {
-                "email": DEFAULT_ADMIN_EMAIL,
-                "account_type": "admin",
-                "hashed_password": hash_password(DEFAULT_ADMIN_PASSWORD),
-            },
-            {
-                "email": DEFAULT_EMPLOYER_EMAIL,
-                "account_type": "employer",
-                "hashed_password": hash_password(DEFAULT_EMPLOYER_PASSWORD),
-            },
-            {
-                "email": DEFAULT_CANDIDATE_EMAIL,
-                "account_type": "candidate",
-                "hashed_password": hash_password(DEFAULT_CANDIDATE_PASSWORD),
-            },
-        ]
-
-        changed = False
-
-        for account_data in default_accounts:
-            user = session.exec(
-                select(User).where(User.email == account_data["email"])
-            ).first()
-
-            if not user:
-                session.add(User(**account_data))
-                changed = True
-                continue
-
-            updated = False
-
-            if user.account_type != account_data["account_type"]:
-                user.account_type = account_data["account_type"]
-                updated = True
-
-            if user.hashed_password != account_data["hashed_password"]:
-                user.hashed_password = account_data["hashed_password"]
-                updated = True
-
-            if updated:
-                session.add(user)
-                changed = True
-
-        if changed:
-            session.commit()
 
 def require_account_types(user: User, *allowed_types: str) -> User:
     if user.account_type not in allowed_types:
@@ -238,7 +214,8 @@ async def login(
         error("missing_fields")
 
     hashed = hash_password(password)
-    user = session.exec(select(User).where(User.email == email)).first()
+    normalized_email = normalize_email(email)
+    user = session.exec(select(User).where(User.email == normalized_email)).first()
 
     if not user or user.hashed_password != hashed:
         error("invalid_credentials")
@@ -258,4 +235,4 @@ async def login(
 
 @router.get("/get_me")
 def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return serialize_user(current_user)

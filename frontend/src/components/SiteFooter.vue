@@ -11,14 +11,14 @@
       <nav class="footer-grid" :aria-label="t('footer.navLabel')">
         <div class="footer-column">
           <h2>{{ t('footer.platform') }}</h2>
-          <RouterLink to="/jobs">{{ t('navbar.jobs') }}</RouterLink>
+          <RouterLink to="/">{{ t('navbar.jobs') }}</RouterLink>
           <RouterLink to="/resume-builder">{{ t('navbar.resume') }}</RouterLink>
           <RouterLink to="/about">{{ t('footer.aboutUs') }}</RouterLink>
         </div>
 
         <div class="footer-column">
           <h2>{{ t('footer.forEmployers') }}</h2>
-          <RouterLink to="/">{{ t('footer.solutions') }}</RouterLink>
+          <RouterLink to="/employers">{{ t('footer.solutions') }}</RouterLink>
           <RouterLink to="/pricing">{{ t('navbar.pricing') }}</RouterLink>
           <RouterLink to="/dashboard">{{ t('navbar.dashboard') }}</RouterLink>
         </div>

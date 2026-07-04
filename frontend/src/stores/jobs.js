@@ -57,6 +57,8 @@ const includesAllTokens = (value = '', tokens = []) => {
   return tokens.every((token) => haystack.includes(token))
 }
 
+const isLatviaKey = (value = '') => normalizeText(value).replace(/\s+/g, '') === 'latvia'
+
 const keywordHaystack = (job) => [
   job.title,
 ].filter(Boolean).join(' ')
@@ -75,18 +77,6 @@ const readBookmarks = () => {
 
 const persistBookmarks = (bookmarks) => {
   localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(bookmarks))
-}
-
-const inferCategory = (job) => {
-  const haystack = `${job.title} ${job.description} ${job.company}`.toLowerCase()
-
-  if (/(свар|weld|welder|welding|монтаж|стро|construction|electric|элект|technician|repair|metal)/.test(haystack)) return 'construction'
-  if (/(manufactur|производ|factory|industrial|assembly|operator)/.test(haystack)) return 'production'
-  if (/(driver|логист|transport|truck|warehouse|fleet|\bce\b|courier|delivery)/.test(haystack)) return 'logistics'
-  if (/(\bdeveloper\b|\bsoftware\b|\bdata\b|\btech\b|\bfrontend\b|\bbackend\b|\bfullstack\b|\bdevops\b|\bqa\b|\bit support\b)/.test(haystack)) return 'it'
-  if (/(medical|doctor|nurse|мед|clinic|caregiver|healthcare)/.test(haystack)) return 'health'
-  if (/(hotel|hostel|chef|cook|restaurant|guest|hospitality|waiter)/.test(haystack)) return 'hospitality'
-  return 'construction'
 }
 
 const legacyInferCountry = (location = '') => {
@@ -142,6 +132,7 @@ const defaultFilters = () => ({
   searchLocation: '',
   selectedCategory: 'all',
   selectedCountry: 'all',
+  onlyAbroad: false,
   selectedTab: 'all',
   selectedSort: 'newest',
   selectedEmployment: 'all',
@@ -201,7 +192,7 @@ export const useJobsStore = defineStore('jobs', {
           tags: [
             inferHousing(job) ? t('jobsStore.housing') : t('jobsStore.noHousing'),
             inferTransport(job) ? t('jobsStore.transport') : t('jobsStore.selfCommute'),
-            category === 'construction' ? t('jobsStore.euProject') : t('jobsStore.euWork'),
+            category === 'construction-real-estate' ? t('jobsStore.euProject') : t('jobsStore.euWork'),
           ],
         }
       })
@@ -219,6 +210,7 @@ export const useJobsStore = defineStore('jobs', {
     countries() {
       const localizedCountries = localizeCountryMeta()
       const counts = this.enrichedJobs.reduce((acc, job) => {
+        if (this.filters.onlyAbroad && isLatviaKey(job.countryKey)) return acc
         acc[job.countryKey] = (acc[job.countryKey] || 0) + 1
         return acc
       }, {})
@@ -256,6 +248,10 @@ export const useJobsStore = defineStore('jobs', {
 
       if (this.filters.selectedCountry !== 'all') {
         result = result.filter((job) => job.countryKey === this.filters.selectedCountry)
+      }
+
+      if (this.filters.onlyAbroad) {
+        result = result.filter((job) => !isLatviaKey(job.countryKey))
       }
 
       if (this.filters.selectedEmployment !== 'all') {
@@ -319,6 +315,10 @@ export const useJobsStore = defineStore('jobs', {
         if (country) parts.push(country.label)
       }
 
+      if (this.filters.onlyAbroad) {
+        parts.push(t('navbar.jobsMenuAbroad'))
+      }
+
       if (this.filters.onlyBookmarked) {
         parts.push(t('jobsStore.bookmarks'))
       }
@@ -334,6 +334,7 @@ export const useJobsStore = defineStore('jobs', {
       if (filters.searchLocation) query.loc = filters.searchLocation
       if (filters.selectedCategory !== 'all') query.category = filters.selectedCategory
       if (filters.selectedCountry !== 'all') query.country = filters.selectedCountry
+      if (filters.onlyAbroad) query.abroad = '1'
       if (filters.selectedTab !== 'all') query.tab = filters.selectedTab
       if (filters.selectedSort !== 'newest') query.sort = filters.selectedSort
       if (filters.selectedEmployment !== 'all') query.employment = filters.selectedEmployment
@@ -373,6 +374,10 @@ export const useJobsStore = defineStore('jobs', {
       this.filters.searchLocation = typeof query.loc === 'string' ? query.loc : ''
       this.filters.selectedCategory = typeof query.category === 'string' ? query.category : 'all'
       this.filters.selectedCountry = typeof query.country === 'string' ? query.country : 'all'
+      this.filters.onlyAbroad = query.abroad === '1'
+      if (this.filters.onlyAbroad && isLatviaKey(this.filters.selectedCountry)) {
+        this.filters.selectedCountry = 'all'
+      }
       this.filters.selectedTab = typeof query.tab === 'string' ? query.tab : 'all'
       this.filters.selectedSort = typeof query.sort === 'string' ? query.sort : 'newest'
       this.filters.selectedEmployment = typeof query.employment === 'string' ? query.employment : 'all'
