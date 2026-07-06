@@ -29,12 +29,17 @@ class Job(SQLModel, table=True):
     category: Optional[str] = None
     location: str
     employment_type: Optional[str] = None
+    experience_level: Optional[str] = None
+    required_from: Optional[str] = None
+    remote_allowed: bool = Field(default=False)
+    education_level: Optional[str] = None
     country_key: Optional[str] = None
     country_label: Optional[str] = None
     country_flag_code: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
     logo: Optional[str] = None
+    banner_url: Optional[str] = None
     languages_json: Optional[str] = None
     licenses_json: Optional[str] = None
     has_housing: bool = Field(default=False)
@@ -82,6 +87,10 @@ class CandidateProfile(SQLModel, table=True):
     licenses_json: Optional[str] = None
     mobility: Optional[str] = None
     preferred_mobility: Optional[str] = None
+    salary_expectation: Optional[str] = None
+    preferred_employment_type: Optional[str] = None
+    education_level: Optional[str] = None
+    remote_ready: bool = Field(default=False)
     work_permit: Optional[str] = None
     availability: Optional[str] = None
     resume_name: Optional[str] = None
@@ -157,9 +166,34 @@ def ensure_job_columns():
                 "ALTER TABLE job ADD COLUMN employment_type VARCHAR"
             )
 
+        if "experience_level" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN experience_level VARCHAR"
+            )
+
         if "category" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE job ADD COLUMN category VARCHAR"
+            )
+
+        if "required_from" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN required_from VARCHAR"
+            )
+
+        if "remote_allowed" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN remote_allowed BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+        if "education_level" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN education_level VARCHAR"
+            )
+
+        if "banner_url" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN banner_url VARCHAR"
             )
 
 
@@ -203,6 +237,28 @@ def ensure_application_columns():
 
 
 ensure_application_columns()
+
+
+def ensure_candidate_profile_columns():
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(candidateprofile)").fetchall()
+        }
+
+        additions = {
+            "salary_expectation": "ALTER TABLE candidateprofile ADD COLUMN salary_expectation VARCHAR",
+            "preferred_employment_type": "ALTER TABLE candidateprofile ADD COLUMN preferred_employment_type VARCHAR",
+            "education_level": "ALTER TABLE candidateprofile ADD COLUMN education_level VARCHAR",
+            "remote_ready": "ALTER TABLE candidateprofile ADD COLUMN remote_ready BOOLEAN NOT NULL DEFAULT 0",
+        }
+
+        for column, statement in additions.items():
+            if column not in columns:
+                connection.exec_driver_sql(statement)
+
+
+ensure_candidate_profile_columns()
 
 
 def get_session():

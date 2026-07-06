@@ -17,6 +17,7 @@ const isLoading = ref(false)
 const error = ref('')
 const applyStatus = ref('')
 const brokenLogo = ref(false)
+const brokenBanner = ref(false)
 const form = ref({
   name: '',
   surname: '',
@@ -27,7 +28,12 @@ const form = ref({
 })
 
 const user = computed(() => state.user)
+const isEmployer = computed(() => {
+  const accountType = String(user.value?.account_type || user.value?.accountType || '').toLowerCase()
+  return accountType === 'employer'
+})
 const hasLogo = computed(() => !!job.value?.logo && !brokenLogo.value)
+const hasBanner = computed(() => !!job.value?.banner_url && !brokenBanner.value)
 const localizeLanguageName = (value = '') => {
   const normalized = String(value).trim().toLowerCase()
 
@@ -109,6 +115,7 @@ const loadJob = async () => {
   isLoading.value = true
   error.value = ''
   brokenLogo.value = false
+  brokenBanner.value = false
 
   try {
     const data = await getJob(route.params.id)
@@ -228,6 +235,14 @@ watch(() => route.params.id, loadJob)
                 <p class="section-eyebrow compact">{{ t('jobDetailPage.descriptionEyebrow') }}</p>
               </div>
 
+              <div v-if="hasBanner" class="description-banner">
+                <img
+                  :src="job.banner_url"
+                  :alt="job.title"
+                  @error="brokenBanner = true"
+                />
+              </div>
+
               <p class="lead">
                 {{ job.description || t('jobDetailPage.descriptionFallback') }}
               </p>
@@ -270,7 +285,7 @@ watch(() => route.params.id, loadJob)
 
           </div>
 
-          <form class="panel apply-form" @submit.prevent="submitApplication">
+          <form v-if="!isEmployer" class="panel apply-form" @submit.prevent="submitApplication">
             <div class="panel-head">
               <div>
                 <h2>{{ t('jobDetailPage.applyTitle') }}</h2>
@@ -477,6 +492,22 @@ watch(() => route.params.id, loadJob)
   color: var(--text-muted);
   line-height: 1.75;
   font-size: 1.02rem;
+}
+
+.description-banner {
+  margin-top: 1rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 0.0625rem solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-secondary) 88%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.description-banner img {
+  width: 100%;
+  display: block;
+  height: auto;
+  object-fit: contain;
 }
 
 .requirements-summary {

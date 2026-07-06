@@ -132,7 +132,43 @@ const availabilityCatalog = [
   { value: 'By agreement', ru: 'По договорённости', en: 'By agreement' },
 ]
 
+const educationCatalog = [
+  { value: '', ru: 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ', en: 'Choose' },
+  { value: 'primary', ru: 'ÐÐ°Ñ‡Ð°Ð»ÑŒÐ½Ð¾Ðµ', en: 'Primary' },
+  { value: 'secondary', ru: 'Ð¡Ñ€ÐµÐ´Ð½ÐµÐµ', en: 'Secondary' },
+  { value: 'vocational', ru: 'ÐŸÑ€Ð¾Ñ„ÐµÑÑÐ¸Ð¾Ð½Ð°Ð»ÑŒÐ½Ð¾Ðµ', en: 'Vocational' },
+  { value: 'bachelor', ru: 'Ð‘Ð°ÐºÐ°Ð»Ð°Ð²Ñ€', en: 'Bachelor' },
+  { value: 'master', ru: 'ÐœÐ°Ð³Ð¸ÑÑ‚Ñ€', en: 'Master' },
+  { value: 'phd', ru: 'PhD', en: 'PhD' },
+]
+
+const preferredEmploymentCatalog = [
+  { value: '', ru: 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ', en: 'Choose' },
+  { value: 'full-time', ru: 'ÐŸÐ¾Ð»Ð½Ð°Ñ Ð·Ð°Ð½ÑÑ‚Ð¾ÑÑ‚ÑŒ', en: 'Full-time' },
+  { value: 'part-time', ru: 'Ð§Ð°ÑÑ‚Ð¸Ñ‡Ð½Ð°Ñ Ð·Ð°Ð½ÑÑ‚Ð¾ÑÑ‚ÑŒ', en: 'Part-time' },
+  { value: 'contract', ru: 'ÐŸÑ€Ð¾ÐµÐºÑ‚ / ÐºÐ¾Ð½Ñ‚Ñ€Ð°ÐºÑ‚', en: 'Project / contract' },
+]
+
 const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceCatalog[0].value
+
+const educationRuLabels = {
+  '': 'Выберите',
+  primary: 'Начальное',
+  secondary: 'Среднее',
+  vocational: 'Профессиональное',
+  bachelor: 'Бакалавр',
+  master: 'Магистр',
+  phd: 'PhD',
+}
+
+const preferredEmploymentRuLabels = {
+  '': 'Выберите',
+  'full-time': 'Полная занятость',
+  'part-time': 'Частичная занятость',
+  contract: 'Проект / контракт',
+}
+
+const sectorExperienceValues = new Set(sectorExperienceCatalog.map((entry) => entry.value))
 
 const sectorExperienceAliases = {
   [LEGACY_DEFAULT_SECTOR_EXPERIENCE]: DEFAULT_SECTOR_EXPERIENCE,
@@ -215,13 +251,35 @@ const licenseOptions = computed(() => {
 })
 const permitOptions = computed(() => permitCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
 const baseAvailabilityOptions = computed(() => availabilityCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
+const educationOptions = computed(() => educationCatalog.map((entry) => ({
+  value: entry.value,
+  label: isEnglish.value ? entry.en : (educationRuLabels[entry.value] ?? entry.ru),
+})))
+const preferredEmploymentOptions = computed(() => preferredEmploymentCatalog.map((entry) => ({
+  value: entry.value,
+  label: isEnglish.value ? entry.en : (preferredEmploymentRuLabels[entry.value] ?? entry.ru),
+})))
 
-const normalizeSectorExperience = (value) => sectorExperienceAliases[toText(value).trim()] || DEFAULT_SECTOR_EXPERIENCE
+const normalizeSectorExperience = (value) => {
+  const normalized = toText(value).trim()
+  if (sectorExperienceValues.has(normalized)) return normalized
+  return sectorExperienceAliases[normalized] || DEFAULT_SECTOR_EXPERIENCE
+}
 const normalizeLanguageName = (value) => languageAliases[toText(value).trim()] || toText(value).trim()
 const normalizePermit = (value) => permitAliases[toText(value).trim()] || toText(value).trim()
 const displayLanguageName = (value) => getLocalizedLabel(languageCatalog, normalizeLanguageName(value), toText(value).trim())
 const displaySectorExperience = (value) => getLocalizedLabel(sectorExperienceCatalog, normalizeSectorExperience(value), toText(value).trim())
 const displayPermit = (value) => getLocalizedLabel(permitCatalog, normalizePermit(value), toText(value).trim())
+const displayEducation = (value) => {
+  const normalized = toText(value).trim()
+  if (!isEnglish.value && normalized in educationRuLabels) return educationRuLabels[normalized]
+  return getLocalizedLabel(educationCatalog, normalized, normalized)
+}
+const displayPreferredEmployment = (value) => {
+  const normalized = toText(value).trim()
+  if (!isEnglish.value && normalized in preferredEmploymentRuLabels) return preferredEmploymentRuLabels[normalized]
+  return getLocalizedLabel(preferredEmploymentCatalog, normalized, normalized)
+}
 const displayAvailability = (value) => {
   const normalized = toText(value).trim()
   if (isDateAvailability(normalized)) {
@@ -365,6 +423,10 @@ const createEmptyProfile = () => ({
   mobility: '',
   work_permit: '',
   availability: '',
+  salary_expectation: '',
+  preferred_employment_type: '',
+  education_level: '',
+  remote_ready: false,
   resume_name: '',
   resume_url: '',
   avatar_url: '',
@@ -693,6 +755,10 @@ const normalizeProfile = (value = {}) => {
     mobility: toText(source.mobility),
     work_permit: normalizePermit(source.work_permit),
     availability: toText(source.availability),
+    salary_expectation: toText(source.salary_expectation),
+    preferred_employment_type: toText(source.preferred_employment_type),
+    education_level: toText(source.education_level),
+    remote_ready: Boolean(source.remote_ready),
     resume_name: toText(source.resume_name),
     resume_url: toText(source.resume_url),
     avatar_url: toText(source.avatar_url),
@@ -723,6 +789,10 @@ const snapshotProfile = () => JSON.stringify({
   licenses: profile.value.licenses,
   work_permit: profile.value.work_permit,
   availability: profile.value.availability,
+  salary_expectation: profile.value.salary_expectation,
+  preferred_employment_type: profile.value.preferred_employment_type,
+  education_level: profile.value.education_level,
+  remote_ready: profile.value.remote_ready,
   resume_name: profile.value.resume_name,
   resume_url: profile.value.resume_url,
   avatar_url: profile.value.avatar_url,
@@ -744,6 +814,9 @@ const progressChecks = computed(() => [
   profile.value.languages.length,
   profile.value.work_permit,
   profile.value.availability,
+  profile.value.salary_expectation,
+  profile.value.preferred_employment_type,
+  profile.value.education_level,
   avatarPreview.value,
 ])
 
@@ -898,6 +971,26 @@ const cvAdditionalItems = computed(() => [
     icon: 'far fa-id-card',
     label: copy.value.workPermit,
     value: displayPermit(profile.value.work_permit) || copy.value.notSpecified,
+  },
+  {
+    icon: 'fas fa-user-graduate',
+    label: isEnglish.value ? 'Education' : 'Образование',
+    value: displayEducation(profile.value.education_level) || copy.value.notSpecified,
+  },
+  {
+    icon: 'fas fa-wallet',
+    label: isEnglish.value ? 'Salary expectation' : 'Ожидаемая зарплата',
+    value: profile.value.salary_expectation.trim() || copy.value.notSpecified,
+  },
+  {
+    icon: 'fas fa-briefcase',
+    label: isEnglish.value ? 'Preferred employment' : 'Предпочитаемая занятость',
+    value: displayPreferredEmployment(profile.value.preferred_employment_type) || copy.value.notSpecified,
+  },
+  {
+    icon: 'fas fa-laptop-house',
+    label: isEnglish.value ? 'Remote work' : 'Удалённая работа',
+    value: profile.value.remote_ready ? (isEnglish.value ? 'Ready' : 'Готов') : (isEnglish.value ? 'No' : 'Нет'),
   },
 ])
 
@@ -1067,6 +1160,10 @@ const buildPayload = () => ({
   preferred_mobility: '',
   work_permit: profile.value.work_permit,
   availability: profile.value.availability.trim(),
+  salary_expectation: profile.value.salary_expectation.trim(),
+  preferred_employment_type: profile.value.preferred_employment_type,
+  education_level: profile.value.education_level,
+  remote_ready: profile.value.remote_ready,
   avatar: avatarFile.value,
   resume: resumeFile.value,
 })
@@ -2159,6 +2256,49 @@ onBeforeUnmount(() => {
               </label>
             </div>
 
+            <div class="grid-two">
+              <label>
+                {{ isEnglish ? 'Education' : 'Образование' }}
+                <BaseDropdown
+                  v-model="profile.education_level"
+                  :aria-label="isEnglish ? 'Education' : 'Образование'"
+                  full-width
+                  :options="educationOptions"
+                />
+              </label>
+
+              <label>
+                {{ isEnglish ? 'Preferred employment type' : 'Предпочитаемая занятость' }}
+                <BaseDropdown
+                  v-model="profile.preferred_employment_type"
+                  :aria-label="isEnglish ? 'Preferred employment type' : 'Предпочитаемая занятость'"
+                  full-width
+                  :options="preferredEmploymentOptions"
+                />
+              </label>
+            </div>
+
+            <div class="grid-two">
+              <label>
+                {{ isEnglish ? 'Salary expectation' : 'Ожидаемая зарплата' }}
+                <input
+                  v-model="profile.salary_expectation"
+                  type="text"
+                  :placeholder="isEnglish ? '2 000 - 2 500 EUR' : '2 000 - 2 500 EUR'"
+                />
+              </label>
+
+              <label class="toggle-field toggle-switch">
+                <span>{{ isEnglish ? 'Ready for remote work' : 'Готов к удалённой работе' }}</span>
+                <span class="toggle-switch__control">
+                  <input v-model="profile.remote_ready" type="checkbox" />
+                  <span class="toggle-switch__track" aria-hidden="true">
+                    <span class="toggle-switch__thumb"></span>
+                  </span>
+                </span>
+              </label>
+            </div>
+
             <div class="section">
               <label class="section-label">{{ isEnglish ? 'Licenses and certificates' : 'Права, лицензии и сертификаты' }}</label>
 
@@ -2604,6 +2744,73 @@ label {
   font-weight: 600;
 }
 
+.toggle-field {
+  align-content: start;
+}
+
+.toggle-switch {
+  gap: 0.7rem;
+}
+
+.toggle-switch__control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 3.5rem;
+  height: 2rem;
+}
+
+.toggle-switch__control input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.toggle-switch__track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-subtle) 78%, white);
+  border: 0.0625rem solid color-mix(in srgb, var(--border-strong) 55%, white);
+  box-shadow: inset 0 0.0625rem 0.2rem rgba(15, 23, 42, 0.08);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-switch__thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0.2rem 0.55rem rgba(15, 23, 42, 0.16);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track {
+  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
+  border-color: color-mix(in srgb, var(--brand-strong) 70%, white);
+  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
+}
+
+.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track .toggle-switch__thumb {
+  transform: translateX(1.5rem);
+}
+
+.toggle-switch__control input[type="checkbox"]:focus-visible + .toggle-switch__track {
+  outline: 0.1875rem solid rgba(20, 184, 87, 0.2);
+  outline-offset: 0.125rem;
+}
+
 input,
 textarea {
   width: 100%;
@@ -2845,6 +3052,16 @@ textarea:focus {
   justify-content: space-between;
   gap: 1rem;
   margin-top: 0.4rem;
+}
+
+.footer-actions .btn-light,
+.footer-actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  height: 3rem;
+  padding: 0 1.35rem;
 }
 
 .sidebar {

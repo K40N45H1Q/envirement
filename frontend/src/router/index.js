@@ -9,6 +9,7 @@ import ResumeBuilderPage from '@/templates/ResumeBuilderPage.vue'
 import DashboardPage from '@/templates/DashboardPage.vue'
 import ResponsesPage from '@/templates/ResponsesPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
+import AboutPage from '@/templates/AboutPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
 import UnauthorizedPage from '@/templates/UnauthorizedPage.vue'
@@ -124,7 +125,7 @@ const localizedChildren = [
   { path: 'responses', component: ResponsesPage, meta: { logicalPath: '/responses', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
   { path: 'messages', component: MessagesPage, meta: { logicalPath: '/messages', requiresAuth: true } },
   { path: 'blog', component: InfoPage, meta: { logicalPath: '/blog', page: 'blog' } },
-  { path: 'about', component: InfoPage, meta: { logicalPath: '/about', page: 'about' } },
+  { path: 'about', component: AboutPage, meta: { logicalPath: '/about' } },
   { path: 'contacts', component: InfoPage, meta: { logicalPath: '/contacts', page: 'contacts' } },
   { path: 'faq', component: InfoPage, meta: { logicalPath: '/faq', page: 'faq' } },
   { path: 'terms', component: InfoPage, meta: { logicalPath: '/terms', page: 'terms' } },

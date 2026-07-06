@@ -14,50 +14,11 @@ const parseJsonArray = (value) => {
   }
 }
 
-export const demoJobs = [
-  {
-    id: 'demo-electrician',
-    title: 'Электрик',
-    company: 'Build Solutions GmbH',
-    location: 'Берлин, Германия',
-    country_key: 'germany',
-    country_label: 'Германия',
-    country_flag_code: 'de',
-    salary: '2 200 - 2 800 €',
-    description: 'Монтаж и обслуживание промышленных электрических систем на строительных объектах.',
-    logo: '',
-  },
-  {
-    id: 'demo-welder',
-    title: 'Сварщик MIG/MAG',
-    company: 'Nord Metal',
-    location: 'Тампере, Финляндия',
-    country_key: 'finland',
-    country_label: 'Финляндия',
-    country_flag_code: 'fi',
-    salary: '2 600 - 3 100 €',
-    description: 'Работа с металлоконструкциями, чтение чертежей, стабильные смены.',
-    logo: '',
-  },
-  {
-    id: 'demo-driver',
-    title: 'Водитель CE',
-    company: 'Euro Logistics',
-    location: 'Прага, Чехия',
-    country_key: 'czechia',
-    country_label: 'Чехия',
-    country_flag_code: 'cz',
-    salary: '2 000 - 2 500 €',
-    description: 'Международные перевозки, современный автопарк, помощь с документами.',
-    logo: '',
-  },
-]
-
 export const initialsFor = (value = '') => {
   const words = value.trim().split(/\s+/).filter(Boolean)
   return (words.length ? words : ['CV'])
     .slice(0, 2)
-    .map(word => word[0])
+    .map((word) => word[0])
     .join('')
     .toUpperCase()
 }
@@ -72,6 +33,8 @@ export const normalizeJob = (job, index = 0) => {
     location: job.location || 'Локация не указана',
     displayLocation: formatJobLocation(job),
     employment_type: job.employment_type || job.employmentType || '',
+    experience_level: job.experience_level || job.job_experience_level || '',
+    education_level: job.education_level || '',
     category: job.category || job.job_category || '',
     countryKey: country.countryKey,
     countryLabel: country.countryLabel || 'Европа',
@@ -79,6 +42,7 @@ export const normalizeJob = (job, index = 0) => {
     salary: job.salary || 'По договоренности',
     description: job.description || '',
     logo: job.logo || '',
+    banner_url: job.banner_url || job.job_banner_url || '',
     languages_json: job.languages_json || '',
     licenses_json: job.licenses_json || '',
     languages: parseJsonArray(job.languages ?? job.languages_json),
@@ -97,7 +61,7 @@ export const filterJobs = (jobs, query = {}) => {
   const loc = (query.loc || '').toString().toLowerCase()
   const cat = (query.cat || '').toString().toLowerCase()
 
-  return jobs.filter(job => {
+  return jobs.filter((job) => {
     const haystack = `${job.title} ${job.company} ${job.description}`.toLowerCase()
     const place = job.location.toLowerCase()
     return (!q || haystack.includes(q))

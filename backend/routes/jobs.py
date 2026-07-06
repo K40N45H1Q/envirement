@@ -64,12 +64,27 @@ def parse_json_field(value: Optional[str], fallback):
         return fallback
 
 
-def store_logo_file(logo: UploadFile) -> str:
-    filename = f"{secrets.token_hex(8)}_{logo.filename}"
+def store_upload_file(upload: UploadFile) -> str:
+    filename = f"{secrets.token_hex(8)}_{upload.filename}"
     file_path = path.join(UPLOAD_DIR, filename)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(logo.file, buffer)
+        shutil.copyfileobj(upload.file, buffer)
     return f"/uploads/{filename}"
+
+
+def remove_upload_file(upload_url: Optional[str]) -> None:
+    if not upload_url or not upload_url.startswith("/uploads/"):
+        return
+
+    try:
+        full_path = path.join(
+            path.dirname(path.dirname(path.abspath(__file__))),
+            upload_url.lstrip("/")
+        )
+        if path.exists(full_path):
+            remove(full_path)
+    except Exception:
+        pass
 
 
 @router.post("/create_job")
@@ -78,6 +93,10 @@ async def create_job(
     salary: str = Form(...),
     category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
+    experience_level: Optional[str] = Form(None),
+    required_from: Optional[str] = Form(None),
+    remote_allowed: bool = Form(False),
+    education_level: Optional[str] = Form(None),
     country_key: str = Form(...),
     country_label: str = Form(...),
     country_flag_code: str = Form(...),
@@ -89,6 +108,8 @@ async def create_job(
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
     logo_url: Optional[str] = Form(None),
+    banner: Optional[UploadFile] = File(None),
+    banner_url: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
@@ -101,11 +122,13 @@ async def create_job(
     makedirs(UPLOAD_DIR, exist_ok=True)
 
     if logo:
-        logo_path = store_logo_file(logo)
+        logo_path = store_upload_file(logo)
         current_user.company_logo_url = logo_path
         session.add(current_user)
     else:
         logo_path = logo_url or current_user.company_logo_url or ""
+
+    banner_path = store_upload_file(banner) if banner else (banner_url or "")
 
     job_status = "approved"
 
@@ -115,12 +138,17 @@ async def create_job(
         salary=salary,
         category=category,
         employment_type=employment_type,
+        experience_level=experience_level,
+        required_from=required_from,
+        remote_allowed=remote_allowed,
+        education_level=education_level,
         country_key=country_key,
         country_label=country_label,
         country_flag_code=country_flag_code,
         location=location,
         description=description,
         logo=logo_path,
+        banner_url=banner_path,
         languages_json=languages_json,
         licenses_json=licenses_json,
         has_housing=has_housing,
@@ -168,6 +196,10 @@ async def update_job(
     salary: str = Form(...),
     category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
+    experience_level: Optional[str] = Form(None),
+    required_from: Optional[str] = Form(None),
+    remote_allowed: bool = Form(False),
+    education_level: Optional[str] = Form(None),
     country_key: str = Form(...),
     country_label: str = Form(...),
     country_flag_code: str = Form(...),
@@ -179,6 +211,8 @@ async def update_job(
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
     logo_url: Optional[str] = Form(None),
+    banner: Optional[UploadFile] = File(None),
+    banner_url: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
@@ -193,20 +227,12 @@ async def update_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     old_logo = job.logo
+    old_banner = job.banner_url
     makedirs(UPLOAD_DIR, exist_ok=True)
 
     if logo:
-        new_logo_path = store_logo_file(logo)
-        if old_logo and old_logo.startswith("/uploads/"):
-            try:
-                full_old_path = path.join(
-                    path.dirname(path.dirname(path.abspath(__file__))),
-                    old_logo.lstrip("/")
-                )
-                if path.exists(full_old_path):
-                    remove(full_old_path)
-            except Exception:
-                pass
+        new_logo_path = store_upload_file(logo)
+        remove_upload_file(old_logo)
         job.logo = new_logo_path
         current_user.company_logo_url = new_logo_path
         session.add(current_user)
@@ -217,11 +243,24 @@ async def update_job(
     elif current_user.company_logo_url:
         job.logo = current_user.company_logo_url
 
+    if banner:
+        new_banner_path = store_upload_file(banner)
+        remove_upload_file(old_banner)
+        job.banner_url = new_banner_path
+    elif banner_url:
+        if old_banner and old_banner != banner_url:
+            remove_upload_file(old_banner)
+        job.banner_url = banner_url
+
     job.title = title
     job.company = company_name
     job.salary = salary
     job.category = category
     job.employment_type = employment_type
+    job.experience_level = experience_level
+    job.required_from = required_from
+    job.remote_allowed = remote_allowed
+    job.education_level = education_level
     job.country_key = country_key
     job.country_label = country_label
     job.country_flag_code = country_flag_code
@@ -252,16 +291,8 @@ async def delete_job(
     if not job or job.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    if job.logo and job.logo.startswith("/uploads/"):
-        try:
-            full_path = path.join(
-                path.dirname(path.dirname(path.abspath(__file__))),
-                job.logo.lstrip("/")
-            )
-            if path.exists(full_path):
-                remove(full_path)
-        except Exception:
-            pass
+    remove_upload_file(job.logo)
+    remove_upload_file(job.banner_url)
     session.delete(job)
     session.commit()
 
@@ -391,12 +422,18 @@ def get_my_job_responses(
             "title": job.title,
             "company": job.company,
             "category": job.category,
+            "employment_type": job.employment_type,
+            "experience_level": job.experience_level,
+            "required_from": job.required_from,
+            "remote_allowed": job.remote_allowed,
+            "education_level": job.education_level,
             "country_key": job.country_key,
             "country_label": job.country_label,
             "country_flag_code": job.country_flag_code,
             "location": job.location,
             "salary": job.salary,
             "logo": job.logo,
+            "banner_url": job.banner_url,
             "description": job.description,
             "languages": parse_json_field(job.languages_json, []),
             "licenses": parse_json_field(job.licenses_json, []),
@@ -423,12 +460,19 @@ def get_my_job_responses(
             "job_id": app.job_id,
             "job_title": job_data.get("title", ""),
             "job_company": job_data.get("company", ""),
+            "job_category": job_data.get("category", ""),
+            "job_employment_type": job_data.get("employment_type", ""),
+            "job_experience_level": job_data.get("experience_level", ""),
+            "job_required_from": job_data.get("required_from", ""),
+            "job_remote_allowed": bool(job_data.get("remote_allowed", False)),
+            "job_education_level": job_data.get("education_level", ""),
             "job_country_key": job_data.get("country_key", ""),
             "job_country_label": job_data.get("country_label", ""),
             "job_country_flag_code": job_data.get("country_flag_code", ""),
             "job_location": job_data.get("location", ""),
             "job_salary": job_data.get("salary", ""),
             "job_logo": job_data.get("logo", ""),
+            "job_banner_url": job_data.get("banner_url", ""),
             "job_description": job_data.get("description", ""),
             "job_languages": job_data.get("languages", []),
             "job_licenses": job_data.get("licenses", []),
@@ -443,6 +487,10 @@ def get_my_job_responses(
             "candidate_current_role": profile.current_role if profile else "",
             "candidate_summary": profile.summary if profile else "",
             "candidate_skills": profile.skills if profile else "",
+            "candidate_education_level": profile.education_level if profile else "",
+            "candidate_salary_expectation": profile.salary_expectation if profile else "",
+            "candidate_preferred_employment_type": profile.preferred_employment_type if profile else "",
+            "candidate_remote_ready": bool(profile.remote_ready) if profile else False,
             "candidate_work_permit": profile.work_permit if profile else "",
             "candidate_availability": profile.availability if profile else "",
             "candidate_resume_url": profile.resume_url if profile else "",

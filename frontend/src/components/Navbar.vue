@@ -291,7 +291,7 @@ export default {
         { label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
         { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
         { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
-        // { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
+        { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
         { label: this.t('navbar.pricing'), to: '/employers#pricing', icon: 'fas fa-tags', hash: '#pricing', hashBasePath: '/employers' },
       ]
 

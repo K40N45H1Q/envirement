@@ -52,6 +52,10 @@ def serialize_profile(profile: Optional[CandidateProfile]):
             "licenses": [],
             "mobility": "",
             "preferred_mobility": "",
+            "salary_expectation": "",
+            "preferred_employment_type": "",
+            "education_level": "",
+            "remote_ready": False,
             "work_permit": "",
             "availability": "",
             "resume_name": "",
@@ -71,6 +75,10 @@ def serialize_profile(profile: Optional[CandidateProfile]):
         "licenses": parse_json_field(profile.licenses_json, []),
         "mobility": profile.mobility or "",
         "preferred_mobility": profile.preferred_mobility or "",
+        "salary_expectation": profile.salary_expectation or "",
+        "preferred_employment_type": profile.preferred_employment_type or "",
+        "education_level": profile.education_level or "",
+        "remote_ready": bool(profile.remote_ready),
         "work_permit": profile.work_permit or "",
         "availability": profile.availability or "",
         "resume_name": profile.resume_name or "",
@@ -100,6 +108,10 @@ async def update_profile(
     licenses_json: Optional[str] = Form(None),
     mobility: Optional[str] = Form(None),
     preferred_mobility: Optional[str] = Form(None),
+    salary_expectation: Optional[str] = Form(None),
+    preferred_employment_type: Optional[str] = Form(None),
+    education_level: Optional[str] = Form(None),
+    remote_ready: bool = Form(False),
     work_permit: Optional[str] = Form(None),
     availability: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
@@ -127,6 +139,10 @@ async def update_profile(
     profile.licenses_json = licenses_json
     profile.mobility = mobility
     profile.preferred_mobility = preferred_mobility
+    profile.salary_expectation = salary_expectation
+    profile.preferred_employment_type = preferred_employment_type
+    profile.education_level = education_level
+    profile.remote_ready = remote_ready
     profile.work_permit = work_permit
     profile.availability = availability
 

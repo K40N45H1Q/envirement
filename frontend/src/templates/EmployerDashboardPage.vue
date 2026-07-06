@@ -345,6 +345,25 @@ const localizedEmploymentTypeOptions = computed(() => employmentTypeOptions.map(
   id: option.id,
   label: isEnglish.value ? option.en : option.ru,
 })))
+const localizedExperienceOptions = computed(() => ([
+  { value: 'no_experience', label: isEnglish.value ? 'No experience' : 'Без опыта' },
+  { value: '1_year', label: isEnglish.value ? '1+ year' : '1+ год' },
+  { value: '2_years', label: isEnglish.value ? '2+ years' : '2+ года' },
+  { value: '3_years', label: isEnglish.value ? '3+ years' : '3+ года' },
+  { value: '4_years', label: isEnglish.value ? '4+ years' : '4+ года' },
+  { value: '5_years', label: isEnglish.value ? '5+ years' : '5+ лет' },
+  { value: '7_years', label: isEnglish.value ? '7+ years' : '7+ лет' },
+  { value: '10_years', label: isEnglish.value ? '10+ years' : '10+ лет' },
+]))
+const localizedEducationOptions = computed(() => ([
+  { value: '', label: isEnglish.value ? 'Choose education level' : 'Выберите уровень образования' },
+  { value: 'primary', label: isEnglish.value ? 'Primary' : 'Начальное' },
+  { value: 'secondary', label: isEnglish.value ? 'Secondary' : 'Среднее' },
+  { value: 'vocational', label: isEnglish.value ? 'Vocational' : 'Профессиональное' },
+  { value: 'bachelor', label: isEnglish.value ? 'Bachelor' : 'Бакалавр' },
+  { value: 'master', label: isEnglish.value ? 'Master' : 'Магистр' },
+  { value: 'phd', label: isEnglish.value ? 'PhD' : 'Доктор / PhD' },
+]))
 const validSectionIds = sections.map((section) => section.id)
 const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'jobs')
 
@@ -355,6 +374,8 @@ const blankForm = () => ({
   salary_currency: 'EUR',
   category: '',
   employment_type: 'full-time',
+  experience_level: 'no_experience',
+  education_level: '',
   country_key: '',
   location: '',
   description: '',
@@ -363,6 +384,7 @@ const blankForm = () => ({
   has_housing: false,
   has_transport: false,
   logo: null,
+  banner: null,
 })
 
 const activeSection = ref(normalizeSection(typeof route.query.section === 'string' ? route.query.section : 'jobs'))
@@ -378,7 +400,9 @@ const form = ref(blankForm())
 const status = ref('')
 const error = ref('')
 const logoPreview = ref('')
+const bannerPreview = ref('')
 const objectUrl = ref('')
+const bannerObjectUrl = ref('')
 const newLanguage = ref(localizedLanguageOptions.value[0]?.value || 'English')
 const newLanguageLevel = ref(languageLevelOptions[2].value)
 const newLicense = ref(isEnglish.value ? 'No license' : 'Нет лицензий')
@@ -527,6 +551,13 @@ function revokeLogoPreview() {
   }
 }
 
+function revokeBannerPreview() {
+  if (bannerObjectUrl.value) {
+    URL.revokeObjectURL(bannerObjectUrl.value)
+    bannerObjectUrl.value = ''
+  }
+}
+
 function resolveAssetUrl(url) {
   if (!url) return ''
   if (/^(https?:|data:|blob:)/.test(url)) return url
@@ -659,7 +690,9 @@ function resetForm() {
     company: employerCompanyName.value,
   }
   logoPreview.value = employerCompanyLogo.value
+  bannerPreview.value = ''
   revokeLogoPreview()
+  revokeBannerPreview()
 }
 
 function addLanguage() {
@@ -700,6 +733,20 @@ function onLogoChange(event) {
   logoPreview.value = objectUrl.value
 }
 
+function onBannerChange(event) {
+  const file = event.target.files?.[0] || null
+  form.value.banner = file
+  revokeBannerPreview()
+
+  if (!file) {
+    bannerPreview.value = ''
+    return
+  }
+
+  bannerObjectUrl.value = URL.createObjectURL(file)
+  bannerPreview.value = bannerObjectUrl.value
+}
+
 async function editJob(job) {
   const country = resolveCountryMeta(job)
   const salaryParts = parseSalaryParts(job.salary)
@@ -711,6 +758,8 @@ async function editJob(job) {
     salary_currency: salaryParts.currency,
     category: job.category || inferJobCategory(job),
     employment_type: job.employment_type || job.employmentType || 'full-time',
+    experience_level: job.experience_level || 'no_experience',
+    education_level: job.education_level || '',
     country_key: country.countryKey || '',
     location: job.location,
     description: job.description,
@@ -719,8 +768,10 @@ async function editJob(job) {
     has_housing: Boolean(job.has_housing),
     has_transport: Boolean(job.has_transport),
     logo: null,
+    banner: null,
   }
   logoPreview.value = job.logo || employerCompanyLogo.value
+  bannerPreview.value = job.banner_url || ''
   status.value = ''
   error.value = ''
   await setSection('jobs')
@@ -1050,6 +1101,24 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
+
+            <div class="upload-grid">
+              <label class="upload-card">
+                <span class="upload-title">{{ isEnglish ? 'Vacancy banner' : 'Баннер вакансии' }}</span>
+                <span class="upload-copy">{{ isEnglish ? 'Displayed on the vacancy page hero section' : 'Отображается как баннер на странице вакансии' }}</span>
+                <span class="upload-button">{{ copy.chooseFile }}</span>
+                <span class="upload-filename">{{ form.banner?.name || copy.noFileSelected }}</span>
+                <input type="file" accept="image/*" @change="onBannerChange" />
+              </label>
+
+              <div class="preview-card preview-card--banner">
+                <img v-if="bannerPreview" :src="bannerPreview" :alt="isEnglish ? 'Vacancy banner preview' : 'Превью баннера вакансии'" />
+                <div v-else class="preview-placeholder">
+                  <i class="fas fa-panorama"></i>
+                  <span>{{ isEnglish ? 'Vacancy banner preview' : 'Превью баннера вакансии' }}</span>
+                </div>
+              </div>
+            </div>
             <div class="attribute-grid">
               <label class="attribute-card" :class="{ 'attribute-card--active': form.has_housing }">
                 <input v-model="form.has_housing" type="checkbox" />
@@ -1106,8 +1175,28 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
-            
 
+            <div class="field-grid">
+              <label>
+                {{ isEnglish ? 'Minimum experience' : 'Минимальный опыт' }}
+                <BaseDropdown
+                  v-model="form.experience_level"
+                  :aria-label="isEnglish ? 'Minimum experience' : 'Минимальный опыт'"
+                  full-width
+                  :options="localizedExperienceOptions"
+                />
+              </label>
+
+              <label>
+                {{ isEnglish ? 'Education requirement' : 'Требуемое образование' }}
+                <BaseDropdown
+                  v-model="form.education_level"
+                  :aria-label="isEnglish ? 'Education requirement' : 'Требуемое образование'"
+                  full-width
+                  :options="localizedEducationOptions"
+                />
+              </label>
+            </div>
 
             <label>
               {{ copy.description }}
@@ -1264,6 +1353,10 @@ onBeforeUnmount(() => {
                         <div class="response-title-block">
                           <p class="response-kicker">{{ copy.candidateKicker }}</p>
                           <h3>{{ responseFullName(item) }}</h3>
+                          <p class="response-match-profile">
+                            <span class="response-traffic-dot" :class="`response-traffic-dot--${item.matchAnalysis.trafficLight}`"></span>
+                            {{ item.matchAnalysis.profile }}
+                          </p>
                         </div>
 
                         <div class="response-score-chip" :class="`response-score-chip--${item.matchAnalysis.meta.key}`">
@@ -1285,6 +1378,16 @@ onBeforeUnmount(() => {
                         <span v-if="item.nationality" class="response-detail">
                           <i class="fas fa-globe"></i>
                           {{ item.nationality }}
+                        </span>
+                      </div>
+
+                      <div v-if="item.matchAnalysis.failedGates.length" class="response-failed-gates">
+                        <span
+                          v-for="(gate, gateIndex) in item.matchAnalysis.failedGates"
+                          :key="`${item.id}-gate-${gateIndex}`"
+                          class="response-failed-gates__pill"
+                        >
+                          {{ gate }}
                         </span>
                       </div>
 
@@ -1760,6 +1863,10 @@ textarea {
   background: linear-gradient(180deg, rgba(232, 249, 238, 0.82), rgba(255, 255, 255, 0.98));
 }
 
+.preview-card--banner {
+  min-height: 15rem;
+}
+
 .preview-card img,
 .company-logo img {
   width: 100%;
@@ -2178,7 +2285,7 @@ textarea {
 
 .response-title-block {
   display: grid;
-  gap: 0.1rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
@@ -2193,6 +2300,34 @@ textarea {
   color: var(--text-primary);
   font-size: 1.05rem;
   line-height: 1.25;
+}
+
+.response-match-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.response-traffic-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.response-traffic-dot--green {
+  background: #16a34a;
+}
+
+.response-traffic-dot--amber {
+  background: #d68a12;
+}
+
+.response-traffic-dot--red {
+  background: #dc2626;
 }
 
 .response-job,
@@ -2227,6 +2362,26 @@ textarea {
 .response-details {
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.response-failed-gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.response-failed-gates__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.32rem 0.72rem;
+  border-radius: 999rem;
+  background: #fff1f2;
+  border: 0.0625rem solid #fecdd3;
+  color: #b91c1c;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.3;
 }
 
 .response-breakdown {
