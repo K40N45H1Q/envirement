@@ -136,6 +136,10 @@ export default defineConfig({
     allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/create_account': createBackendProxy(),
+      '/request_registration_code': createBackendProxy(),
+      '/verify_registration_code': createBackendProxy(),
+      '/request_password_reset_code': createBackendProxy(),
+      '/confirm_password_reset': createBackendProxy(),
       '/login': createBackendProxy(),
       '/get_me': createBackendProxy(),
       '/api': createBackendProxy(),

@@ -26,6 +26,13 @@ class Settings(BaseModel):
     default_employer_password: str | None
     default_candidate_login: str | None
     default_candidate_password: str | None
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_from_email: str | None
+    registration_code_expire_minutes: int
+    password_reset_code_expire_minutes: int
 
 
 def parse_bool(value: str | None, default: bool) -> bool:
@@ -70,6 +77,13 @@ def load_settings() -> Settings:
         default_employer_password=(os.getenv("DEFAULT_EMPLOYER_PASSWORD") or "").strip() or None,
         default_candidate_login=(os.getenv("DEFAULT_CANDIDATE_LOGIN") or "").strip().lower() or None,
         default_candidate_password=(os.getenv("DEFAULT_CANDIDATE_PASSWORD") or "").strip() or None,
+        smtp_host=(os.getenv("SMTP_HOST") or "smtp.hostinger.com").strip() or None,
+        smtp_port=int(os.getenv("SMTP_PORT", "465")),
+        smtp_username=(os.getenv("SMTP_USERNAME") or "").strip() or None,
+        smtp_password=(os.getenv("SMTP_PASSWORD") or "").strip() or None,
+        smtp_from_email=(os.getenv("SMTP_FROM_EMAIL") or "").strip() or None,
+        registration_code_expire_minutes=int(os.getenv("REGISTRATION_CODE_EXPIRE_MINUTES", "10")),
+        password_reset_code_expire_minutes=int(os.getenv("PASSWORD_RESET_CODE_EXPIRE_MINUTES", "10")),
     )
 
 

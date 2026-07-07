@@ -18,9 +18,9 @@
           </h1>
 
           <Transition name="expand">
-            <div v-if="error" class="api-error-msg">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              <span>{{ error }}</span>
+            <div v-if="feedbackMessage" class="api-feedback-msg" :class="`api-feedback-msg--${feedbackTone}`">
+              <i class="fa-solid" :class="feedbackTone === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'"></i>
+              <span>{{ feedbackMessage }}</span>
             </div>
           </Transition>
 
@@ -30,13 +30,18 @@
               <strong>{{ t('register.account') }}</strong>
             </div>
             <div class="steps-line"></div>
-            <div class="step" :class="{ 'step--active': currentStep === 2 }">
+            <div class="step" :class="{ 'step--active': currentStep === 2, 'step--done': currentStep > 2 }">
               <span>2</span>
               <strong>{{ t('register.company') }}</strong>
             </div>
+            <div class="steps-line"></div>
+            <div class="step" :class="{ 'step--active': currentStep === 3 }">
+              <span>3</span>
+              <strong>{{ t('register.verifyEmailShort') }}</strong>
+            </div>
           </div>
 
-          <div v-if="!isEmployerCompanyStep" class="field">
+          <div v-if="isAccountStep" class="field">
             <div class="account-type">
               <button
                 type="button"
@@ -59,7 +64,7 @@
             </div>
           </div>
 
-          <template v-if="!isEmployerCompanyStep">
+          <template v-if="isAccountStep">
             <div class="field">
               <input
                 v-model.trim="fullName"
@@ -178,7 +183,7 @@
             </button>
           </template>
 
-          <template v-else>
+          <template v-else-if="isEmployerCompanyStep">
             <div class="field">
               <input
                 v-model.trim="companyName"
@@ -227,7 +232,41 @@
             </div>
           </template>
 
-          <button v-if="!isEmployerCompanyStep" type="button" class="link" @click="emit('open-login')">
+          <template v-else>
+            <div class="hint-card verification-card">
+              <strong>{{ t('register.verifyEmailTitle') }}</strong>
+              <span>{{ t('register.verifyEmailHint', { email: email.trim() }) }}</span>
+            </div>
+
+            <div class="field">
+              <input
+                v-model.trim="verificationCode"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                :placeholder="t('register.verificationCode')"
+                class="input input-center"
+                autocomplete="one-time-code"
+                @input="setError('')"
+              />
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn-secondary secondary-action" :disabled="loading" @click="goBackFromVerification">
+                {{ t('common.back') }}
+              </button>
+              <button type="submit" class="submit-btn btn-primary" :disabled="loading">
+                <span v-if="loading" class="spinner"></span>
+                <span v-else>{{ t('register.verifyAndCreate') }}</span>
+              </button>
+            </div>
+
+            <button type="button" class="link link-inline" :disabled="loading" @click="resendCode">
+              {{ t('register.resendCode') }}
+            </button>
+          </template>
+
+          <button v-if="isAccountStep" type="button" class="link" @click="emit('open-login')">
             {{ t('register.alreadyHaveAccount') }} <span class="link-accent">{{ t('register.loginNow') }}</span>
           </button>
         </form>
@@ -239,7 +278,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from '@/i18n'
-import { createAccount } from '@/api/auth'
+import { requestRegistrationCode, verifyRegistrationCode } from '@/api/auth'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 
 defineProps({
@@ -270,9 +309,11 @@ const companyName = ref('')
 const companyCountry = ref('')
 const companyIndustry = ref('general')
 const companyRegistrationNumber = ref('')
+const verificationCode = ref('')
 const isPasswordTouched = ref(false)
 const isConfirmTouched = ref(false)
-const error = ref('')
+const feedbackMessage = ref('')
+const feedbackTone = ref('error')
 const loading = ref(false)
 let errorTimer = null
 
@@ -285,7 +326,9 @@ const countryDropdownOptions = computed(() => [
   { value: t('register.countryNetherlands'), label: t('register.countryNetherlands') },
 ])
 
+const isAccountStep = computed(() => currentStep.value === 1)
 const isEmployerCompanyStep = computed(() => selectedAccountType.value === 'employer' && currentStep.value === 2)
+const isVerificationStep = computed(() => currentStep.value === 3)
 const showRequirements = computed(() => isPasswordTouched.value || password.value.length > 0)
 const checks = computed(() => ({
   length: password.value.length >= 8,
@@ -308,13 +351,19 @@ function clearErrorTimer() {
 }
 
 function setError(message) {
+  setFeedback(message, 'error')
+}
+
+function setFeedback(message, tone = 'error') {
   clearErrorTimer()
-  error.value = message
+  feedbackMessage.value = message
+  feedbackTone.value = tone
 
   if (!message) return
 
   errorTimer = window.setTimeout(() => {
-    error.value = ''
+    feedbackMessage.value = ''
+    feedbackTone.value = 'error'
     errorTimer = null
   }, 4500)
 }
@@ -332,10 +381,12 @@ function resetForm() {
   companyCountry.value = ''
   companyIndustry.value = 'general'
   companyRegistrationNumber.value = ''
+  verificationCode.value = ''
   isPasswordTouched.value = false
   isConfirmTouched.value = false
   currentStep.value = 1
-  error.value = ''
+  feedbackMessage.value = ''
+  feedbackTone.value = 'error'
   loading.value = false
   clearErrorTimer()
 }
@@ -384,6 +435,20 @@ function validateCompanyStep() {
   return true
 }
 
+function buildRegistrationPayload() {
+  return {
+    fullName: fullName.value.trim(),
+    email: email.value.trim(),
+    phone: phone.value.trim(),
+    password: password.value,
+    accountType: selectedAccountType.value,
+    companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
+    companyCountry: selectedAccountType.value === 'employer' ? companyCountry.value : '',
+    companyIndustry: selectedAccountType.value === 'employer' ? companyIndustry.value : '',
+    companyRegistrationNumber: selectedAccountType.value === 'employer' ? companyRegistrationNumber.value.trim() : '',
+  }
+}
+
 function getErrorMessage(requestError) {
   const key = requestError?.key || requestError?.message
 
@@ -393,16 +458,80 @@ function getErrorMessage(requestError) {
   if (key === 'company_registration_number_exists') return t('register.companyRegistrationNumberExists')
   if (key === 'missing_company_fields') return t('register.fillCompanyFields')
   if (key === 'missing_fields') return t('register.fillRequiredFields')
+  if (key === 'missing_verification_fields') return t('register.fillVerificationCode')
+  if (key === 'invalid_verification_code') return t('register.invalidVerificationCode')
+  if (key === 'verification_code_expired') return t('register.verificationCodeExpired')
+  if (key === 'verification_session_not_found') return t('register.verificationSessionNotFound')
+  if (key === 'smtp_not_configured' || key === 'smtp_delivery_failed') return t('register.codeDeliveryFailed')
+  if (key === 'email_verification_required') return t('register.verifyEmailRequired')
   if (key === 'invalid_account_type') return t('register.createAccountFailed')
   if (key === 'network_error') return t('register.networkError')
 
   return t('register.createAccountFailed')
 }
 
+async function sendVerificationCode() {
+  await requestRegistrationCode(buildRegistrationPayload())
+  currentStep.value = 3
+  verificationCode.value = ''
+  setFeedback(t('register.codeSent'), 'success')
+}
+
+async function resendCode() {
+  setError('')
+  loading.value = true
+
+  try {
+    await sendVerificationCode()
+  } catch (requestError) {
+    setError(getErrorMessage(requestError))
+  } finally {
+    loading.value = false
+  }
+}
+
+function goBackFromVerification() {
+  currentStep.value = selectedAccountType.value === 'employer' ? 2 : 1
+  verificationCode.value = ''
+  setError('')
+}
+
 async function handleSubmit() {
   setError('')
 
-  if (!isEmployerCompanyStep.value) {
+  if (isVerificationStep.value) {
+    if (!verificationCode.value) {
+      setError(t('register.fillVerificationCode'))
+      return
+    }
+
+    loading.value = true
+
+    try {
+      const payload = await verifyRegistrationCode({
+        email: email.value.trim(),
+        code: verificationCode.value.trim(),
+      })
+
+      emit('registered', {
+        ...payload,
+        accountType: selectedAccountType.value,
+        fullName: fullName.value.trim(),
+        email: email.value.trim(),
+        companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
+        successMessage: selectedAccountType.value === 'employer'
+          ? t('register.successEmployer')
+          : t('register.successCandidate'),
+      })
+    } catch (requestError) {
+      setError(getErrorMessage(requestError))
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
+  if (isAccountStep.value) {
     isPasswordTouched.value = true
     isConfirmTouched.value = true
 
@@ -419,28 +548,7 @@ async function handleSubmit() {
   loading.value = true
 
   try {
-    const payload = await createAccount({
-      fullName: fullName.value.trim(),
-      email: email.value.trim(),
-      phone: phone.value.trim(),
-      password: password.value,
-      accountType: selectedAccountType.value,
-      companyName: selectedAccountType.value === 'employer' ? companyName.value : '',
-      companyCountry: selectedAccountType.value === 'employer' ? companyCountry.value : '',
-      companyIndustry: selectedAccountType.value === 'employer' ? companyIndustry.value : '',
-      companyRegistrationNumber: selectedAccountType.value === 'employer' ? companyRegistrationNumber.value : '',
-    })
-
-    emit('registered', {
-      ...payload,
-      accountType: selectedAccountType.value,
-      fullName: fullName.value.trim(),
-      email: email.value.trim(),
-      companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
-      successMessage: selectedAccountType.value === 'employer'
-        ? t('register.successEmployer')
-        : t('register.successCandidate'),
-    })
+    await sendVerificationCode()
   } catch (requestError) {
     setError(getErrorMessage(requestError))
   } finally {
@@ -739,27 +847,56 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
+.verification-card {
+  gap: 0.35rem;
+  display: grid;
+}
+
+.verification-card strong {
+  color: var(--text-primary);
+}
+
+.input-center {
+  text-align: center;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
 .actions {
   display: grid;
   grid-template-columns: 7rem 1fr;
   gap: 0.75rem;
 }
 
-.api-error-msg {
+.api-feedback-msg {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: rgba(255, 77, 79, 0.08);
-  border: 0.0625rem solid rgba(255, 77, 79, 0.2);
   border-radius: 0.5rem;
-  color: #d32f2f;
   font-size: 0.8125rem;
   font-weight: 500;
 }
 
-.api-error-msg i {
+.api-feedback-msg--error {
+  background: rgba(255, 77, 79, 0.08);
+  border: 0.0625rem solid rgba(255, 77, 79, 0.2);
+  color: #d32f2f;
+}
+
+.api-feedback-msg--success {
+  background: color-mix(in srgb, var(--brand-soft) 46%, white);
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
+  color: var(--brand-strong);
+}
+
+.api-feedback-msg i {
   color: #ff4d4f;
+}
+
+.api-feedback-msg--success i {
+  color: var(--brand-strong);
 }
 
 .submit-btn {
@@ -795,6 +932,11 @@ onBeforeUnmount(() => {
 
 .link:hover {
   color: #1e2326;
+}
+
+.link-inline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .link-accent {

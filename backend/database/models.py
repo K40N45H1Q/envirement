@@ -113,6 +113,27 @@ class BetaBlockedIP(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class RegistrationVerification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    code_hash: str
+    payload_json: str
+    expires_at: datetime
+    attempts: int = Field(default=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class PasswordResetVerification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    code_hash: str
+    expires_at: datetime
+    attempts: int = Field(default=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 @event.listens_for(User, "before_update")
 def update_user_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
@@ -130,6 +151,16 @@ def update_candidate_profile_timestamp(mapper, connection, target):
 
 @event.listens_for(BetaBlockedIP, "before_update")
 def update_beta_blocked_ip_timestamp(mapper, connection, target):
+    target.updated_at = datetime.now(timezone.utc)
+
+
+@event.listens_for(RegistrationVerification, "before_update")
+def update_registration_verification_timestamp(mapper, connection, target):
+    target.updated_at = datetime.now(timezone.utc)
+
+
+@event.listens_for(PasswordResetVerification, "before_update")
+def update_password_reset_verification_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 

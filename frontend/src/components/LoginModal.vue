@@ -7,7 +7,7 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
 
-          <h1 id="login-title" class="title">{{ t('login.title') }}</h1>
+          <h1 id="login-title" class="title">{{ isResetMode ? t('login.forgotTitle') : t('login.title') }}</h1>
 
           <Transition name="expand">
             <div v-if="feedbackMessage" class="api-error-msg" :class="{ 'api-error-msg--success': feedbackType === 'success' }">
@@ -16,8 +16,10 @@
             </div>
           </Transition>
 
+          <p v-if="isResetMode" class="hint">{{ t('login.forgotHint') }}</p>
+
           <input
-            v-model="email"
+            v-model.trim="email"
             type="email"
             placeholder="Email"
             class="input"
@@ -25,34 +27,130 @@
             @input="clearFeedback"
           />
 
-          <div class="password">
+          <template v-if="!isResetMode">
+            <div class="password">
+              <input
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                :placeholder="t('login.password')"
+                class="input"
+                :class="{ error: feedbackType === 'error' && feedbackMessage }"
+                @input="clearFeedback"
+              />
+
+              <button
+                type="button"
+                class="toggle"
+                :aria-label="t('common.showPassword')"
+                @click="showPassword = !showPassword"
+              >
+                <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+              </button>
+            </div>
+          </template>
+
+          <template v-else-if="resetRequested">
             <input
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              :placeholder="t('login.password')"
-              class="input"
+              v-model.trim="resetCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              :placeholder="t('login.resetCode')"
+              class="input input-center"
               :class="{ error: feedbackType === 'error' && feedbackMessage }"
               @input="clearFeedback"
             />
 
-            <button
-              type="button"
-              class="toggle"
-              :aria-label="t('common.showPassword')"
-              @click="showPassword = !showPassword"
-            >
-              <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
-            </button>
-          </div>
+            <div class="password">
+              <input
+                v-model="newPassword"
+                :type="showPassword ? 'text' : 'password'"
+                :placeholder="t('login.newPassword')"
+                class="input"
+                :class="{ error: (feedbackType === 'error' && feedbackMessage) || (isResetPasswordTouched && !isPasswordStrong(newPassword)) }"
+                @blur="isResetPasswordTouched = true"
+                @input="clearFeedback"
+              />
+
+              <button
+                type="button"
+                class="toggle"
+                :aria-label="t('common.showPassword')"
+                @click="showPassword = !showPassword"
+              >
+                <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+              </button>
+            </div>
+
+            <Transition name="expand">
+              <div v-show="showResetRequirements" class="requirements">
+                <div class="req-item" :class="{ valid: resetChecks.length }">
+                  <i class="fa-solid" :class="resetChecks.length ? 'fa-check' : 'fa-xmark'"></i>
+                  <span>{{ t('register.reqLength') }}</span>
+                </div>
+                <div class="req-item" :class="{ valid: resetChecks.uppercase }">
+                  <i class="fa-solid" :class="resetChecks.uppercase ? 'fa-check' : 'fa-xmark'"></i>
+                  <span>{{ t('register.reqUppercase') }}</span>
+                </div>
+                <div class="req-item" :class="{ valid: resetChecks.lowercase }">
+                  <i class="fa-solid" :class="resetChecks.lowercase ? 'fa-check' : 'fa-xmark'"></i>
+                  <span>{{ t('register.reqLowercase') }}</span>
+                </div>
+                <div class="req-item" :class="{ valid: resetChecks.number }">
+                  <i class="fa-solid" :class="resetChecks.number ? 'fa-check' : 'fa-xmark'"></i>
+                  <span>{{ t('register.reqNumber') }}</span>
+                </div>
+                <div class="req-item" :class="{ valid: resetChecks.special }">
+                  <i class="fa-solid" :class="resetChecks.special ? 'fa-check' : 'fa-xmark'"></i>
+                  <span>{{ t('register.reqSpecial') }}</span>
+                </div>
+              </div>
+            </Transition>
+
+            <div class="password">
+              <input
+                v-model="confirmNewPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                :placeholder="t('login.confirmNewPassword')"
+                class="input"
+                :class="{ error: (feedbackType === 'error' && feedbackMessage) || (isResetConfirmTouched && newPassword !== confirmNewPassword && confirmNewPassword) }"
+                @blur="isResetConfirmTouched = true"
+                @input="clearFeedback"
+              />
+
+              <button
+                type="button"
+                class="toggle"
+                :aria-label="t('common.showPassword')"
+                @click="showConfirmPassword = !showConfirmPassword"
+              >
+                <i :class="showConfirmPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+              </button>
+            </div>
+          </template>
 
           <button type="submit" class="submit-btn btn-primary" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner"></span>
-            <span v-else>{{ t('common.login') }}</span>
+            <span v-else>{{ submitLabel }}</span>
           </button>
 
-          <button type="button" class="link" @click="openRegister">
-            {{ t('login.noAccount') }} <span class="link-accent">{{ t('login.registerNow') }}</span>
-          </button>
+          <template v-if="isResetMode">
+            <button v-if="resetRequested" type="button" class="link" :disabled="isSubmitting" @click="requestResetCode">
+              {{ t('login.resendResetCode') }}
+            </button>
+            <button type="button" class="link" @click="switchToLogin">
+              {{ t('login.backToLogin') }}
+            </button>
+          </template>
+
+          <template v-else>
+            <button type="button" class="link" @click="switchToReset">
+              <span class="link-accent">{{ t('login.forgotPassword') }}</span>
+            </button>
+            <button type="button" class="link" @click="openRegister">
+              {{ t('login.noAccount') }} <span class="link-accent">{{ t('login.registerNow') }}</span>
+            </button>
+          </template>
         </form>
       </div>
     </Transition>
@@ -60,10 +158,10 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
-import { getMe, login } from '@/api/auth'
+import { confirmPasswordReset, getMe, login, requestPasswordResetCode } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import { defaultRouteForAccount } from '@/utils/auth'
 
@@ -74,6 +172,7 @@ const props = defineProps({
     default: null,
   },
 })
+
 const route = useRoute()
 const router = useRouter()
 const { setUser } = useAuth()
@@ -81,38 +180,94 @@ const { language, t } = useI18n()
 
 const email = ref('')
 const password = ref('')
+const resetCode = ref('')
+const newPassword = ref('')
+const confirmNewPassword = ref('')
 const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+const isResetPasswordTouched = ref(false)
+const isResetConfirmTouched = ref(false)
 const isSubmitting = ref(false)
 const feedbackMessage = ref('')
 const feedbackType = ref('error')
+const mode = ref('login')
+const resetRequested = ref(false)
+
+const isResetMode = computed(() => mode.value === 'reset')
+const submitLabel = computed(() => {
+  if (!isResetMode.value) return t('common.login')
+  return resetRequested.value ? t('login.resetPassword') : t('login.requestResetCode')
+})
+const resetChecks = computed(() => ({
+  length: newPassword.value.length >= 8,
+  uppercase: /[A-Z]/.test(newPassword.value),
+  lowercase: /[a-z]/.test(newPassword.value),
+  number: /\d/.test(newPassword.value),
+  special: /[^A-Za-z0-9]/.test(newPassword.value),
+}))
+const showResetRequirements = computed(() => isResetPasswordTouched.value || newPassword.value.length > 0)
 
 const close = () => emit('close')
 const openRegister = () => emit('open-register')
+
 const clearFeedback = () => {
   feedbackMessage.value = ''
   feedbackType.value = 'error'
 }
 
+const setFeedback = (message, type = 'error') => {
+  feedbackMessage.value = message
+  feedbackType.value = type
+}
+
+const resetResetState = () => {
+  resetCode.value = ''
+  newPassword.value = ''
+  confirmNewPassword.value = ''
+  showPassword.value = false
+  showConfirmPassword.value = false
+  isResetPasswordTouched.value = false
+  isResetConfirmTouched.value = false
+  resetRequested.value = false
+}
+
+const switchToReset = () => {
+  mode.value = 'reset'
+  password.value = ''
+  clearFeedback()
+}
+
+const switchToLogin = () => {
+  mode.value = 'login'
+  password.value = ''
+  resetResetState()
+  clearFeedback()
+}
+
 const applyNotice = (notice) => {
-  if (!notice?.message) {
-    clearFeedback()
+  if (isResetMode.value || !notice?.message) {
+    if (!isResetMode.value) clearFeedback()
     return
   }
 
-  feedbackMessage.value = notice.message
-  feedbackType.value = notice.type === 'success' ? 'success' : 'error'
+  setFeedback(notice.message, notice.type === 'success' ? 'success' : 'error')
 }
 
 const handleKeydown = (event) => {
-  if (event.key === 'Escape') {
-    close()
-  }
+  if (event.key === 'Escape') close()
 }
 
-const submit = async () => {
-  if (!email.value || !password.value) {
-    feedbackMessage.value = t('login.fillFields')
-    feedbackType.value = 'error'
+const isPasswordStrong = (value) => (
+  value.length >= 8
+  && /[A-Z]/.test(value)
+  && /[a-z]/.test(value)
+  && /\d/.test(value)
+  && /[^A-Za-z0-9]/.test(value)
+)
+
+const requestResetCode = async () => {
+  if (!email.value) {
+    setFeedback(t('login.missingResetEmail'))
     return
   }
 
@@ -120,36 +275,124 @@ const submit = async () => {
   clearFeedback()
 
   try {
-    await login({
-      email: email.value.trim(),
-      password: password.value,
-    })
-
-    const user = await getMe()
-    setUser(user)
-    feedbackMessage.value = language.value === 'en' ? 'Signed in successfully.' : 'Вход выполнен успешно.'
-    feedbackType.value = 'success'
-    const redirectTo = typeof route.query.redirect === 'string'
-      ? route.query.redirect
-      : defaultRouteForAccount(user.account_type)
-    window.setTimeout(() => {
-      close()
-      router.push(redirectTo)
-    }, 250)
+    await requestPasswordResetCode({ email: email.value.trim() })
+    resetRequested.value = true
+    setFeedback(t('login.resetCodeSent'), 'success')
   } catch (error) {
     const errorMessages = {
-      invalid_credentials: t('login.invalidCredentials'),
-      missing_fields: t('login.missingFields'),
-      no_token_received: t('login.noToken'),
+      missing_reset_email: t('login.missingResetEmail'),
+      smtp_not_configured: t('login.resetEmailDeliveryFailed'),
+      smtp_delivery_failed: t('login.resetEmailDeliveryFailed'),
       network_error: t('login.networkError'),
       unknown_error: t('login.unknownError'),
     }
-
-    feedbackMessage.value = errorMessages[error.key || error.message] || t('login.genericError', { message: error.message })
-    feedbackType.value = 'error'
+    setFeedback(errorMessages[error.key || error.message] || t('login.genericError', { message: error.message }))
   } finally {
     isSubmitting.value = false
   }
+}
+
+const submitLogin = async () => {
+  if (!email.value || !password.value) {
+    setFeedback(t('login.fillFields'))
+    return
+  }
+
+  await login({
+    email: email.value.trim(),
+    password: password.value,
+  })
+
+  const user = await getMe()
+  setUser(user)
+  setFeedback(language.value === 'en' ? 'Signed in successfully.' : 'Вход выполнен успешно.', 'success')
+  const redirectTo = typeof route.query.redirect === 'string'
+    ? route.query.redirect
+    : defaultRouteForAccount(user.account_type)
+  window.setTimeout(() => {
+    close()
+    router.push(redirectTo)
+  }, 250)
+}
+
+const submitReset = async () => {
+  if (!resetRequested.value) {
+    await requestResetCode()
+    return
+  }
+
+  if (!email.value || !resetCode.value || !newPassword.value || !confirmNewPassword.value) {
+    setFeedback(t('login.missingResetFields'))
+    return
+  }
+
+  isResetPasswordTouched.value = true
+  isResetConfirmTouched.value = true
+
+  if (!isPasswordStrong(newPassword.value)) {
+    setFeedback(t('login.weakPassword'))
+    return
+  }
+
+  if (newPassword.value !== confirmNewPassword.value) {
+    setFeedback(t('login.passwordMismatch'))
+    return
+  }
+
+  isSubmitting.value = true
+  clearFeedback()
+
+  try {
+    await confirmPasswordReset({
+      email: email.value.trim(),
+      code: resetCode.value.trim(),
+      newPassword: newPassword.value,
+    })
+    setFeedback(t('login.resetSuccess'), 'success')
+    password.value = ''
+    resetResetState()
+    mode.value = 'login'
+  } catch (error) {
+    const errorMessages = {
+      missing_reset_fields: t('login.missingResetFields'),
+      weak_password: t('login.weakPassword'),
+      invalid_password_reset_code: t('login.invalidResetCode'),
+      password_reset_code_expired: t('login.resetCodeExpired'),
+      password_reset_session_not_found: t('login.resetSessionNotFound'),
+      network_error: t('login.networkError'),
+      unknown_error: t('login.unknownError'),
+    }
+    setFeedback(errorMessages[error.key || error.message] || t('login.genericError', { message: error.message }))
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const submit = async () => {
+  if (isSubmitting.value) return
+
+  if (!isResetMode.value) {
+    isSubmitting.value = true
+    clearFeedback()
+
+    try {
+      await submitLogin()
+    } catch (error) {
+      const errorMessages = {
+        invalid_credentials: t('login.invalidCredentials'),
+        missing_fields: t('login.missingFields'),
+        no_token_received: t('login.noToken'),
+        network_error: t('login.networkError'),
+        unknown_error: t('login.unknownError'),
+      }
+      setFeedback(errorMessages[error.key || error.message] || t('login.genericError', { message: error.message }))
+    } finally {
+      isSubmitting.value = false
+    }
+    return
+  }
+
+  await submitReset()
 }
 
 onMounted(() => {
@@ -220,6 +463,14 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.hint {
+  margin: -0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
 .input {
   width: 100%;
   padding: 0.75rem 0.875rem;
@@ -245,6 +496,42 @@ onBeforeUnmount(() => {
 .input.error {
   border-color: #ff4d4f;
   background: rgba(255, 77, 79, 0.02);
+}
+
+.input-center {
+  text-align: center;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+}
+
+.requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--brand-soft) 36%, white);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.5rem;
+  margin-top: -0.25rem;
+}
+
+.req-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(30, 35, 38, 0.5);
+  transition: color 0.2s ease;
+}
+
+.req-item.valid {
+  color: var(--brand-strong);
+}
+
+.req-item i {
+  width: 0.875rem;
+  font-size: 0.625rem;
+  text-align: center;
 }
 
 .password {
@@ -294,7 +581,7 @@ onBeforeUnmount(() => {
   font-size: 0.8125rem;
   color: rgba(30, 35, 38, 0.6);
   text-decoration: none;
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
   cursor: pointer;
   transition: color 0.2s ease;
   font-family: inherit;
@@ -302,6 +589,11 @@ onBeforeUnmount(() => {
 
 .link:hover {
   color: #1e2326;
+}
+
+.link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .link-accent {
