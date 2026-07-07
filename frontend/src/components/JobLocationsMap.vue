@@ -27,6 +27,9 @@ let leafletMap = null
 let leafletLayer = null
 let leafletModule = null
 
+const mapTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const mapTileAttribution = '&copy; OpenStreetMap contributors'
+
 const fallbackCoordinates = {
   germany: [52.52, 13.405],
   netherlands: [51.9244, 4.4777],
@@ -121,8 +124,10 @@ onMounted(async () => {
     scrollWheelZoom: false,
   }).setView(fallbackCoordinates.other, 4)
 
-  leafletModule.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
+  leafletMap.attributionControl.setPrefix('')
+
+  leafletModule.tileLayer(mapTileUrl, {
+    attribution: mapTileAttribution,
   }).addTo(leafletMap)
 
   await renderMarkers()
