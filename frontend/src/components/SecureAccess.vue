@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUiStore } from '@/stores/ui'
 import { useBetaAccess } from '@/stores/betaAccess'
@@ -11,51 +11,41 @@ const uiStore = useUiStore()
 const betaAccess = useBetaAccess()
 const canvasRef = ref(null)
 const errorMessage = ref('')
-const attemptsMessage = ref('')
+const form = reactive({ accessToken: '' })
 
-const form = reactive({
-  accessToken: '',
-})
+const TEXT = 'Enter your beta testing access token'
+const INVALID = 'Invalid access token.'
+const BANNED = 'Ваш IP адрес был забанен.'
+const GREEN = '#1da86b'
+const RED = '#ff0000'
+
+const hexToRgb = (hex) => {
+  const value = Number.parseInt(hex.replace('#', ''), 16)
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 }
+}
+
+const color = computed(() => hexToRgb(errorMessage.value ? RED : GREEN))
+const hintText = computed(() => errorMessage.value || TEXT)
 
 const CONFIG = {
-  colors: {
-    particle: { r: 0, g: 230, b: 118 },
-    line: { r: 0, g: 230, b: 118 },
-  },
-  particles: {
-    density: 0.06,
-    minCount: 15,
-    maxCount: 400,
-    speed: 10,
-    minSize: 1.5,
-    maxSize: 5.5,
-    minAlpha: 0.7,
-    maxAlpha: 1,
-    mouseRepelForce: 0.6,
-  },
-  connections: {
-    distance: 200,
-    lineWidth: 1,
-    maxOpacity: 0.3,
-  },
-  mouse: {
-    radius: 150,
-  },
+  particles: { density: 0.06, minCount: 15, maxCount: 400, speed: 10, minSize: 1.5, maxSize: 5.5, minAlpha: 0.7, maxAlpha: 1, mouseRepelForce: 0.6 },
+  connections: { distance: 200, lineWidth: 1, maxOpacity: 0.3 },
+  mouse: { radius: 150 },
 }
 
 let animationFrameId = null
 let particles = []
 let ctx = null
 
-const mouse = { x: undefined, y: undefined, active: false }
+const mouse = { x: 0, y: 0, active: false }
+
+const attemptsText = (attempts) => `${attempts} attempt${attempts === 1 ? '' : 's'} remaining.`
+const invalidText = (attempts) => typeof attempts === 'number' && attempts > 0 ? `${INVALID} ${attemptsText(attempts)}` : INVALID
 
 const getParticleCount = () => {
   const canvas = canvasRef.value
   if (!canvas) return CONFIG.particles.minCount
-
-  const area = (canvas.width * canvas.height) / 1000
-  const count = Math.floor(area * CONFIG.particles.density)
-  return Math.max(CONFIG.particles.minCount, Math.min(CONFIG.particles.maxCount, count))
+  return Math.max(CONFIG.particles.minCount, Math.min(CONFIG.particles.maxCount, Math.floor((canvas.width * canvas.height / 1000) * CONFIG.particles.density)))
 }
 
 class Particle {
@@ -78,7 +68,6 @@ class Particle {
     if (this.x > this.canvas.width) this.x = 0
     if (this.y < 0) this.y = this.canvas.height
     if (this.y > this.canvas.height) this.y = 0
-
     if (!mouse.active) return
 
     const dx = mouse.x - this.x
@@ -95,7 +84,7 @@ class Particle {
   draw() {
     ctx.beginPath()
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-    ctx.fillStyle = `rgba(${CONFIG.colors.particle.r}, ${CONFIG.colors.particle.g}, ${CONFIG.colors.particle.b}, ${this.alpha})`
+    ctx.fillStyle = `rgba(${color.value.r}, ${color.value.g}, ${color.value.b}, ${this.alpha})`
     ctx.fill()
   }
 }
@@ -111,7 +100,7 @@ const connectParticles = () => {
 
       if (distance < CONFIG.connections.distance) {
         const opacity = 1 - distance / CONFIG.connections.distance
-        ctx.strokeStyle = `rgba(${CONFIG.colors.line.r}, ${CONFIG.colors.line.g}, ${CONFIG.colors.line.b}, ${opacity * CONFIG.connections.maxOpacity})`
+        ctx.strokeStyle = `rgba(${color.value.r}, ${color.value.g}, ${color.value.b}, ${opacity * CONFIG.connections.maxOpacity})`
         ctx.beginPath()
         ctx.moveTo(particles[i].x, particles[i].y)
         ctx.lineTo(particles[j].x, particles[j].y)
@@ -126,21 +115,17 @@ const animate = () => {
   if (!canvas || !ctx) return
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-
   particles.forEach((particle) => {
     particle.update()
     particle.draw()
   })
-
   connectParticles()
   animationFrameId = window.requestAnimationFrame(animate)
 }
 
 const initParticles = () => {
   const canvas = canvasRef.value
-  if (!canvas) return
-
-  particles = Array.from({ length: getParticleCount() }, () => new Particle(canvas))
+  if (canvas) particles = Array.from({ length: getParticleCount() }, () => new Particle(canvas))
 }
 
 const handleResize = () => {
@@ -152,69 +137,33 @@ const handleResize = () => {
   initParticles()
 }
 
-const handleMouseMove = (event) => {
-  mouse.x = event.clientX
-  mouse.y = event.clientY
+const setMouse = (event) => {
+  mouse.x = event.touches?.[0]?.clientX ?? event.clientX
+  mouse.y = event.touches?.[0]?.clientY ?? event.clientY
   mouse.active = true
 }
 
-const handleMouseOut = () => {
+const clearMouse = () => {
   mouse.active = false
-}
-
-const handleTouchMove = (event) => {
-  if (!event.touches.length) return
-  mouse.x = event.touches[0].clientX
-  mouse.y = event.touches[0].clientY
-  mouse.active = true
-}
-
-const handleTouchEnd = () => {
-  mouse.active = false
-}
-
-const reloadCurrentPage = () => {
-  if (typeof window === 'undefined') return
-  window.location.replace(window.location.href)
 }
 
 const submit = async () => {
-  errorMessage.value = ''
-  attemptsMessage.value = ''
-
   try {
     const authorized = await betaAccess.login(form)
+
     if (!authorized) {
-      errorMessage.value = 'Invalid access token.'
+      errorMessage.value = INVALID
       return
     }
 
     const locale = getLocaleFromPath(route.path) || uiStore.language || 'ru'
-    const target = typeof route.query.redirect === 'string'
-      ? route.query.redirect
-      : withLocale('/', locale)
-
-    await router.replace(target)
+    await router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : withLocale('/', locale))
   } catch (error) {
-    const remainingAttempts = error?.payload?.detail?.remaining_attempts
-    const isBlocked = error?.payload?.detail?.blocked === true
+    const detail = error?.payload?.detail
+    const attempts = detail?.remaining_attempts
+    const banned = detail?.blocked === true || error?.status === 403 || error?.status === 429 || (typeof attempts === 'number' && attempts <= 0)
 
-    if (
-      error?.status === 500
-      || error?.status === 404
-      || error?.status === 0
-      || isBlocked
-      || (typeof remainingAttempts === 'number' && remainingAttempts <= 0)
-    ) {
-      reloadCurrentPage()
-      return
-    }
-
-    errorMessage.value = 'Invalid access token.'
-
-    if (typeof remainingAttempts === 'number' && remainingAttempts > 0) {
-      attemptsMessage.value = `${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining before IP block.`
-    }
+    errorMessage.value = banned ? BANNED : invalidText(attempts)
   }
 }
 
@@ -226,24 +175,22 @@ onMounted(() => {
   handleResize()
 
   window.addEventListener('resize', handleResize)
-  window.addEventListener('mousemove', handleMouseMove)
-  window.addEventListener('mouseout', handleMouseOut)
-  window.addEventListener('touchmove', handleTouchMove)
-  window.addEventListener('touchend', handleTouchEnd)
+  window.addEventListener('mousemove', setMouse)
+  window.addEventListener('touchmove', setMouse)
+  window.addEventListener('mouseout', clearMouse)
+  window.addEventListener('touchend', clearMouse)
 
   animate()
 })
 
 onBeforeUnmount(() => {
-  if (animationFrameId) {
-    window.cancelAnimationFrame(animationFrameId)
-  }
+  if (animationFrameId) window.cancelAnimationFrame(animationFrameId)
 
   window.removeEventListener('resize', handleResize)
-  window.removeEventListener('mousemove', handleMouseMove)
-  window.removeEventListener('mouseout', handleMouseOut)
-  window.removeEventListener('touchmove', handleTouchMove)
-  window.removeEventListener('touchend', handleTouchEnd)
+  window.removeEventListener('mousemove', setMouse)
+  window.removeEventListener('touchmove', setMouse)
+  window.removeEventListener('mouseout', clearMouse)
+  window.removeEventListener('touchend', clearMouse)
 
   particles = []
   ctx = null
@@ -256,8 +203,11 @@ onBeforeUnmount(() => {
       <canvas ref="canvasRef"></canvas>
     </div>
 
-    <form class="secure-access__form" @submit.prevent="submit">
-      <p class="secure-access__hint">Enter your beta testing access key</p>
+    <form class="secure-access__form" :class="{ 'secure-access__form--error': errorMessage }" @submit.prevent="submit">
+      <p class="secure-access__hint">
+        {{ hintText }}
+      </p>
+
       <input
         v-model.trim="form.accessToken"
         type="text"
@@ -267,11 +217,10 @@ onBeforeUnmount(() => {
         placeholder="Access token"
         required
       >
+
       <button type="submit" :disabled="betaAccess.isLoading">
         Enter
       </button>
-      <p v-if="errorMessage" class="secure-access__error">{{ errorMessage }}</p>
-      <p v-if="attemptsMessage" class="secure-access__warning">{{ attemptsMessage }}</p>
     </form>
   </main>
 </template>
@@ -305,24 +254,36 @@ canvas {
   width: min(100%, 22rem);
   display: grid;
   gap: 0.9rem;
+  --access-color: var(--brand-base);
+}
+
+.secure-access__form--error {
+  --access-color: #ff0000;
 }
 
 .secure-access__hint {
-  color: #fff;
+  margin: 0;
+  color: var(--access-color);
   text-align: center;
-  font-size: 0.95rem;
   line-height: 1.5;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
-.secure-access__form input,
-.secure-access__form button {
-  width: 100%;
-  min-height: 3.35rem;
+.secure-access__form button,
+.secure-access__form input {
   padding: 0.95rem 1rem;
-  border: 0.0625rem solid rgba(255, 255, 255, 0.18);
-  background: rgba(5, 5, 5, 0.88);
-  color: #fff;
-  font: inherit;
+  min-height: 3.35rem !important;
+  color: var(--access-color) !important;
+  background-color: #000 !important;
+  border-radius: 1rem !important;
+  border: 0.0625rem solid var(--access-color) !important;
+  text-align: center;
+}
+
+.secure-access__form button:hover {
+  color: #000 !important;
+  background-color: var(--access-color) !important;
 }
 
 .secure-access__form input::placeholder {
@@ -332,30 +293,16 @@ canvas {
 .secure-access__form input:focus-visible,
 .secure-access__form button:focus-visible {
   outline: none;
-  border-color: #fff;
+  border-color: var(--access-color) !important;
 }
 
 .secure-access__form button {
   cursor: pointer;
   font-weight: 700;
-  background: #fff;
-  color: #000;
 }
 
 .secure-access__form button:disabled {
   opacity: 0.7;
   cursor: wait;
-}
-
-.secure-access__error {
-  color: #ff6b6b;
-  font-size: 0.92rem;
-  text-align: center;
-}
-
-.secure-access__warning {
-  color: #ffd166;
-  font-size: 0.92rem;
-  text-align: center;
 }
 </style>
