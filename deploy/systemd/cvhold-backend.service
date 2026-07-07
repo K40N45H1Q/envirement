@@ -1,0 +1,13 @@
+[Unit]
+Description=CVHOLD FastAPI backend
+After=network.target
+
+[Service]
+WorkingDirectory=/root/www/backend
+ExecStart=/root/www/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
