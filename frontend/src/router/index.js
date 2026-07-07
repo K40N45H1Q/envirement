@@ -13,9 +13,11 @@ import AboutPage from '@/templates/AboutPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
 import UnauthorizedPage from '@/templates/UnauthorizedPage.vue'
+import SecureAccess from '@/components/SecureAccess.vue'
 import { normalizeLanguage } from '@/i18n'
 import { getAuthToken } from '@/api/client'
 import { useAuth } from '@/stores/auth'
+import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
 import { getLocaleFromPath, hasLocalePrefix, localizeFullPath, stripLocaleFromPath, withLocale } from './locale'
 
@@ -111,6 +113,7 @@ const localizedChildren = [
   { path: 'employers', component: HomePage, meta: { logicalPath: '/employers' } },
   { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
   { path: 'resume-builder', component: ResumeBuilderPage, meta: { logicalPath: '/resume-builder' } },
+  { path: 'beta-access', component: SecureAccess, meta: { logicalPath: '/beta-access' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
@@ -179,6 +182,7 @@ router.afterEach((to) => {
 
 router.beforeEach(async (to) => {
   const auth = useAuth()
+  const betaAccess = useBetaAccess()
   const uiStore = useUiStore()
   const token = getAuthToken()
   const locale = hasLocalePrefix(to.path)
@@ -194,6 +198,28 @@ router.beforeEach(async (to) => {
 
   if (uiStore.language !== locale) {
     uiStore.setLanguage(locale)
+  }
+
+  if (routeLogicalPath !== '/beta-access') {
+    const hasBetaAccess = await betaAccess.initialize()
+
+    if (!hasBetaAccess) {
+      return localizeRouteLocation({
+        path: '/beta-access',
+        query: {
+          redirect: to.fullPath,
+        },
+      }, locale)
+    }
+  } else {
+    const hasBetaAccess = await betaAccess.initialize()
+
+    if (hasBetaAccess) {
+      const target = typeof to.query.redirect === 'string' ? to.query.redirect : withLocale('/', locale)
+      if (target !== to.fullPath) {
+        return target
+      }
+    }
   }
 
   if (isJobDetailRoute && !token) {

@@ -74,6 +74,7 @@ export const apiRequest = async (path, options = {}) => {
   const headers = new Headers(options.headers || {})
   const skipAuth = options.skipAuth === true
   const requireAuth = options.requireAuth === true
+  const suppressUnauthorizedEvent = options.suppressUnauthorizedEvent === true
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -93,6 +94,7 @@ export const apiRequest = async (path, options = {}) => {
     response = await executeRequest(`${API_BASE_URL}${path}`, {
       ...options,
       headers,
+      credentials: options.credentials || 'include',
     })
   } catch {
     throw new ApiError('network_error', 0)
@@ -103,13 +105,20 @@ export const apiRequest = async (path, options = {}) => {
 
   if (!response.ok) {
     if (response.status === 401) {
-      window.dispatchEvent(new CustomEvent('app:unauthorized', {
-        detail: {
-          path,
-          status: response.status,
-          key: getErrorKey(data),
-        },
-      }))
+      const errorKey = getErrorKey(data)
+
+      if (!suppressUnauthorizedEvent) {
+        window.dispatchEvent(new CustomEvent(
+          errorKey === 'beta_auth_required' ? 'app:beta-unauthorized' : 'app:unauthorized',
+          {
+            detail: {
+              path,
+              status: response.status,
+              key: errorKey,
+            },
+          },
+        ))
+      }
     }
     throw new ApiError(getErrorKey(data), response.status, data)
   }

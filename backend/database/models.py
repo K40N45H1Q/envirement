@@ -12,6 +12,8 @@ class User(SQLModel, table=True):
     phone: Optional[str] = None
     hashed_password: str
     account_type: str
+    is_default_account: bool = Field(default=False)
+    default_account_kind: Optional[str] = None
     company_name: Optional[str] = None
     company_logo_url: Optional[str] = None
     company_country: Optional[str] = None
@@ -100,6 +102,17 @@ class CandidateProfile(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class BetaBlockedIP(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ip_address: str = Field(index=True, unique=True)
+    failed_attempts: int = Field(default=0)
+    is_blocked: bool = Field(default=False)
+    blocked_at: Optional[datetime] = None
+    last_failed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 @event.listens_for(User, "before_update")
 def update_user_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
@@ -112,6 +125,11 @@ def update_job_timestamp(mapper, connection, target):
 
 @event.listens_for(CandidateProfile, "before_update")
 def update_candidate_profile_timestamp(mapper, connection, target):
+    target.updated_at = datetime.now(timezone.utc)
+
+
+@event.listens_for(BetaBlockedIP, "before_update")
+def update_beta_blocked_ip_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 
@@ -206,6 +224,8 @@ def ensure_user_columns():
 
         additions = {
             "full_name": "ALTER TABLE user ADD COLUMN full_name VARCHAR",
+            "is_default_account": "ALTER TABLE user ADD COLUMN is_default_account BOOLEAN NOT NULL DEFAULT 0",
+            "default_account_kind": "ALTER TABLE user ADD COLUMN default_account_kind VARCHAR",
             "company_name": "ALTER TABLE user ADD COLUMN company_name VARCHAR",
             "company_logo_url": "ALTER TABLE user ADD COLUMN company_logo_url VARCHAR",
             "company_country": "ALTER TABLE user ADD COLUMN company_country VARCHAR",

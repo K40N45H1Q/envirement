@@ -5,11 +5,13 @@
 <script setup>
 import { onBeforeUnmount, onMounted } from 'vue'
 import { useAuth } from '@/stores/auth'
+import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
 import router from './router'
 import { getLocaleFromPath, stripLocaleFromPath, withLocale } from './router/locale'
 
 const auth = useAuth()
+const betaAccess = useBetaAccess()
 const uiStore = useUiStore()
 
 const handleUnauthorized = () => {
@@ -31,14 +33,35 @@ const handleUnauthorized = () => {
   })
 }
 
+const handleBetaUnauthorized = async () => {
+  const currentRoute = router.currentRoute.value
+  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+
+  auth.logout()
+  await betaAccess.initialize({ force: true })
+
+  router.replace({
+    path: withLocale('/beta-access', locale),
+    query: {
+      redirect: currentRoute.fullPath,
+    },
+  })
+}
+
 onMounted(() => {
   uiStore.initialize()
-  auth.loadUser()
+  betaAccess.initialize().then((authorized) => {
+    if (authorized) {
+      auth.loadUser()
+    }
+  })
   window.addEventListener('app:unauthorized', handleUnauthorized)
+  window.addEventListener('app:beta-unauthorized', handleBetaUnauthorized)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('app:unauthorized', handleUnauthorized)
+  window.removeEventListener('app:beta-unauthorized', handleBetaUnauthorized)
 })
 </script>
 

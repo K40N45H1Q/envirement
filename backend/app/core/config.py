@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
+from dotenv import load_dotenv
 
 
 class Settings(BaseModel):
@@ -18,6 +19,13 @@ class Settings(BaseModel):
     uploads_dir: Path
     database_url: str
     cors_origins: list[str]
+    beta_access_token: str | None
+    beta_cookie_name: str
+    beta_failed_attempt_limit: int
+    default_employer_login: str | None
+    default_employer_password: str | None
+    default_candidate_login: str | None
+    default_candidate_password: str | None
 
 
 def parse_bool(value: str | None, default: bool) -> bool:
@@ -41,6 +49,8 @@ def parse_origins(value: str | None) -> list[str]:
 
 def load_settings() -> Settings:
     base_dir = Path(__file__).resolve().parents[2]
+    load_dotenv(base_dir / ".env")
+    load_dotenv(base_dir.parent / ".env")
     return Settings(
         app_name=os.getenv("APP_NAME", "CVHOLD API"),
         app_env=os.getenv("APP_ENV", "development"),
@@ -53,6 +63,13 @@ def load_settings() -> Settings:
         uploads_dir=base_dir / "uploads",
         database_url=os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./default.db"),
         cors_origins=parse_origins(os.getenv("CORS_ORIGINS")),
+        beta_access_token=(os.getenv("BETA_ACCESS_TOKEN") or "").strip() or None,
+        beta_cookie_name=os.getenv("BETA_COOKIE_NAME", "cvhold_beta_access"),
+        beta_failed_attempt_limit=int(os.getenv("BETA_FAILED_ATTEMPT_LIMIT", "3")),
+        default_employer_login=(os.getenv("DEFAULT_EMPLOYER_LOGIN") or "").strip().lower() or None,
+        default_employer_password=(os.getenv("DEFAULT_EMPLOYER_PASSWORD") or "").strip() or None,
+        default_candidate_login=(os.getenv("DEFAULT_CANDIDATE_LOGIN") or "").strip().lower() or None,
+        default_candidate_password=(os.getenv("DEFAULT_CANDIDATE_PASSWORD") or "").strip() or None,
     )
 
 
