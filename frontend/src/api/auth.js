@@ -11,7 +11,7 @@ export const createAccount = ({
   companyIndustry = '',
   companyRegistrationNumber = '',
 }) => {
-  return apiRequest('/create_account', {
+  return apiRequest('/api/create_account', {
     method: 'POST',
     body: JSON.stringify({
       full_name: fullName,
@@ -49,12 +49,12 @@ const buildRegistrationPayload = ({
   company_registration_number: companyRegistrationNumber,
 })
 
-export const requestRegistrationCode = (payload) => apiRequest('/request_registration_code', {
+export const requestRegistrationCode = (payload) => apiRequest('/api/request_registration_code', {
   method: 'POST',
   body: buildRegistrationPayload(payload),
 })
 
-export const verifyRegistrationCode = ({ email, code }) => apiRequest('/verify_registration_code', {
+export const verifyRegistrationCode = ({ email, code }) => apiRequest('/api/verify_registration_code', {
   method: 'POST',
   body: JSON.stringify({
     email,
@@ -62,12 +62,12 @@ export const verifyRegistrationCode = ({ email, code }) => apiRequest('/verify_r
   }),
 })
 
-export const requestPasswordResetCode = ({ email }) => apiRequest('/request_password_reset_code', {
+export const requestPasswordResetCode = ({ email }) => apiRequest('/api/request_password_reset_code', {
   method: 'POST',
   body: JSON.stringify({ email }),
 })
 
-export const confirmPasswordReset = ({ email, code, newPassword }) => apiRequest('/confirm_password_reset', {
+export const confirmPasswordReset = ({ email, code, newPassword }) => apiRequest('/api/confirm_password_reset', {
   method: 'POST',
   body: JSON.stringify({
     email,
@@ -77,7 +77,7 @@ export const confirmPasswordReset = ({ email, code, newPassword }) => apiRequest
 })
 
 export const login = async ({ email, password }) => {
-  const data = await apiRequest('/login', {
+  const data = await apiRequest('/api/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
@@ -90,7 +90,7 @@ export const login = async ({ email, password }) => {
   return data
 }
 
-export const getMe = () => apiRequest('/get_me', { requireAuth: true })
+export const getMe = () => apiRequest('/api/get_me', { requireAuth: true })
 
 export const logout = () => {
   clearAuthToken()

@@ -148,7 +148,7 @@ def create_app() -> FastAPI:
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     app.include_router(api_router, prefix="/api")
     app.include_router(beta_router)
-    app.include_router(legacy_safety_router)
+    app.include_router(legacy_safety_router, prefix="/api")
     app.include_router(legacy_jobs_router, prefix="/api")
     app.include_router(legacy_profile_router, prefix="/api")
     return app
