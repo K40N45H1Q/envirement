@@ -1,22 +1,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from '@/i18n'
-import ServicePricingCard from '@/components/ServicePricingCard.vue'
-import '@fortawesome/fontawesome-free/css/all.css'
 
 const { t } = useI18n()
 
 const steps = computed(() => [
-  { number: '1', title: t('service.step1Title'), text: t('service.step1Text') },
-  { number: '2', title: t('service.step2Title'), text: t('service.step2Text') },
-  { number: '3', title: t('service.step3Title'), text: t('service.step3Text') },
-])
-
-const reasons = computed(() => [
-  t('service.reason1'),
-  t('service.reason2'),
-  t('service.reason3'),
-  t('service.reason4'),
+  { number: '01', title: t('service.step1Title'), text: t('service.step1Text') },
+  { number: '02', title: t('service.step2Title'), text: t('service.step2Text') },
+  { number: '03', title: t('service.step3Title'), text: t('service.step3Text') },
 ])
 </script>
 
@@ -27,29 +18,23 @@ const reasons = computed(() => [
         <div class="section-head">
           <p class="section-eyebrow section-eyebrow--muted">{{ t('service.eyebrow') }}</p>
           <h2>{{ t('service.title') }}</h2>
-          <p class="section-subtitle">{{ t('service.subtitle') }}</p>
         </div>
 
         <div class="steps-grid">
           <article v-for="step in steps" :key="step.number" class="step-card">
-            <div class="step-number">{{ step.number }}</div>
+            <span class="step-number">{{ step.number }}</span>
             <h3>{{ step.title }}</h3>
             <p>{{ step.text }}</p>
-          </article>
-
-          <article class="step-card step-card--reasons">
-            <h3>{{ t('service.reasonsTitle') }}</h3>
-            <ul class="why-list">
-              <li v-for="reason in reasons" :key="reason">
-                <i class="fas fa-check"></i>
-                <span>{{ reason }}</span>
-              </li>
-            </ul>
           </article>
         </div>
       </section>
 
-      <ServicePricingCard />
+      <section class="pricing-cta" aria-labelledby="pricing-cta-title">
+        <p class="section-eyebrow section-eyebrow--muted">{{ t('pricing.eyebrow') }}</p>
+        <h2 id="pricing-cta-title">{{ t('pricing.title') }}</h2>
+        <p class="pricing-cta__subtitle">{{ t('pricing.ctaSubtitle') }}</p>
+        <RouterLink class="btn-primary pricing-cta__button" to="/pricing">{{ t('pricing.viewPlans') }}</RouterLink>
+      </section>
     </div>
   </section>
 </template>
@@ -68,18 +53,44 @@ const reasons = computed(() => [
 
 .service-card {
   display: grid;
-  gap: 1.4rem;
-  padding: 1.5rem;
+  gap: 15px;
+  padding: 3rem clamp(1.5rem, 5vw, 5.5rem);
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1.5rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
   box-shadow: var(--shadow-soft);
 }
 
+.pricing-cta {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  padding: clamp(3rem, 7vw, 5.5rem) clamp(1.25rem, 5vw, 4rem);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+}
+
+.pricing-cta__subtitle {
+  max-width: 36rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.pricing-cta__button {
+  margin-top: 0.65rem;
+  min-width: 12rem;
+  justify-content: center;
+}
+
 .section-head {
   display: grid;
-  gap: 0.7rem;
-  max-width: 44rem;
+  gap: 0.45rem;
+  width: 100%;
+  padding-bottom: 1.8rem;
+  border-bottom: 0.125rem solid color-mix(in srgb, var(--text-primary) 74%, transparent);
 }
 
 .section-eyebrow--muted {
@@ -94,9 +105,10 @@ p {
 }
 
 h2 {
-  font-size: clamp(1.8rem, 3vw, 2.35rem);
-  line-height: 1.1;
+  font-size: clamp(1.9rem, 3vw, 2.65rem);
+  line-height: 1.08;
   color: var(--text-primary);
+  text-transform: uppercase;
 }
 
 h3 {
@@ -105,7 +117,6 @@ h3 {
   color: var(--text-primary);
 }
 
-.section-subtitle,
 .step-card p {
   color: var(--text-muted);
   line-height: 1.65;
@@ -113,56 +124,36 @@ h3 {
 
 .steps-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .step-card {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  min-height: 100%;
-  padding: 1.5rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.82);
+  gap: 0;
+  min-height: 12rem;
+  padding: 1.75rem 2rem 0.25rem 0;
 }
 
-.step-card--reasons {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 248, 243, 0.96));
+.step-card + .step-card {
+  padding-left: 2rem;
+  border-left: 0.0625rem solid color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 .step-number {
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  border-radius: 999rem;
-  background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
-  color: #fff;
-  font-size: 0.82rem;
+  display: block;
+  margin-bottom: 1.35rem;
+  color: color-mix(in srgb, var(--brand-strong) 70%, #c99a4a);
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
-.why-list {
-  list-style: none;
-  display: grid;
-  gap: 0.8rem;
-  padding: 0;
-  margin: 0;
+.step-card h3 {
+  margin-bottom: 0.85rem;
 }
 
-.why-list li {
-  display: flex;
-  gap: 0.7rem;
-  align-items: flex-start;
-  color: var(--text-primary);
-  line-height: 1.45;
-}
-
-.why-list i {
-  color: var(--brand-strong);
-  margin-top: 0.2rem;
+.step-card p {
+  max-width: 21rem;
 }
 
 @media (max-width: 78rem) {
@@ -174,6 +165,25 @@ h3 {
 @media (max-width: 42rem) {
   .steps-grid {
     grid-template-columns: 1fr;
+  }
+
+  .service-card {
+    padding: 1.5rem;
+  }
+
+  .section-head {
+    padding-bottom: 1rem;
+  }
+
+  .step-card {
+    min-height: auto;
+    padding: 1.25rem 0;
+  }
+
+  .step-card + .step-card {
+    padding-left: 0;
+    border-top: 0.0625rem solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+    border-left: 0;
   }
 }
 </style>

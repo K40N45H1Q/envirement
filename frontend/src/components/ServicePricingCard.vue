@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { getPricingPlans } from '@/api/pricing'
 import { useI18n } from '@/i18n'
 import ServiceCard from '@/components/ServiceCard.vue'
-import '@fortawesome/fontawesome-free/css/all.css'
 
 const billingPeriod = ref('monthly')
 const pricingResponse = ref(null)

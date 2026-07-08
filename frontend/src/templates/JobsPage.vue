@@ -510,13 +510,15 @@ const focusJob = (jobId) => {
   box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
 }
 
-.input-wrap i {
+.input-wrap :is(i, svg.svg-inline--fa) {
   position: absolute;
   top: 50%;
   right: 1rem;
   transform: translateY(-50%);
   color: var(--brand-strong);
   pointer-events: none;
+  width: 1rem;
+  height: 1rem;
 }
 
 .search-dropdown,
@@ -554,7 +556,7 @@ const focusJob = (jobId) => {
   transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.category-pill i {
+.category-pill :is(i, svg.svg-inline--fa) {
   width: 1.4rem;
   height: 1.4rem;
   display: grid;

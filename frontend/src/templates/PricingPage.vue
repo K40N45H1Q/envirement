@@ -1,152 +1,67 @@
 <script setup>
-import { computed } from 'vue'
-import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
-
-const { t } = useI18n()
-
-const plans = computed(() => [
-  {
-    name: 'Basic',
-    price: '99 EUR',
-    badge: '',
-    features: [
-      t('pricing.planFeatureJobs', { count: 1 }),
-      t('pricing.planFeatureBasicCard'),
-      t('pricing.planFeatureApplications'),
-    ],
-  },
-  {
-    name: 'Standard',
-    price: '149 EUR',
-    badge: t('pricing.popular'),
-    features: [
-      t('pricing.planFeatureJobs', { count: 5 }),
-      t('pricing.planFeatureMatchScore'),
-      t('pricing.planFeatureEmployerDashboard'),
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '229 EUR',
-    badge: '',
-    features: [
-      t('pricing.planFeatureJobs', { count: 20 }),
-      t('pricing.planFeaturePriorityListing'),
-      t('pricing.planFeatureAnalytics'),
-    ],
-  },
-])
+import ServicePricingCard from '@/components/ServicePricingCard.vue'
 </script>
 
 <template>
   <AppLayout>
-    <main class="page">
-      <section class="head">
-        <p class="eyebrow">{{ t('pricing.eyebrow') }}</p>
-        <h1>{{ t('pricing.pricingPageTitle') }}</h1>
-        <p>{{ t('pricing.pricingPageDescription') }}</p>
-      </section>
-
-      <section class="plans">
-        <article v-for="plan in plans" :key="plan.name" class="plan" :class="{ featured: plan.badge }">
-          <span v-if="plan.badge" class="badge">{{ plan.badge }}</span>
-          <h2>{{ plan.name }}</h2>
-          <strong>{{ plan.price }}</strong>
-          <ul>
-            <li v-for="feature in plan.features" :key="feature">
-              <i class="fas fa-check"></i>{{ feature }}
-            </li>
-          </ul>
-          <RouterLink to="/dashboard?section=pricing" class="btn-primary">{{ t('pricing.choose') }}</RouterLink>
-        </article>
-      </section>
+    <main class="pricing-page">
+      <ServicePricingCard />
     </main>
   </AppLayout>
 </template>
 
 <style scoped>
-.page {
-  max-width: 100rem;
+.pricing-page {
+  width: min(100%, var(--shell-max-width));
   margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  padding: 1.25rem var(--shell-gutter) 4rem;
 }
 
-.head,
-.plan {
-  border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 0.5rem 2rem rgba(30, 35, 38, 0.06);
+.pricing-page :deep(.service-card) {
+  padding: 1.75rem;
+  border-radius: 1.6rem;
+  background:
+    radial-gradient(circle at top left, rgba(26, 177, 111, 0.12), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.06), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
+  box-shadow: var(--shadow-soft);
 }
 
-.head {
-  padding: 2rem;
-  text-align: center;
+.pricing-page :deep(.pricing-header) {
+  align-items: center;
+  padding: 0.25rem 0 0.75rem;
 }
 
-.eyebrow {
-  color: #19785a;
-  font-weight: 700;
-  text-transform: uppercase;
+.pricing-page :deep(.pricing-header h2) {
+  font-size: clamp(2.2rem, 4.8vw, 4rem);
+  line-height: 0.98;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 3rem);
+.pricing-page :deep(.section-subtitle) {
+  max-width: 40rem;
+  font-size: 1rem;
 }
 
-.plans {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+.pricing-page :deep(.billing-toggle),
+.pricing-page :deep(.plan-card) {
+  background: rgba(255, 255, 255, 0.76);
 }
 
-.plan {
-  position: relative;
-  display: grid;
-  gap: 1rem;
-  padding: 1.5rem;
+.pricing-page :deep(.plan-card) {
+  border-radius: 1.1rem;
 }
 
-.featured {
-  border: 0.125rem solid #19785a;
+.pricing-page :deep(.plan-card:nth-child(2)) {
+  border-color: color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  background:
+    radial-gradient(circle at top right, rgba(26, 177, 111, 0.1), transparent 34%),
+    rgba(255, 255, 255, 0.84);
 }
 
-.badge {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  color: #19785a;
-  font-weight: 700;
-}
-
-.plan strong {
-  color: #19785a;
-  font-size: 2.5rem;
-}
-
-ul {
-  display: grid;
-  gap: 0.7rem;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-li {
-  display: flex;
-  gap: 0.5rem;
-  color: rgba(30, 35, 38, 0.68);
-}
-
-li i {
-  color: #19785a;
-}
-
-@media (max-width: 56rem) {
-  .plans {
-    grid-template-columns: 1fr;
+@media (max-width: 40rem) {
+  .pricing-page :deep(.service-card) {
+    padding: 1.25rem;
   }
 }
 </style>
