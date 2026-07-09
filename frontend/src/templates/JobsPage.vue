@@ -233,10 +233,7 @@ const focusJob = (jobId) => {
               </div>
             </header>
 
-            <div v-if="error" class="notice">{{ error }}</div>
-            <div v-else-if="isLoading" class="notice">{{ t('jobsPage.loadingJobs') }}</div>
-
-            <div v-else class="jobs-list">
+            <div v-if="filteredJobs.length" class="jobs-list">
               <article :id="`job-card-${job.id}`" v-for="job in filteredJobs" :key="job.id" class="job-row">
                 <div class="company-logo" :style="{ background: job.color }">
                   <img v-if="jobsStore.hasLogo(job)" :src="job.logo" :alt="job.company" @error="jobsStore.markBrokenLogo(job.id)" />
@@ -388,6 +385,7 @@ const focusJob = (jobId) => {
   gap: 1.5rem;
   padding: 1.75rem;
   overflow: hidden;
+  background: var(--glow-bg-left);
 }
 
 .hero-copy h1 {

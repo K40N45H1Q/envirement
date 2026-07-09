@@ -2510,7 +2510,7 @@ onBeforeUnmount(() => {
               @change="onAvatarChange"
             />
             <div class="profile-card__top">
-              <button type="button" class="profile-avatar profile-avatar--button" @click="openAvatarPicker">
+              <button type="button" class="profile-avatar profile-avatar--button">
                 <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="isEnglish ? 'Avatar' : 'Аватар'" />
                 <span v-else>{{ avatarInitials }}</span>
               </button>
@@ -2999,7 +2999,6 @@ textarea:focus {
 
 .profile-avatar--button {
   border: 0;
-  cursor: pointer;
   padding: 0;
   box-shadow: 0 0 0 0 transparent;
   transition: transform 0.2s ease, box-shadow 0.2s ease;

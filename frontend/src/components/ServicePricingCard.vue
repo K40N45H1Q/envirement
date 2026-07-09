@@ -95,7 +95,6 @@ const plans = computed(() => {
       <div class="pricing-header">
         <div>
           <p class="section-eyebrow section-eyebrow--muted">{{ t('pricing.eyebrow') }}</p>
-          <h2>{{ t('pricing.title') }}</h2>
           <p class="section-subtitle">{{ t('pricing.subtitle') }}</p>
         </div>
 

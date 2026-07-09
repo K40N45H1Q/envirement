@@ -316,10 +316,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <p v-if="notice" class="notice">{{ notice }}</p>
-          <p v-if="isLoading" class="state">{{ copy.loadingJobs }}</p>
-
-          <div v-else-if="recommendedJobs.length" class="jobs-list">
+          <div v-if="recommendedJobs.length" class="jobs-list">
             <RouterLink
               v-for="job in recommendedJobs"
               :key="job.id"
@@ -341,7 +338,6 @@ onBeforeUnmount(() => {
             </RouterLink>
           </div>
 
-          <p v-else class="state">{{ copy.noRecommendations }}</p>
         </div>
 
         <div class="panel panel-activity">

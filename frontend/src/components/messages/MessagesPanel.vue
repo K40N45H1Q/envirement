@@ -48,7 +48,7 @@ const copy = computed(() => (
       fallbackTitle: 'Сообщения',
       fallbackSubtitle: 'Подтвержденные диалоги по откликам',
       loading: 'Загрузка диалогов...',
-      emptyList: 'Диалоги появятся после подтверждения работодателем во вкладке откликов.',
+      emptyList: 'Диалоги появятся после подтверждения работодателем',
       deleting: 'Удаление...',
       deleteConversation: 'Удалить диалог',
       deleteConfirm: 'Удалить этот диалог? Вместе с ним будет удален и связанный отклик.',
@@ -104,7 +104,6 @@ const deleteConversation = async () => {
       <div class="chat-list__head">
         <div>
           <h2>{{ panelTitle }}</h2>
-          <p class="chat-list__hint">{{ panelHint }}</p>
         </div>
         <span class="chat-count">{{ conversations.length }}</span>
       </div>
@@ -137,7 +136,6 @@ const deleteConversation = async () => {
       <header class="chat-head">
         <div class="chat-head__copy">
           <strong>{{ activeTitle }}</strong>
-          <span>{{ activeSubtitle }}</span>
         </div>
 
         <button

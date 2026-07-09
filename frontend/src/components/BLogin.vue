@@ -5,8 +5,8 @@ import { useUiStore } from '@/stores/ui'
 import { useBetaAccess } from '@/stores/betaAccess'
 import { getLocaleFromPath, withLocale } from '@/router/locale'
 const TEXT_CONSTANTS = {
-  hintDefault: 'Enter your beta testing access token',
-  invalidToken: 'Invalid access token.',
+  hintDefault: 'Provide your personal access token',
+  invalidToken: 'Please contact your administrator',
   bannedIp: ':('
 }
 const GRID_CONSTANTS = {

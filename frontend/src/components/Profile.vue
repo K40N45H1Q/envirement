@@ -130,7 +130,7 @@ const copy = computed(() =>
         saveProfile: 'Сохранить профиль',
         files: 'Файлы',
         resumeAndDocuments: 'Резюме и документы',
-        uploadResume: 'Загрузите резюме или документ',
+        uploadResume: 'Загрузите резюме',
         dropHint: 'PDF, DOC, DOCX. Можно перетащить файл в эту область.',
         openCurrentFile: 'Открыть текущий файл',
         hints: 'Подсказки',
@@ -415,7 +415,6 @@ onBeforeUnmount(revokeAvatarPreview)
                 {{ isSaving ? copy.saving : copy.saveProfile }}
               </button>
 
-              <p v-if="saveMessage" class="status status--success">{{ saveMessage }}</p>
               <p v-if="errorMessage" class="status status--error">{{ errorMessage }}</p>
             </template>
           </section>
@@ -634,6 +633,12 @@ h2 {
   gap: 1.5rem;
 }
 
+.side-card {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .panel-title {
   display: flex;
   justify-content: space-between;
@@ -767,6 +772,7 @@ label,
   border: 0.09375rem dashed var(--border-strong);
   background: color-mix(in srgb, var(--brand-soft) 55%, white);
   cursor: pointer;
+  text-align: center;
 }
 
 .drop-title {

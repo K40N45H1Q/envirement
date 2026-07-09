@@ -45,8 +45,13 @@
   padding: clamp(2rem, 5vw, 4rem);
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1.5rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
   box-shadow: var(--shadow-soft);
+
+  background:
+    radial-gradient(circle at top right, rgba(26, 177, 111, 0.12), transparent 26%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.06), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
+
 }
 
 .comparison-column {
@@ -124,13 +129,13 @@
 
   .comparison-column--current {
     padding-right: 0;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0;
   }
 
   .comparison-column--cvhold {
     padding-top: 1.5rem;
     padding-left: 0;
-    border-top: 0.0625rem solid var(--border-subtle);
+    border-top: 0;
     border-left: 0;
   }
 }
