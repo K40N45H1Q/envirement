@@ -636,10 +636,10 @@ onBeforeUnmount(() => {
 }
 
 .steps {
-  display: grid;
-  grid-template-columns: auto minmax(6rem, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
+  gap: 5px;
 }
 
 .steps-line {

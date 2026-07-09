@@ -18,14 +18,17 @@ from app.services.beta_ip_security import (
 )
 from app.services.beta_auth import (
     create_beta_access_token,
+    get_beta_access_token_record,
     has_beta_access,
     is_beta_auth_enabled,
+    mark_beta_access_token_used,
     verify_beta_access_token_value,
 )
 from app.services.default_accounts import sync_default_accounts
 from app.services.request_blackhole import close_blocked_connection
 from routes.jobs import router as legacy_jobs_router
 from routes.profile import router as legacy_profile_router
+from routes.admin import router as legacy_admin_router
 from routes.safety import router as legacy_safety_router
 
 
@@ -75,7 +78,10 @@ class BetaAccessMiddleware:
                 payload = {}
 
             access_token = payload.get("access_token") or ""
-            if not verify_beta_access_token_value(access_token):
+            beta_token = get_beta_access_token_record(access_token)
+            is_legacy_token = verify_beta_access_token_value(access_token) and beta_token is None
+
+            if not beta_token and not is_legacy_token:
                 is_blocked, remaining_attempts = register_failed_attempt_with_state(client_ip)
                 if is_blocked:
                     closed = await close_blocked_connection(send)
@@ -102,9 +108,10 @@ class BetaAccessMiddleware:
                 content={"status": "ok", "authorized": True},
             )
             clear_failed_attempts(client_ip)
+            mark_beta_access_token_used(beta_token)
             response.set_cookie(
                 key=settings.beta_cookie_name,
-                value=create_beta_access_token(),
+                value=create_beta_access_token(beta_token),
                 httponly=True,
                 secure=scope.get("scheme") == "https",
                 samesite="lax",
@@ -115,9 +122,14 @@ class BetaAccessMiddleware:
 
         public_prefixes = (
             "/api/beta-auth/",
+            "/api/admin/",
         )
+        public_paths = {
+            "/api/login",
+            "/api/get_me",
+        }
 
-        if any(path.startswith(prefix) for prefix in public_prefixes) or has_beta_access(request):
+        if path in public_paths or any(path.startswith(prefix) for prefix in public_prefixes) or has_beta_access(request):
             await self.app(scope, receive, send)
             return
 
@@ -149,6 +161,7 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api")
     app.include_router(beta_router)
     app.include_router(legacy_safety_router, prefix="/api")
+    app.include_router(legacy_admin_router, prefix="/api")
     app.include_router(legacy_jobs_router, prefix="/api")
     app.include_router(legacy_profile_router, prefix="/api")
     return app

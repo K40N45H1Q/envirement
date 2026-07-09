@@ -31,7 +31,7 @@ defineProps({
   },
 })
 
-defineEmits(['select-section'])
+defineEmits(['select-section', 'stat-click'])
 </script>
 
 <template>
@@ -69,7 +69,12 @@ defineEmits(['select-section'])
       </section>
 
       <section v-if="stats.length" class="dashboard-stats">
-        <article v-for="item in stats" :key="item.label">
+        <article
+          v-for="item in stats"
+          :key="item.label"
+          :class="{ 'dashboard-stats__item--clickable': item.section }"
+          @click="item.section && $emit('stat-click', item.section)"
+        >
           <strong>{{ item.value }}</strong>
           <span>{{ item.label }}</span>
         </article>
@@ -84,7 +89,7 @@ defineEmits(['select-section'])
 .dashboard-shell {
   width: min(100%, var(--shell-max-width));
   margin: 0 auto;
-  padding: 2rem var(--shell-gutter) 4rem;
+  padding: 1.5rem var(--shell-gutter) 4rem;
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
   gap: 1.25rem;
@@ -137,7 +142,7 @@ defineEmits(['select-section'])
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .dashboard-sidebar__item i {
@@ -151,6 +156,7 @@ defineEmits(['select-section'])
 .dashboard-sidebar__item:focus-visible {
   background: color-mix(in srgb, var(--brand-soft) 60%, transparent);
   color: var(--brand-strong);
+  transform: translateX(0.12rem);
 }
 
 .dashboard-sidebar__item:hover i,
@@ -179,10 +185,10 @@ defineEmits(['select-section'])
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1.7rem;
+  padding: 1.45rem 1.55rem;
   background:
-    radial-gradient(circle at top right, rgba(26, 177, 111, 0.16), transparent 30%),
-    radial-gradient(circle at left bottom, rgba(15, 118, 110, 0.06), transparent 26%),
+    radial-gradient(circle at top right, rgba(26, 177, 111, 0.12), transparent 28%),
+    radial-gradient(circle at left bottom, rgba(15, 118, 110, 0.05), transparent 24%),
     var(--surface-primary);
 }
 
@@ -207,8 +213,8 @@ defineEmits(['select-section'])
 
 h1 {
   margin: 0;
-  font-size: clamp(2rem, 3.4vw, 2.85rem);
-  line-height: 1.02;
+  font-size: clamp(1.75rem, 2.6vw, 2.35rem);
+  line-height: 1.06;
   color: var(--text-primary);
 }
 
@@ -221,10 +227,25 @@ h1 {
 .dashboard-stats article {
   position: relative;
   overflow: hidden;
-  padding: 1.35rem 1.4rem;
+  min-height: 6.4rem;
+  padding: 1.15rem 1.25rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 248, 0.98)),
     var(--surface-primary);
+}
+
+.dashboard-stats__item--clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-stats__item--clickable:hover {
+  transform: translateY(-0.2rem);
+  box-shadow: 0 0.75rem 1.5rem rgba(16, 185, 129, 0.15);
+}
+
+.dashboard-stats__item--clickable:active {
+  transform: translateY(0);
 }
 
 .dashboard-stats article::before {
@@ -239,13 +260,14 @@ h1 {
 .dashboard-stats strong {
   display: block;
   color: var(--brand-strong);
-  font-size: 2rem;
+  font-size: 1.9rem;
   line-height: 1;
   margin-bottom: 0.4rem;
 }
 
 .dashboard-stats span {
   color: var(--text-muted);
+  line-height: 1.3;
 }
 
 @media (max-width: 72rem) {

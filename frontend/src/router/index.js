@@ -13,6 +13,7 @@ import AboutPage from '@/templates/AboutPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
 import UnauthorizedPage from '@/templates/UnauthorizedPage.vue'
+import AdminPanel from '@/components/apanel/AdminPanel.vue'
 import BLogin from '@/components/BLogin.vue'
 import { normalizeLanguage } from '@/i18n'
 import { getAuthToken } from '@/api/client'
@@ -77,7 +78,7 @@ const defaultRouteForAccount = (accountType) => {
 
   if (normalizedType === 'candidate') return '/dashboard'
   if (normalizedType === 'employer') return '/dashboard?section=jobs'
-  if (normalizedType === 'admin') return '/dashboard?section=jobs'
+  if (normalizedType === 'admin') return '/admin'
 
   return '/'
 }
@@ -118,6 +119,7 @@ const localizedChildren = [
   { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
   { path: 'dashboard', component: DashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
+  { path: 'admin', component: AdminPanel, meta: { logicalPath: '/admin', requiresAuth: true, accountTypes: ['admin'] } },
   {
     path: 'employer-dashboard',
     redirect: (to) => ({
@@ -200,7 +202,9 @@ router.beforeEach(async (to) => {
     uiStore.setLanguage(locale)
   }
 
-  if (routeLogicalPath !== '/beta-access') {
+  const skipsBetaGate = ['/beta-access', '/signin', '/admin'].includes(routeLogicalPath)
+
+  if (!skipsBetaGate) {
     const hasBetaAccess = await betaAccess.initialize()
 
     if (!hasBetaAccess) {
@@ -211,7 +215,7 @@ router.beforeEach(async (to) => {
         },
       }, locale)
     }
-  } else {
+  } else if (routeLogicalPath === '/beta-access') {
     const hasBetaAccess = await betaAccess.initialize()
 
     if (hasBetaAccess) {
@@ -270,7 +274,9 @@ router.beforeEach(async (to) => {
     if (routeLogicalPath === '/profile') {
       const target = normalizedType === 'candidate'
         ? localizeFullPath('/dashboard?section=profile', locale)
-        : localizeFullPath('/dashboard?section=jobs', locale)
+        : normalizedType === 'admin'
+          ? localizeFullPath('/dashboard?section=users', locale)
+          : localizeFullPath('/dashboard?section=jobs', locale)
 
       if (to.fullPath !== target) {
         return target

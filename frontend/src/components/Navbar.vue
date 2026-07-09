@@ -230,7 +230,7 @@ function routeForAccount(accountType) {
 
   if (normalizedType === 'candidate') return '/dashboard'
   if (normalizedType === 'employer') return '/dashboard?section=jobs'
-  if (normalizedType === 'admin') return '/dashboard?section=jobs'
+  if (normalizedType === 'admin') return '/admin'
 
   return '/'
 }
@@ -353,11 +353,8 @@ export default {
 
       if (this.normalizedAccountType === 'admin') {
         return [
-          { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true, icon: 'fas fa-table-columns' },
-          { label: this.t('navbar.responses'), to: '/dashboard?section=responses', icon: 'fas fa-inbox' },
-          { label: this.t('navbar.messages'), to: '/dashboard?section=messages', icon: 'fas fa-message' },
-          { label: this.t('navbar.plans'), to: '/dashboard?section=pricing', icon: 'fas fa-credit-card' },
-          { label: this.t('navbar.adminPanel'), to: '/admin', icon: 'fas fa-shield-halved' },
+          { label: this.t('navbar.adminPanel'), to: '/admin', primary: true, icon: 'fas fa-shield-halved' },
+          { label: this.t('navbar.dashboard'), to: '/dashboard?section=users', icon: 'fas fa-table-columns' },
           { label: this.t('navbar.profile'), to: '/profile', icon: 'fas fa-user' },
         ]
       }

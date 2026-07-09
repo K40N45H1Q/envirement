@@ -120,7 +120,7 @@ const plans = computed(() => {
           <strong class="plan-name">{{ plan.name }}</strong>
           <div class="plan-price">
             <span class="price">{{ plan.price }}</span>
-            <span class="currency">{{ plan.currency }}</span>
+            <span class="currency">{{ plan.currency }} <span>+ VAT</span></span>
           </div>
           <p class="plan-period">{{ plan.period }}</p>
         </div>

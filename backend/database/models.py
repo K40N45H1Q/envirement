@@ -113,6 +113,20 @@ class BetaBlockedIP(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class BetaAccessToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(default="")
+    token_hash: str = Field(index=True, unique=True)
+    assigned_user_id: int = Field(foreign_key="user.id", index=True)
+    created_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    note: Optional[str] = None
+    is_active: bool = Field(default=True)
+    used_at: Optional[datetime] = None
+    last_used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class RegistrationVerification(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True)
@@ -154,6 +168,11 @@ def update_beta_blocked_ip_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 
+@event.listens_for(BetaAccessToken, "before_update")
+def update_beta_access_token_timestamp(mapper, connection, target):
+    target.updated_at = datetime.now(timezone.utc)
+
+
 @event.listens_for(RegistrationVerification, "before_update")
 def update_registration_verification_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
@@ -166,6 +185,22 @@ def update_password_reset_verification_timestamp(mapper, connection, target):
 
 engine = create_engine("sqlite:///default.db", echo=False)
 SQLModel.metadata.create_all(engine)
+
+
+def ensure_beta_access_token_columns():
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(betaaccesstoken)").fetchall()
+        }
+
+        if "token" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE betaaccesstoken ADD COLUMN token VARCHAR NOT NULL DEFAULT ''"
+            )
+
+
+ensure_beta_access_token_columns()
 
 
 def ensure_job_columns():

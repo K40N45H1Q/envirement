@@ -11,8 +11,10 @@ from app.services.beta_ip_security import (
 )
 from app.services.beta_auth import (
     create_beta_access_token,
+    get_beta_access_token_record,
     has_beta_access,
     is_beta_auth_enabled,
+    mark_beta_access_token_used,
     verify_beta_access_token_value,
 )
 
@@ -59,7 +61,10 @@ async def beta_auth_login(request: Request) -> Response:
     access_token = payload.get("access_token") or ""
     client_ip = get_client_ip(request)
 
-    if not verify_beta_access_token_value(access_token):
+    beta_token = get_beta_access_token_record(access_token)
+    is_legacy_token = verify_beta_access_token_value(access_token) and beta_token is None
+
+    if not beta_token and not is_legacy_token:
         is_blocked, remaining_attempts = register_failed_attempt_with_state(client_ip)
         if is_blocked:
             return JSONResponse(
@@ -87,7 +92,8 @@ async def beta_auth_login(request: Request) -> Response:
         content={"status": "ok", "authorized": True},
     )
     clear_failed_attempts(client_ip)
-    _set_beta_cookie(response, request, create_beta_access_token())
+    mark_beta_access_token_used(beta_token)
+    _set_beta_cookie(response, request, create_beta_access_token(beta_token))
     return response
 
 

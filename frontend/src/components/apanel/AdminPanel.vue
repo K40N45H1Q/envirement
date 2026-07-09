@@ -1,0 +1,230 @@
+<script setup>
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AppLayout from '@/components/AppLayout.vue'
+import DashboardShell from '@/components/dashboard/DashboardShell.vue'
+import APanelJobs from './APanelJobs.vue'
+import APanelSettings from './APanelSettings.vue'
+import APanelUsers from './APanelUsers.vue'
+import {
+  approveAdminJob,
+  createAdminBetaToken,
+  getAdminBetaTokens,
+  getAdminJobs,
+  getAdminModerationJobs,
+  getAdminSummary,
+  getAdminUsers,
+  rejectAdminJob,
+  deleteAdminBetaToken,
+} from './api'
+
+const route = useRoute()
+const router = useRouter()
+
+const sections = [
+  { id: 'users', label: 'Пользователи', icon: 'fas fa-users' },
+  { id: 'employers', label: 'Работодатели', icon: 'fas fa-building' },
+  { id: 'moderation', label: 'Модерация', icon: 'fas fa-shield-halved' },
+  { id: 'vacancies', label: 'Вакансии', icon: 'fas fa-briefcase' },
+  { id: 'settings', label: 'Настройки', icon: 'fas fa-gear' },
+]
+
+const validSections = sections.map((section) => section.id)
+const normalizeSection = (value) => (validSections.includes(value) ? value : 'users')
+
+const activeSection = ref(normalizeSection(route.query.section))
+const summary = ref(null)
+const users = ref([])
+const employers = ref([])
+const jobs = ref([])
+const moderationJobs = ref([])
+const tokens = ref([])
+const isLoading = ref(false)
+const isSaving = ref(false)
+const error = ref('')
+const createdToken = ref('')
+
+const stats = computed(() => [
+  { label: 'Всего пользователей', value: summary.value?.total_users ?? users.value.length + employers.value.length, section: 'users' },
+  { label: 'Активных работодателей', value: summary.value?.employers ?? employers.value.length, section: 'employers' },
+  { label: 'Ожидают модерации', value: summary.value?.pending_vacancies ?? moderationJobs.value.length, section: 'moderation' },
+  { label: 'Всего вакансий', value: summary.value?.vacancies ?? jobs.value.length, section: 'vacancies' },
+])
+
+const activeTitle = computed(() => sections.find((section) => section.id === activeSection.value)?.label || 'Админка')
+
+const setSection = async (sectionId) => {
+  activeSection.value = normalizeSection(sectionId)
+  await router.replace({
+    path: route.path,
+    query: { section: activeSection.value },
+  })
+}
+
+const loadAdminData = async () => {
+  isLoading.value = true
+  error.value = ''
+
+  try {
+    const [summaryData, userData, employerData, jobsData, moderationData, tokenData] = await Promise.all([
+      getAdminSummary(),
+      getAdminUsers('candidate'),
+      getAdminUsers('employer'),
+      getAdminJobs(),
+      getAdminModerationJobs(),
+      getAdminBetaTokens(),
+    ])
+
+    summary.value = summaryData
+    users.value = Array.isArray(userData) ? userData : []
+    employers.value = Array.isArray(employerData) ? employerData : []
+    jobs.value = Array.isArray(jobsData) ? jobsData : []
+    moderationJobs.value = Array.isArray(moderationData) ? moderationData : []
+    tokens.value = Array.isArray(tokenData) ? tokenData : []
+  } catch {
+    error.value = 'Не удалось загрузить админку.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const createToken = async ({ note }) => {
+  isSaving.value = true
+  error.value = ''
+  createdToken.value = ''
+
+  try {
+    const token = await createAdminBetaToken({ note })
+    createdToken.value = token.token || ''
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось создать beta-токен.'
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const deleteToken = async (token) => {
+  error.value = ''
+
+  try {
+    await deleteAdminBetaToken(token.id)
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось удалить токен.'
+  }
+}
+
+const approveJob = async (job) => {
+  error.value = ''
+
+  try {
+    await approveAdminJob(job.id)
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось одобрить вакансию.'
+  }
+}
+
+const rejectJob = async (job) => {
+  error.value = ''
+
+  try {
+    await rejectAdminJob(job.id)
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось отклонить вакансию.'
+  }
+}
+
+watch(
+  () => route.query.section,
+  (section) => {
+    activeSection.value = normalizeSection(typeof section === 'string' ? section : 'users')
+  },
+)
+
+onMounted(loadAdminData)
+</script>
+
+<template>
+  <AppLayout>
+    <DashboardShell
+      :sections="sections"
+      :active-section="activeSection"
+      eyebrow="Administration"
+      :title="activeTitle"
+      description="Управление пользователями, работодателями, вакансиями и beta-доступом."
+      :stats="stats"
+      @select-section="setSection"
+      @stat-click="setSection"
+    >
+      <p v-if="error" class="apanel-status apanel-status--danger">{{ error }}</p>
+      <p v-if="isLoading" class="apanel-state">Загрузка...</p>
+
+      <template v-else>
+        <APanelUsers
+          v-if="activeSection === 'users'"
+          :users="users"
+          empty-text="Пользователей пока нет."
+        />
+
+        <APanelUsers
+          v-else-if="activeSection === 'employers'"
+          :users="employers"
+          empty-text="Работодателей пока нет."
+        />
+
+        <APanelJobs
+          v-else-if="activeSection === 'vacancies'"
+          :jobs="jobs"
+          empty-text="Вакансий пока нет."
+        />
+
+        <APanelJobs
+          v-else-if="activeSection === 'moderation'"
+          :jobs="moderationJobs"
+          moderation
+          empty-text="Вакансий на модерации нет."
+          @approve="approveJob"
+          @reject="rejectJob"
+        />
+
+        <APanelSettings
+          v-else
+          :tokens="tokens"
+          :is-saving="isSaving"
+          :created-token="createdToken"
+          @create-token="createToken"
+          @delete-token="deleteToken"
+        />
+      </template>
+    </DashboardShell>
+  </AppLayout>
+</template>
+
+<style scoped>
+.apanel-status,
+.apanel-state {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.8rem;
+  font-weight: 700;
+}
+
+.apanel-status--success {
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+  color: var(--brand-strong);
+}
+
+.apanel-status--danger {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.apanel-state {
+  background: var(--surface-primary);
+  color: var(--text-muted);
+  border: 0.0625rem solid var(--border-subtle);
+}
+</style>
