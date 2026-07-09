@@ -150,7 +150,7 @@ const copy = computed(() => (
       contactTitle: 'Напишите напрямую',
       contactSubtitle: 'Вопросы о платформе, партнёрстве, опыте кандидатов и воронке найма работодателя собираются в одном месте.',
       contacts: [
-        { label: 'Email', value: 'hello@cvhold.com', href: 'mailto:hello@cvhold.com' },
+        { label: 'Email', value: 'support@cvhold.com', href: 'mailto:support@cvhold.com' },
         { label: 'LinkedIn', value: 'linkedin.com/company/cvhold', href: 'https://linkedin.com/company/cvhold' },
         { label: 'Telegram', value: '@cvhold', href: 'https://t.me/cvhold' },
       ],

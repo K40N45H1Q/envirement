@@ -1,8 +1,7 @@
 <script setup>
 import AppLayout from '@/components/AppLayout.vue'
 import HeroSection from '@/components/HeroSection.vue'
-import Search from '@/components/Search.vue'
-import Categories from '@/components/Categories.vue'
+import HiringComparison from '@/components/HiringComparison.vue'
 import Service from '@/components/Service.vue'
 </script>
 
@@ -11,8 +10,7 @@ import Service from '@/components/Service.vue'
   <AppLayout>
     <main class="home-page">
       <HeroSection />
-      <Search />
-      <Categories />
+      <HiringComparison />
       <Service />
     </main>
   </AppLayout>

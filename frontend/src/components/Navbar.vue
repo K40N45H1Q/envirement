@@ -292,7 +292,7 @@ export default {
         { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
         { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
         { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
-        { label: this.t('navbar.pricing'), to: '/employers#pricing', icon: 'fas fa-tags', hash: '#pricing', hashBasePath: '/employers' },
+        { label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' },
       ]
 
       if (this.user) {

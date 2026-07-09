@@ -119,13 +119,15 @@ label {
   font: inherit;
 }
 
-.input-wrap i {
+.input-wrap :is(i, svg.svg-inline--fa) {
   position: absolute;
   top: 50%;
   right: 1rem;
   transform: translateY(-50%);
   color: var(--brand-strong);
   pointer-events: none;
+  width: 1rem;
+  height: 1rem;
 }
 
 .search-dropdown {

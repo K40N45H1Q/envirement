@@ -74,9 +74,8 @@ const legacyLicenseOptions = [
 
 const legacyPermitOptions = [
   { value: '', label: 'Выберите' },
-  { value: 'EU гражданин', label: 'EU гражданин' },
+  { value: 'гражданин ЕС', label: 'гражданин ЕС' },
   { value: 'Есть виза', label: 'Есть виза' },
-  { value: 'Нужен sponsorship', label: 'Нужен sponsorship' },
 ]
 
 const legacyAvailabilityOptions = [
@@ -118,9 +117,8 @@ const licenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE',
 
 const permitCatalog = [
   { value: '', ru: 'Выберите', en: 'Choose' },
-  { value: 'eu_citizen', ru: 'EU гражданин', en: 'EU citizen' },
+  { value: 'eu_citizen', ru: 'гражданин ЕС', en: 'EU citizen' },
   { value: 'has_visa', ru: 'Есть виза', en: 'Visa available' },
-  { value: 'needs_sponsorship', ru: 'Нужен sponsorship', en: 'Needs sponsorship' },
 ]
 
 const availabilityCatalog = [
@@ -217,15 +215,19 @@ const languageAliases = {
 
 const permitAliases = {
   eu_citizen: 'eu_citizen',
+  'гражданин ЕС': 'eu_citizen',
   'EU гражданин': 'eu_citizen',
   'EU citizen': 'eu_citizen',
   has_visa: 'has_visa',
   'Есть виза': 'has_visa',
   'Visa available': 'has_visa',
-  needs_sponsorship: 'needs_sponsorship',
-  'Нужен sponsorship': 'needs_sponsorship',
-  'Needs sponsorship': 'needs_sponsorship',
 }
+
+const removedPermitValues = new Set([
+  'needs_sponsorship',
+  'Нужен sponsorship',
+  'Needs sponsorship',
+])
 
 const getLocalizedLabel = (catalog, value, fallback = '') => {
   const option = catalog.find((entry) => entry.value === value)
@@ -266,7 +268,11 @@ const normalizeSectorExperience = (value) => {
   return sectorExperienceAliases[normalized] || DEFAULT_SECTOR_EXPERIENCE
 }
 const normalizeLanguageName = (value) => languageAliases[toText(value).trim()] || toText(value).trim()
-const normalizePermit = (value) => permitAliases[toText(value).trim()] || toText(value).trim()
+const normalizePermit = (value) => {
+  const textValue = toText(value).trim()
+  if (removedPermitValues.has(textValue)) return ''
+  return permitAliases[textValue] || textValue
+}
 const displayLanguageName = (value) => getLocalizedLabel(languageCatalog, normalizeLanguageName(value), toText(value).trim())
 const displaySectorExperience = (value) => getLocalizedLabel(sectorExperienceCatalog, normalizeSectorExperience(value), toText(value).trim())
 const displayPermit = (value) => getLocalizedLabel(permitCatalog, normalizePermit(value), toText(value).trim())
@@ -449,15 +455,17 @@ const toArray = (value) => {
 }
 
 const splitTextList = (value) => toText(value)
-  .split(/[,;\n]+/)
+  .split(/[,;\s]+/)
   .map((item) => item.trim())
   .filter(Boolean)
 
-const limitText = (value, maxLength = 520) => {
-  const cleanText = toText(value).replace(/\s+/g, ' ').trim()
+const limitText = (value, maxLength = 520, { preserveLineBreaks = false } = {}) => {
+  const cleanText = preserveLineBreaks
+    ? toText(value).replace(/[^\S\r\n]+/g, ' ').replace(/\r\n?/g, '\n').trim()
+    : toText(value).replace(/\s+/g, ' ').trim()
   if (cleanText.length <= maxLength) return cleanText
 
-  const clipped = cleanText.slice(0, maxLength).replace(/\s+\S*$/, '').trim()
+  const clipped = cleanText.slice(0, maxLength).replace(/[^\S\r\n]+\S*$/, '').trim()
   return `${clipped}…`
 }
 
@@ -876,7 +884,7 @@ const legacyCvSummaryParagraphs = computed(() => {
   if (summary) {
     return summary
       .split(/\n{2,}/)
-      .map((paragraph) => limitText(paragraph, 280))
+      .map((paragraph) => limitText(paragraph, 280, { preserveLineBreaks: true }))
       .filter(Boolean)
       .slice(0, 2)
   }
@@ -947,7 +955,7 @@ const cvSummaryParagraphs = computed(() => {
   if (summary) {
     return summary
       .split(/\n{2,}/)
-      .map((paragraph) => limitText(paragraph, 280))
+      .map((paragraph) => limitText(paragraph, 280, { preserveLineBreaks: true }))
       .filter(Boolean)
       .slice(0, 2)
   }
@@ -1067,13 +1075,15 @@ const saveGuestDraft = () => {
     resume_name: profile.value.resume_name,
   }
 
-  window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
+  window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
+  window.sessionStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
 }
 
 const loadGuestDraft = () => {
   if (typeof window === 'undefined') return null
 
-  const rawDraft = window.localStorage.getItem(GUEST_RESUME_DRAFT_KEY)
+  window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
+  const rawDraft = window.sessionStorage.getItem(GUEST_RESUME_DRAFT_KEY)
   if (!rawDraft) return null
 
   try {
@@ -1814,6 +1824,7 @@ const getPrintableStyles = () => `
     -webkit-line-clamp: 5 !important;
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
+    white-space: pre-line !important;
   }
 
   .cv-section p + p {
@@ -3494,6 +3505,7 @@ button:disabled {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  white-space: pre-line;
 }
 
 .cv-section p + p {

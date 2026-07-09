@@ -317,7 +317,7 @@ onBeforeUnmount(() => {
           </div>
 
           <p v-if="notice" class="notice">{{ notice }}</p>
-          <p v-else-if="isLoading" class="state">{{ copy.loadingJobs }}</p>
+          <p v-if="isLoading" class="state">{{ copy.loadingJobs }}</p>
 
           <div v-else-if="recommendedJobs.length" class="jobs-list">
             <RouterLink
