@@ -16,6 +16,7 @@ import {
   updateJob,
 } from '@/api/jobs'
 import { useMessagingStore } from '@/stores/messaging'
+import { ApiError } from '@/api/client'
 import {
   getLanguageOptions,
   getLicenseOptions,
@@ -94,6 +95,11 @@ const copy = computed(() => (
       jobUpdated: 'Vacancy updated.',
       jobSaved: 'Vacancy saved.',
       jobSaveError: 'Failed to save the vacancy.',
+      companyRequired: 'Enter your company name to publish the vacancy.',
+      companyRestored: 'Company name saved to your employer account.',
+      missingCompanyProfileError: 'Add your company name before publishing the vacancy.',
+      subscriptionRequiredError: 'An active employer plan is required to publish vacancies.',
+      subscriptionJobLimitReachedError: 'Your current plan limit for active vacancies has been reached.',
       deleteConfirm: 'Delete vacancy "{title}"?',
       jobDeleted: 'Vacancy deleted.',
       jobDeleteError: 'Failed to delete the vacancy.',
@@ -811,10 +817,14 @@ async function submitJob() {
       error.value = categoryRequiredError.value
       return
     }
+    if (!String(form.value.company || '').trim()) {
+      error.value = copy.value.companyRequired || 'Enter your company name to publish the vacancy.'
+      return
+    }
 
     const payload = {
       ...formPayload,
-      company: employerCompanyName.value,
+      company: String(form.value.company || '').trim(),
       salary: formatSalaryValue(form.value.salary, form.value.salary_currency),
       category: form.value.category,
       country_key: selectedCountry.value.key,
@@ -829,15 +839,29 @@ async function submitJob() {
       status.value = copy.value.jobUpdated
     } else {
       await createJob(payload)
-      status.value = copy.value.jobSaved
+      status.value = (!employerCompanyName.value && form.value.company)
+        ? `${copy.value.jobSaved} ${copy.value.companyRestored || 'Company name saved to your employer account.'}`
+        : copy.value.jobSaved
     }
 
     await auth.loadUser({ force: true })
     resetForm()
     await loadDashboard()
     await setSection('jobs')
-  } catch {
-    error.value = copy.value.jobSaveError
+  } catch (caughtError) {
+    if (caughtError instanceof ApiError) {
+      if (caughtError.key === 'missing_company_profile') {
+        error.value = copy.value.missingCompanyProfileError || 'Add your company name before publishing the vacancy.'
+      } else if (caughtError.key === 'subscription_required') {
+        error.value = copy.value.subscriptionRequiredError || 'An active employer plan is required to publish vacancies.'
+      } else if (caughtError.key === 'subscription_job_limit_reached') {
+        error.value = copy.value.subscriptionJobLimitReachedError || 'Your current plan limit for active vacancies has been reached.'
+      } else {
+        error.value = copy.value.jobSaveError
+      }
+    } else {
+      error.value = copy.value.jobSaveError
+    }
   } finally {
     isSaving.value = false
   }
@@ -1004,7 +1028,13 @@ onBeforeUnmount(() => {
               </label>
               <label>
                 {{ copy.company }}
-                <input v-model="form.company" readonly disabled />
+                <input
+                  v-model="form.company"
+                  required
+                  :readonly="Boolean(employerCompanyName)"
+                  :disabled="Boolean(employerCompanyName)"
+                  :placeholder="copy.company"
+                />
               </label>
             </div>
 

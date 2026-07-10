@@ -130,6 +130,7 @@ def ensure_employer_plan_allows_job(user: User, session) -> None:
 @router.post("/create_job")
 async def create_job(
     title: str = Form(...),
+    company: Optional[str] = Form(None),
     salary: str = Form(...),
     category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
@@ -155,9 +156,12 @@ async def create_job(
 ):
     require_account_types(current_user, "employer", "admin")
 
-    company_name = (current_user.company_name or "").strip()
+    company_name = (current_user.company_name or "").strip() or (company or "").strip()
     if not company_name:
         raise HTTPException(status_code=400, detail={"key": "missing_company_profile"})
+    if company_name != (current_user.company_name or "").strip():
+        current_user.company_name = company_name
+        session.add(current_user)
     ensure_employer_plan_allows_job(current_user, session)
 
     makedirs(UPLOAD_DIR, exist_ok=True)
@@ -234,6 +238,7 @@ def get_my_jobs(
 async def update_job(
     job_id: int = Path(...),
     title: str = Form(...),
+    company: Optional[str] = Form(None),
     salary: str = Form(...),
     category: Optional[str] = Form(None),
     employment_type: Optional[str] = Form(None),
@@ -259,9 +264,12 @@ async def update_job(
 ):
     require_account_types(current_user, "employer", "admin")
 
-    company_name = (current_user.company_name or "").strip()
+    company_name = (current_user.company_name or "").strip() or (company or "").strip()
     if not company_name:
         raise HTTPException(status_code=400, detail={"key": "missing_company_profile"})
+    if company_name != (current_user.company_name or "").strip():
+        current_user.company_name = company_name
+        session.add(current_user)
 
     job = session.get(Job, job_id)
     if not job or job.user_id != current_user.id:

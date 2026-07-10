@@ -144,6 +144,10 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     redirect: (to) => {
+      if (hasLocalePrefix(to.path || '')) {
+        return withLocale('/', getLocaleFromPath(to.path || '/'))
+      }
+
       const uiStore = useUiStore()
       const locale = normalizeLanguage(uiStore.language)
       return localizeFullPath(to.fullPath || '/', locale)
