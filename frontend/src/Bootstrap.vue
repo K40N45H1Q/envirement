@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useAuth } from '@/stores/auth'
 import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
@@ -13,6 +13,7 @@ import { getLocaleFromPath, stripLocaleFromPath, withLocale } from './router/loc
 const auth = useAuth()
 const betaAccess = useBetaAccess()
 const uiStore = useUiStore()
+let isBetaRedirecting = false
 
 const handleUnauthorized = () => {
   const currentRoute = router.currentRoute.value
@@ -37,8 +38,11 @@ const handleBetaUnauthorized = async () => {
   const currentRoute = router.currentRoute.value
   const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
 
-  auth.logout()
   await betaAccess.initialize({ force: true })
+
+  if (stripLocaleFromPath(currentRoute.path) === '/beta-access') {
+    return
+  }
 
   router.replace({
     path: withLocale('/beta-access', locale),
@@ -48,6 +52,41 @@ const handleBetaUnauthorized = async () => {
   })
 }
 
+const redirectToBetaAccessIfNeeded = async () => {
+  const currentRoute = router.currentRoute.value
+  const logicalPath = stripLocaleFromPath(currentRoute.path)
+
+  if (
+    isBetaRedirecting
+    || logicalPath === '/beta-access'
+    || logicalPath === '/admin'
+    || !betaAccess.isReady
+    || !betaAccess.isEnabled
+    || betaAccess.isAuthorized
+  ) {
+    return
+  }
+
+  isBetaRedirecting = true
+
+  try {
+    const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+    await router.replace({
+      path: withLocale('/beta-access', locale),
+      query: {
+        redirect: currentRoute.fullPath,
+      },
+    })
+  } finally {
+    isBetaRedirecting = false
+  }
+}
+
+watch(
+  () => [betaAccess.isReady, betaAccess.isEnabled, betaAccess.isAuthorized],
+  redirectToBetaAccessIfNeeded,
+)
+
 onMounted(() => {
   uiStore.initialize()
   betaAccess.initialize().then((authorized) => {
@@ -55,11 +94,13 @@ onMounted(() => {
       auth.loadUser()
     }
   })
+  betaAccess.startMonitoring()
   window.addEventListener('app:unauthorized', handleUnauthorized)
   window.addEventListener('app:beta-unauthorized', handleBetaUnauthorized)
 })
 
 onBeforeUnmount(() => {
+  betaAccess.stopMonitoring()
   window.removeEventListener('app:unauthorized', handleUnauthorized)
   window.removeEventListener('app:beta-unauthorized', handleBetaUnauthorized)
 })

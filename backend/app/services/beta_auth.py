@@ -8,11 +8,11 @@ from sqlmodel import Session
 from sqlmodel import select
 
 from app.core.config import settings
-from database.models import BetaAccessToken, engine
+from database.models import BetaAccessSetting, BetaAccessToken, engine
 
 
-LEGACY_BETA_USERNAME = "beta"
 DB_BETA_USERNAME = "beta-db"
+BETA_ACCESS_SETTING_ID = 1
 
 
 def _hash_token(value: str) -> str:
@@ -30,27 +30,33 @@ def _get_active_db_token_count() -> int:
     return int(row[0] or 0) if row else 0
 
 
+def get_beta_access_enabled() -> bool:
+    with Session(engine) as session:
+        setting = session.get(BetaAccessSetting, BETA_ACCESS_SETTING_ID)
+        if setting:
+            return bool(setting.enabled)
+    return _get_active_db_token_count() > 0
+
+
+def set_beta_access_enabled(enabled: bool) -> bool:
+    with Session(engine) as session:
+        setting = session.get(BetaAccessSetting, BETA_ACCESS_SETTING_ID)
+        if not setting:
+            setting = BetaAccessSetting(id=BETA_ACCESS_SETTING_ID)
+        setting.enabled = bool(enabled)
+        session.add(setting)
+        session.commit()
+        session.refresh(setting)
+        return bool(setting.enabled)
+
+
 def is_beta_auth_enabled() -> bool:
-    return bool(settings.beta_access_token) or _get_active_db_token_count() > 0
-
-
-def get_expected_beta_access_token() -> str:
-    return (settings.beta_access_token or "").strip()
-
-
-def verify_beta_access_token_value(access_token: str) -> bool:
-    normalized_token = (access_token or "").strip()
-    if settings.beta_access_token and compare_digest(normalized_token, get_expected_beta_access_token()):
-        return True
-    return get_beta_access_token_record(normalized_token) is not None
+    return get_beta_access_enabled()
 
 
 def get_beta_access_token_record(access_token: str) -> BetaAccessToken | None:
     normalized_token = (access_token or "").strip()
     if not is_beta_auth_enabled():
-        return None
-
-    if settings.beta_access_token and compare_digest(normalized_token, get_expected_beta_access_token()):
         return None
 
     with Session(engine) as session:
@@ -82,15 +88,17 @@ def mark_beta_access_token_used(token: BetaAccessToken | None) -> None:
 
 
 def _signature_payload(username: str, issued_at: int, token_id: int | None = None, token_hash: str = "") -> bytes:
-    access_token_hash = hashlib.sha256(get_expected_beta_access_token().encode("utf-8")).hexdigest()
-    return f"{username}:{issued_at}:{access_token_hash}:{token_id or 0}:{token_hash}".encode("utf-8")
+    return f"{username}:{issued_at}:{token_id or 0}:{token_hash}".encode("utf-8")
 
 
 def create_beta_access_token(token: BetaAccessToken | None = None) -> str:
+    if not token:
+        raise ValueError("beta token is required")
+
     issued_at = 0
-    username = DB_BETA_USERNAME if token else LEGACY_BETA_USERNAME
-    token_id = token.id if token else None
-    token_hash = token.token_hash if token else ""
+    username = DB_BETA_USERNAME
+    token_id = token.id
+    token_hash = token.token_hash
     payload = _signature_payload(username, issued_at, token_id, token_hash)
     signature = hmac.new(
         settings.jwt_secret_key.encode("utf-8"),
@@ -135,7 +143,7 @@ def validate_beta_access_token(token: str | None) -> bool:
 
         if not token:
             return False
-    elif username != LEGACY_BETA_USERNAME:
+    else:
         return False
 
     expected_signature = hmac.new(

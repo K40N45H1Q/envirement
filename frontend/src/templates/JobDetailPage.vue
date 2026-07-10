@@ -18,6 +18,7 @@ const error = ref('')
 const applyStatus = ref('')
 const brokenLogo = ref(false)
 const brokenBanner = ref(false)
+const bannerModalOpen = ref(false)
 
 const form = ref({
   name: '',
@@ -59,11 +60,21 @@ const requiredLanguages = computed(() => (
 
 const requiredLicenses = computed(() => job.value?.licenses?.filter(Boolean) || [])
 
+const openBannerModal = () => {
+  if (!hasBanner.value) return
+  bannerModalOpen.value = true
+}
+
+const closeBannerModal = () => {
+  bannerModalOpen.value = false
+}
+
 const loadJob = async () => {
   isLoading.value = true
   error.value = ''
   brokenLogo.value = false
   brokenBanner.value = false
+  bannerModalOpen.value = false
 
   try {
     job.value = normalizeJob(await getJob(route.params.id))
@@ -162,14 +173,21 @@ watch(() => route.params.id, loadJob)
           <article class="panel">
             <h2>{{ t('jobDetailPage.descriptionTitle') }}</h2>
             
-            <div class="wrapper">
-              <img
+            <div class="wrapper" :class="{ 'wrapper--text-only': !hasBanner }">
+              <button
                 v-if="hasBanner"
-                class="banner"
-                :src="job.banner_url"
-                :alt="job.title"
-                @error="brokenBanner = true"
-              />
+                type="button"
+                class="banner-button"
+                :aria-label="`Открыть баннер вакансии ${job.title}`"
+                @click="openBannerModal"
+              >
+                <img
+                  class="banner"
+                  :src="job.banner_url"
+                  :alt="job.title"
+                  @error="brokenBanner = true"
+                />
+              </button>
               <p>{{ job.description || t('jobDetailPage.descriptionFallback') }}</p>
             </div>
             
@@ -238,6 +256,13 @@ watch(() => route.params.id, loadJob)
         </section>
       </template>
     </main>
+
+    <div v-if="bannerModalOpen && hasBanner" class="banner-modal" role="dialog" aria-modal="true" @click.self="closeBannerModal">
+      <button type="button" class="banner-modal__close" aria-label="Закрыть" @click="closeBannerModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+      <img :src="job.banner_url" :alt="job.title" />
+    </div>
   </AppLayout>
 </template>
 
@@ -257,18 +282,28 @@ watch(() => route.params.id, loadJob)
 .hero,
 .panel,
 .notice {
-  border: 1px solid var(--border-subtle);
+  border: 0.0625rem solid var(--border-subtle);
   border-radius: 1rem;
   background: var(--surface-primary);
   box-shadow: var(--shadow-soft);
 }
 
 .hero {
-  padding: 2rem;
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 1.25rem;
+  overflow: hidden;
+  padding: 2rem;
+}
+
+.hero::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.22rem;
+  background: linear-gradient(90deg, var(--brand-base), color-mix(in srgb, var(--brand-base) 20%, white));
+  content: "";
 }
 
 .hero > div:nth-child(2),
@@ -282,9 +317,13 @@ watch(() => route.params.id, loadJob)
 
 .hero p,
 .hero span,
-.panel > p,
 dt {
   color: var(--text-muted);
+}
+
+.hero h1 {
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  line-height: 1.08;
 }
 
 .hero aside {
@@ -294,7 +333,7 @@ dt {
 
 .hero strong {
   color: var(--brand-strong);
-  font-size: 2rem;
+  font-size: clamp(1.55rem, 2vw, 2.1rem);
 }
 
 .logo {
@@ -302,42 +341,97 @@ dt {
   height: 5rem;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 1rem;
   color: #fff;
-  font-weight: 800;
-  overflow: hidden;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 0.0625rem rgba(255, 255, 255, 0.35);
 }
 
 .logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: white;
 }
 
 .grid {
   display: flex;
   flex-direction: column;
-  grid-template-columns: minmax(0, 1fr) 22rem;
   gap: 1rem;
   align-items: start;
 }
 
 .panel {
-  padding: 1.5rem;
   width: 100%;
+  padding: 1.5rem;
 }
 
+.wrapper {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.wrapper--text-only {
+  grid-template-columns: 1fr;
+}
+
+.banner-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--surface-secondary);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.banner {
+  width: 100%;
+  height: 100%;
+  max-height: 31rem;
+  display: block;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--surface-secondary) 80%, white);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+}
+
+.wrapper p {
+  min-height: 16rem;
+  max-height: 31rem;
+  margin: 0;
+  padding: 1.25rem;
+  overflow-y: auto;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
 
 dl {
+  width: 100%;
   margin: 0;
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+}
+
+dl > div {
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-secondary);
 }
 
 dd {
   margin: 0;
   color: var(--text-primary);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 ul {
@@ -345,12 +439,12 @@ ul {
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: .5rem;
+  gap: 0.5rem;
   list-style: none;
 }
 
 li {
-  padding: .35rem .75rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 999rem;
   background: color-mix(in srgb, var(--brand-soft) 68%, white);
   color: var(--brand-strong);
@@ -361,9 +455,9 @@ input,
 textarea {
   width: 100%;
   min-height: 3rem;
-  padding: .85rem 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: .875rem;
+  padding: 0.85rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
   background: var(--surface-secondary);
   color: var(--text-primary);
   font: inherit;
@@ -377,7 +471,7 @@ textarea {
 button {
   min-height: 3rem;
   border: 0;
-  border-radius: .875rem;
+  border-radius: 0.875rem;
   background: var(--brand-strong);
   color: #fff;
   font: inherit;
@@ -397,14 +491,49 @@ a {
 }
 
 .error {
-  border-color: rgba(220, 38, 38, .14);
-  background: rgba(220, 38, 38, .08);
+  border-color: rgba(220, 38, 38, 0.14);
+  background: rgba(220, 38, 38, 0.08);
   color: #b91c1c;
+}
+
+.banner-modal {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.banner-modal img {
+  max-width: min(96vw, 90rem);
+  max-height: 90vh;
+  border-radius: 1rem;
+  background: white;
+  object-fit: contain;
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+}
+
+.banner-modal__close {
+  position: fixed;
+  top: 1.2rem;
+  right: 1.2rem;
+  width: 2.8rem;
+  height: 2.8rem;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 0.0625rem solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
 }
 
 @media (max-width: 60rem) {
   .hero,
-  .grid {
+  .wrapper,
+  dl {
     grid-template-columns: 1fr;
   }
 
@@ -420,59 +549,9 @@ a {
   .panel {
     padding: 1rem;
   }
-}
 
-.wrapper {
-  display: flex;
-  align-items: stretch;
-  gap: 15px;
-  max-width: 100%;
-}
-
-.banner {
-  width: 50%;
-  max-height: 500px;
-  object-fit: contain;
-  border: 1px solid black;
-  border-radius: 15px;
-}
-
-.wrapper p {
-  width: 50%;
-  max-width: 50%;
-  max-height: 500px;
-  margin: 0;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  align-items: center;
-  line-height: 1.6;
-  font-size: 20px;
-  border: 1px solid black;
-  box-sizing: border-box;
-}
-
-
-
-.grid > aside {
-  width: 100%;
-}
-
-dl {
-  width: 100%;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-dl > div {
-  padding: 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-secondary);
-}
-
-@media (max-width: 60rem) {
-  dl {
-    grid-template-columns: 1fr;
+  .wrapper p {
+    min-height: 12rem;
   }
 }
 </style>

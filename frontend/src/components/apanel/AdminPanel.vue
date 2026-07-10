@@ -9,6 +9,8 @@ import APanelUsers from './APanelUsers.vue'
 import {
   approveAdminJob,
   createAdminBetaToken,
+  deleteAdminJob,
+  getAdminBetaSettings,
   getAdminBetaTokens,
   getAdminJobs,
   getAdminModerationJobs,
@@ -16,6 +18,7 @@ import {
   getAdminUsers,
   rejectAdminJob,
   deleteAdminBetaToken,
+  updateAdminBetaSettings,
 } from './api'
 
 const route = useRoute()
@@ -39,8 +42,10 @@ const employers = ref([])
 const jobs = ref([])
 const moderationJobs = ref([])
 const tokens = ref([])
+const betaAccessEnabled = ref(false)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const isSavingSettings = ref(false)
 const error = ref('')
 const createdToken = ref('')
 
@@ -66,13 +71,14 @@ const loadAdminData = async () => {
   error.value = ''
 
   try {
-    const [summaryData, userData, employerData, jobsData, moderationData, tokenData] = await Promise.all([
+    const [summaryData, userData, employerData, jobsData, moderationData, tokenData, betaSettingsData] = await Promise.all([
       getAdminSummary(),
       getAdminUsers('candidate'),
       getAdminUsers('employer'),
       getAdminJobs(),
       getAdminModerationJobs(),
       getAdminBetaTokens(),
+      getAdminBetaSettings(),
     ])
 
     summary.value = summaryData
@@ -81,6 +87,7 @@ const loadAdminData = async () => {
     jobs.value = Array.isArray(jobsData) ? jobsData : []
     moderationJobs.value = Array.isArray(moderationData) ? moderationData : []
     tokens.value = Array.isArray(tokenData) ? tokenData : []
+    betaAccessEnabled.value = Boolean(betaSettingsData?.enabled)
   } catch {
     error.value = 'Не удалось загрузить админку.'
   } finally {
@@ -98,7 +105,7 @@ const createToken = async ({ note }) => {
     createdToken.value = token.token || ''
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось создать beta-токен.'
+    error.value = 'Не удалось создать бета-токен.'
   } finally {
     isSaving.value = false
   }
@@ -112,6 +119,20 @@ const deleteToken = async (token) => {
     await loadAdminData()
   } catch {
     error.value = 'Не удалось удалить токен.'
+  }
+}
+
+const updateBetaAccess = async (enabled) => {
+  isSavingSettings.value = true
+  error.value = ''
+
+  try {
+    const settings = await updateAdminBetaSettings({ enabled })
+    betaAccessEnabled.value = Boolean(settings?.enabled)
+  } catch {
+    error.value = 'Не удалось изменить режим бета-доступа.'
+  } finally {
+    isSavingSettings.value = false
   }
 }
 
@@ -137,6 +158,17 @@ const rejectJob = async (job) => {
   }
 }
 
+const deleteJob = async (job) => {
+  error.value = ''
+
+  try {
+    await deleteAdminJob(job.id)
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось удалить вакансию.'
+  }
+}
+
 watch(
   () => route.query.section,
   (section) => {
@@ -152,9 +184,9 @@ onMounted(loadAdminData)
     <DashboardShell
       :sections="sections"
       :active-section="activeSection"
-      eyebrow="Administration"
+      eyebrow="Администрирование"
       :title="activeTitle"
-      description="Управление пользователями, работодателями, вакансиями и beta-доступом."
+      description="Управление пользователями, работодателями, вакансиями и бета-доступом."
       :stats="stats"
       @select-section="setSection"
       @stat-click="setSection"
@@ -179,6 +211,7 @@ onMounted(loadAdminData)
           v-else-if="activeSection === 'vacancies'"
           :jobs="jobs"
           empty-text="Вакансий пока нет."
+          @delete="deleteJob"
         />
 
         <APanelJobs
@@ -188,15 +221,19 @@ onMounted(loadAdminData)
           empty-text="Вакансий на модерации нет."
           @approve="approveJob"
           @reject="rejectJob"
+          @delete="deleteJob"
         />
 
         <APanelSettings
           v-else
           :tokens="tokens"
+          :beta-access-enabled="betaAccessEnabled"
           :is-saving="isSaving"
+          :is-saving-settings="isSavingSettings"
           :created-token="createdToken"
           @create-token="createToken"
           @delete-token="deleteToken"
+          @update-beta-access="updateBetaAccess"
         />
       </template>
     </DashboardShell>

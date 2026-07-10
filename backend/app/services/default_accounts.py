@@ -8,23 +8,16 @@ from database.models import CandidateProfile, Job, JobApplication, Message, User
 
 DEFAULT_EMPLOYER_KIND = "employer"
 DEFAULT_CANDIDATE_KIND = "candidate"
+DEFAULT_ADMIN_KIND = "admin"
 LEGACY_EMAILS_BY_KIND = {
     DEFAULT_EMPLOYER_KIND: {"employer@cvhold.local"},
     DEFAULT_CANDIDATE_KIND: {"candidate@cvhold.local"},
+    DEFAULT_ADMIN_KIND: set(),
 }
 
 
 def hash_password(password: str) -> str:
     return sha256(password.encode()).hexdigest()
-
-
-def split_full_name(full_name: str) -> tuple[str, str]:
-    normalized_parts = [part for part in full_name.strip().split() if part]
-    if not normalized_parts:
-        return "", ""
-    if len(normalized_parts) == 1:
-        return normalized_parts[0], ""
-    return normalized_parts[0], " ".join(normalized_parts[1:])
 
 
 def _delete_user_dependencies(session: Session, user: User) -> None:
@@ -99,105 +92,42 @@ def _delete_default_users_of_kind(session: Session, account_kind: str, keep_emai
         _delete_user(session, legacy_user)
 
 
-def _ensure_candidate_profile(session: Session, user: User) -> None:
-    first_name, last_name = split_full_name(user.full_name or "")
-    profile = session.exec(
-        select(CandidateProfile).where(CandidateProfile.user_id == user.id)
-    ).first()
-
-    if profile:
-        profile.first_name = first_name
-        profile.last_name = last_name
-        profile.phone = user.phone
-        return
-
-    session.add(
-        CandidateProfile(
-            user_id=user.id,
-            first_name=first_name,
-            last_name=last_name,
-            phone=user.phone,
-        )
-    )
-
-
-def _upsert_default_candidate(session: Session, email: str, password: str) -> None:
-    _delete_default_users_of_kind(session, DEFAULT_CANDIDATE_KIND, keep_email=email)
+def _upsert_default_admin(session: Session, email: str, password: str) -> None:
+    _delete_default_users_of_kind(session, DEFAULT_ADMIN_KIND, keep_email=email)
 
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
-        user = User(
-            full_name="Default Candidate",
-            email=email,
-            phone=None,
-            hashed_password=hash_password(password),
-            account_type="candidate",
-            is_default_account=True,
-            default_account_kind=DEFAULT_CANDIDATE_KIND,
+        session.add(
+            User(
+                full_name="CVHOLD Admin",
+                email=email,
+                phone=None,
+                hashed_password=hash_password(password),
+                account_type="admin",
+                is_default_account=True,
+                default_account_kind=DEFAULT_ADMIN_KIND,
+            )
         )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-    else:
-        user.full_name = user.full_name or "Default Candidate"
-        user.account_type = "candidate"
-        user.is_default_account = True
-        user.default_account_kind = DEFAULT_CANDIDATE_KIND
-        user.hashed_password = hash_password(password)
-        user.company_name = None
-        user.company_logo_url = None
-        user.company_country = None
-        user.company_industry = None
-        user.company_registration_number = None
-
-    _ensure_candidate_profile(session, user)
-
-
-def _upsert_default_employer(session: Session, email: str, password: str) -> None:
-    _delete_default_users_of_kind(session, DEFAULT_EMPLOYER_KIND, keep_email=email)
-
-    user = session.exec(select(User).where(User.email == email)).first()
-    if not user:
-        user = User(
-            full_name="Default Employer",
-            email=email,
-            phone=None,
-            hashed_password=hash_password(password),
-            account_type="employer",
-            is_default_account=True,
-            default_account_kind=DEFAULT_EMPLOYER_KIND,
-            company_name="CVHOLD Employer",
-            company_country="latvia",
-            company_industry="administrative-work",
-        )
-        session.add(user)
         return
 
-    user.full_name = user.full_name or "Default Employer"
-    user.account_type = "employer"
+    user.full_name = user.full_name or "CVHOLD Admin"
+    user.account_type = "admin"
     user.is_default_account = True
-    user.default_account_kind = DEFAULT_EMPLOYER_KIND
+    user.default_account_kind = DEFAULT_ADMIN_KIND
     user.hashed_password = hash_password(password)
-    user.company_name = user.company_name or "CVHOLD Employer"
-    user.company_country = user.company_country or "latvia"
-    user.company_industry = user.company_industry or "administrative-work"
 
 
 def sync_default_accounts() -> None:
-    employer_email = settings.default_employer_login
-    employer_password = settings.default_employer_password
-    candidate_email = settings.default_candidate_login
-    candidate_password = settings.default_candidate_password
+    admin_email = settings.default_admin_login
+    admin_password = settings.default_admin_password
 
     with Session(engine) as session:
-        if employer_email and employer_password:
-            _upsert_default_employer(session, employer_email, employer_password)
-        else:
-            _delete_default_users_of_kind(session, DEFAULT_EMPLOYER_KIND)
+        _delete_default_users_of_kind(session, DEFAULT_EMPLOYER_KIND)
+        _delete_default_users_of_kind(session, DEFAULT_CANDIDATE_KIND)
 
-        if candidate_email and candidate_password:
-            _upsert_default_candidate(session, candidate_email, candidate_password)
+        if admin_email and admin_password:
+            _upsert_default_admin(session, admin_email, admin_password)
         else:
-            _delete_default_users_of_kind(session, DEFAULT_CANDIDATE_KIND)
+            _delete_default_users_of_kind(session, DEFAULT_ADMIN_KIND)
 
         session.commit()

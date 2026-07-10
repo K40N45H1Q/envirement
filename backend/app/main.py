@@ -22,7 +22,6 @@ from app.services.beta_auth import (
     has_beta_access,
     is_beta_auth_enabled,
     mark_beta_access_token_used,
-    verify_beta_access_token_value,
 )
 from app.services.default_accounts import sync_default_accounts
 from app.services.request_blackhole import close_blocked_connection
@@ -79,9 +78,8 @@ class BetaAccessMiddleware:
 
             access_token = payload.get("access_token") or ""
             beta_token = get_beta_access_token_record(access_token)
-            is_legacy_token = verify_beta_access_token_value(access_token) and beta_token is None
 
-            if not beta_token and not is_legacy_token:
+            if not beta_token:
                 is_blocked, remaining_attempts = register_failed_attempt_with_state(client_ip)
                 if is_blocked:
                     closed = await close_blocked_connection(send)

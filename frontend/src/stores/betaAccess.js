@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { getBetaStatus, loginToBeta, logoutFromBeta } from '@/api/beta'
 
 const BETA_SESSION_KEY = 'cvhold-beta-session'
+const BETA_STATUS_POLL_INTERVAL_MS = 1000
 
 const hasBrowserBetaSession = () => {
   if (typeof window === 'undefined') return false
@@ -28,38 +29,64 @@ export const useBetaAccess = defineStore('beta-access', {
     isEnabled: true,
     isAuthorized: false,
     isLoading: false,
+    isCheckingStatus: false,
     isReady: false,
+    monitorId: null,
   }),
 
   actions: {
     reset() {
       this.isAuthorized = false
       this.isLoading = false
+      this.isCheckingStatus = false
       this.isReady = false
+      this.stopMonitoring()
       clearBrowserBetaSession()
     },
 
-    async initialize({ force = false } = {}) {
-      if (this.isReady && !force) {
-        return this.isAuthorized
-      }
+    applyStatus(data) {
+      this.isEnabled = data?.enabled !== false
+      const hasSessionMarker = hasBrowserBetaSession()
 
-      this.isLoading = true
+      this.isAuthorized = (
+        this.isEnabled === false
+        || (data?.authorized === true && hasSessionMarker)
+      )
+
+      if (!this.isAuthorized) {
+        clearBrowserBetaSession()
+      }
+    },
+
+    async refreshStatus() {
+      this.isCheckingStatus = true
 
       try {
         const data = await getBetaStatus()
-        this.isEnabled = data?.enabled !== false
-        const hasSessionMarker = hasBrowserBetaSession()
-
-        this.isAuthorized = (
-          this.isEnabled === false
-          || (data?.authorized === true && hasSessionMarker)
-        )
-
-        if (!this.isAuthorized) {
-          clearBrowserBetaSession()
-        }
+        this.applyStatus(data)
+        this.isReady = true
         return this.isAuthorized
+      } catch (error) {
+        if (error?.status === 404 || error?.status === 0) {
+          redirectToBlockedPage()
+          return false
+        }
+
+        this.isEnabled = true
+        this.isAuthorized = false
+        this.isReady = true
+        clearBrowserBetaSession()
+        return false
+      } finally {
+        this.isCheckingStatus = false
+      }
+    },
+
+    async initialize({ force = false } = {}) {
+      this.isLoading = true
+
+      try {
+        return await this.refreshStatus()
       } catch (error) {
         if (error?.status === 404 || error?.status === 0) {
           redirectToBlockedPage()
@@ -74,6 +101,21 @@ export const useBetaAccess = defineStore('beta-access', {
         this.isLoading = false
         this.isReady = true
       }
+    },
+
+    startMonitoring() {
+      if (typeof window === 'undefined' || this.monitorId) return
+
+      this.monitorId = window.setInterval(() => {
+        this.refreshStatus()
+      }, BETA_STATUS_POLL_INTERVAL_MS)
+    },
+
+    stopMonitoring() {
+      if (typeof window === 'undefined' || !this.monitorId) return
+
+      window.clearInterval(this.monitorId)
+      this.monitorId = null
     },
 
     async login(credentials) {

@@ -15,7 +15,6 @@ from app.services.beta_auth import (
     has_beta_access,
     is_beta_auth_enabled,
     mark_beta_access_token_used,
-    verify_beta_access_token_value,
 )
 
 
@@ -62,9 +61,8 @@ async def beta_auth_login(request: Request) -> Response:
     client_ip = get_client_ip(request)
 
     beta_token = get_beta_access_token_record(access_token)
-    is_legacy_token = verify_beta_access_token_value(access_token) and beta_token is None
 
-    if not beta_token and not is_legacy_token:
+    if not beta_token:
         is_blocked, remaining_attempts = register_failed_attempt_with_state(client_ip)
         if is_blocked:
             return JSONResponse(

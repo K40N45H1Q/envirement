@@ -39,6 +39,13 @@ const statusLabel = (value) => {
   }
   return labels[value] || value || 'Активен'
 }
+
+const mediaUrl = (user) => user.company_logo_url || user.avatar_url || ''
+
+const mediaInitial = (user) => {
+  const source = user.company_name || user.full_name || user.email || '?'
+  return source.trim().charAt(0).toUpperCase()
+}
 </script>
 
 <template>
@@ -47,32 +54,32 @@ const statusLabel = (value) => {
       <table v-if="users.length" class="apanel-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Имя / компания</th>
-            <th>Email</th>
+            <th>Профиль</th>
+            <th>Почта</th>
             <th>Роль</th>
             <th>Статус</th>
-            <th>Beta</th>
+            <th>Бета</th>
             <th>Телефон</th>
             <th>Дата создания</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td><span class="apanel-id">#{{ user.id }}</span></td>
             <td>
-              <div class="apanel-user">
-                <span>{{ user.company_name || user.full_name || '-' }}</span>
-                <small>{{ user.account_type === 'employer' ? 'Компания' : 'Профиль' }}</small>
+              <div class="apanel-user-row">
+                <div class="apanel-avatar">
+                  <img v-if="mediaUrl(user)" :src="mediaUrl(user)" :alt="user.company_name || user.full_name || user.email" />
+                  <span v-else>{{ mediaInitial(user) }}</span>
+                </div>
+                <div class="apanel-user">
+                  <span>{{ user.company_name || user.full_name || '-' }}</span>
+                  <small>{{ user.account_type === 'employer' ? 'Компания' : 'Профиль' }}</small>
+                </div>
               </div>
             </td>
             <td><span class="apanel-email">{{ user.email }}</span></td>
-            <td>
-              <span class="apanel-pill">{{ roleLabel(user.account_type) }}</span>
-            </td>
-            <td>
-              <span class="apanel-status-pill">{{ statusLabel(user.status) }}</span>
-            </td>
+            <td><span class="apanel-pill">{{ roleLabel(user.account_type) }}</span></td>
+            <td><span class="apanel-status-pill">{{ statusLabel(user.status) }}</span></td>
             <td>
               <span class="apanel-beta" :class="{ 'apanel-beta--active': user.has_beta_access }">
                 {{ user.has_beta_access ? 'Есть' : 'Нет' }}
@@ -146,21 +153,31 @@ const statusLabel = (value) => {
   border-bottom: 0;
 }
 
-.apanel-pill {
-  display: inline-flex;
-  min-height: 1.8rem;
+.apanel-user-row {
+  display: flex;
   align-items: center;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 76%, white);
-  color: var(--brand-strong);
-  font-size: 0.78rem;
-  font-weight: 800;
+  gap: 0.75rem;
 }
 
-.apanel-id {
-  color: var(--text-muted);
-  font-weight: 800;
+.apanel-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+  overflow: hidden;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  color: var(--brand-strong);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.apanel-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .apanel-user {
@@ -177,6 +194,7 @@ const statusLabel = (value) => {
   color: var(--text-muted);
 }
 
+.apanel-pill,
 .apanel-status-pill,
 .apanel-beta {
   display: inline-flex;
@@ -188,6 +206,12 @@ const statusLabel = (value) => {
   font-weight: 900;
 }
 
+.apanel-pill,
+.apanel-beta--active {
+  background: color-mix(in srgb, var(--brand-soft) 78%, white);
+  color: var(--brand-strong);
+}
+
 .apanel-status-pill {
   background: color-mix(in srgb, var(--surface-secondary) 84%, var(--brand-soft));
   color: var(--text-primary);
@@ -196,11 +220,6 @@ const statusLabel = (value) => {
 .apanel-beta {
   background: color-mix(in srgb, #f1f5f9 78%, white);
   color: var(--text-muted);
-}
-
-.apanel-beta--active {
-  background: color-mix(in srgb, var(--brand-soft) 78%, white);
-  color: var(--brand-strong);
 }
 
 .apanel-empty {

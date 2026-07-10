@@ -5,7 +5,8 @@ from secrets import token_urlsafe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import select
 
-from database.models import BetaAccessToken, Job, User, get_session
+from database.models import BetaAccessToken, CandidateProfile, Job, User, get_session
+from app.services.beta_auth import get_beta_access_enabled, set_beta_access_enabled
 from routes.safety import get_current_user, serialize_user
 
 
@@ -43,11 +44,12 @@ def serialize_beta_token(token: BetaAccessToken, assigned_user: User | None = No
     }
 
 
-def serialize_admin_user(user: User, beta_user_ids: set[int]) -> dict:
+def serialize_admin_user(user: User, beta_user_ids: set[int], avatar_url: str = "") -> dict:
     return {
         **serialize_user(user),
         "status": "active",
         "has_beta_access": user.id in beta_user_ids,
+        "avatar_url": avatar_url,
     }
 
 
@@ -59,6 +61,13 @@ def serialize_admin_job(job: Job) -> dict:
         "status": job.status,
         "location": job.location,
         "salary": job.salary or "",
+        "description": job.description or "",
+        "category": job.category or "",
+        "employment_type": job.employment_type or "",
+        "country_label": job.country_label or "",
+        "country_flag_code": job.country_flag_code or "",
+        "logo": job.logo or "",
+        "banner_url": job.banner_url or "",
         "user_id": job.user_id,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
@@ -105,7 +114,19 @@ def get_admin_users(
     beta_tokens = session.exec(select(BetaAccessToken).where(BetaAccessToken.is_active == True)).all()
     beta_user_ids = {token.assigned_user_id for token in beta_tokens}
 
-    return [serialize_admin_user(user, beta_user_ids) for user in users]
+    user_ids = [user.id for user in users if user.id is not None]
+    profiles = session.exec(
+        select(CandidateProfile).where(CandidateProfile.user_id.in_(user_ids))
+    ).all() if user_ids else []
+    avatars_by_user_id = {
+        profile.user_id: profile.avatar_url or ""
+        for profile in profiles
+    }
+
+    return [
+        serialize_admin_user(user, beta_user_ids, avatars_by_user_id.get(user.id, ""))
+        for user in users
+    ]
 
 
 @router.get("/jobs")
@@ -164,6 +185,21 @@ def reject_admin_job(
     return serialize_admin_job(job)
 
 
+@router.delete("/jobs/{job_id}")
+def delete_admin_job(
+    job_id: int,
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    require_admin(current_user)
+    job = session.exec(select(Job).where(Job.id == job_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail={"error": "job_not_found"})
+    session.delete(job)
+    session.commit()
+    return {"deleted": True, "id": job_id}
+
+
 @router.get("/beta-tokens")
 def get_beta_tokens(
     current_user: User = Depends(get_current_user),
@@ -181,6 +217,25 @@ def get_beta_tokens(
         serialize_beta_token(token, users_by_id.get(token.assigned_user_id))
         for token in tokens
     ]
+
+
+@router.get("/beta-settings")
+def get_beta_settings(
+    current_user: User = Depends(get_current_user),
+):
+    require_admin(current_user)
+    return {"enabled": get_beta_access_enabled()}
+
+
+@router.patch("/beta-settings")
+async def update_beta_settings(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    require_admin(current_user)
+    payload = await request.json()
+    enabled = set_beta_access_enabled(bool(payload.get("enabled")))
+    return {"enabled": enabled}
 
 
 @router.post("/beta-tokens")

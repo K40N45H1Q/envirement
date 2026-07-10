@@ -19,13 +19,10 @@ class Settings(BaseModel):
     uploads_dir: Path
     database_url: str
     cors_origins: list[str]
-    beta_access_token: str | None
     beta_cookie_name: str
     beta_failed_attempt_limit: int
-    default_employer_login: str | None
-    default_employer_password: str | None
-    default_candidate_login: str | None
-    default_candidate_password: str | None
+    default_admin_login: str | None
+    default_admin_password: str | None
     smtp_host: str | None
     smtp_port: int
     smtp_username: str | None
@@ -70,13 +67,10 @@ def load_settings() -> Settings:
         uploads_dir=base_dir / "uploads",
         database_url=os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./default.db"),
         cors_origins=parse_origins(os.getenv("CORS_ORIGINS")),
-        beta_access_token=(os.getenv("BETA_ACCESS_TOKEN") or "").strip() or None,
         beta_cookie_name=os.getenv("BETA_COOKIE_NAME", "cvhold_beta_access"),
         beta_failed_attempt_limit=int(os.getenv("BETA_FAILED_ATTEMPT_LIMIT", "3")),
-        default_employer_login=(os.getenv("DEFAULT_EMPLOYER_LOGIN") or "").strip().lower() or None,
-        default_employer_password=(os.getenv("DEFAULT_EMPLOYER_PASSWORD") or "").strip() or None,
-        default_candidate_login=(os.getenv("DEFAULT_CANDIDATE_LOGIN") or "").strip().lower() or None,
-        default_candidate_password=(os.getenv("DEFAULT_CANDIDATE_PASSWORD") or "").strip() or None,
+        default_admin_login=(os.getenv("DEFAULT_ADMIN_LOGIN") or "admin@cvhold.com").strip().lower() or None,
+        default_admin_password=(os.getenv("DEFAULT_ADMIN_PASSWORD") or "CVHOLD-Admin-2026!n7Qp#4Lz").strip() or None,
         smtp_host=(os.getenv("SMTP_HOST") or "smtp.hostinger.com").strip() or None,
         smtp_port=int(os.getenv("SMTP_PORT", "465")),
         smtp_username=(os.getenv("SMTP_USERNAME") or "").strip() or None,

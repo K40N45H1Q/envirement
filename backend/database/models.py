@@ -127,6 +127,13 @@ class BetaAccessToken(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class BetaAccessSetting(SQLModel, table=True):
+    id: Optional[int] = Field(default=1, primary_key=True)
+    enabled: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class RegistrationVerification(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True)
@@ -170,6 +177,11 @@ def update_beta_blocked_ip_timestamp(mapper, connection, target):
 
 @event.listens_for(BetaAccessToken, "before_update")
 def update_beta_access_token_timestamp(mapper, connection, target):
+    target.updated_at = datetime.now(timezone.utc)
+
+
+@event.listens_for(BetaAccessSetting, "before_update")
+def update_beta_access_setting_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 

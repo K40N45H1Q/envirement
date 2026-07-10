@@ -1,12 +1,20 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
-defineProps({
+const props = defineProps({
   tokens: {
     type: Array,
     default: () => [],
   },
+  betaAccessEnabled: {
+    type: Boolean,
+    default: false,
+  },
   isSaving: {
+    type: Boolean,
+    default: false,
+  },
+  isSavingSettings: {
     type: Boolean,
     default: false,
   },
@@ -16,9 +24,14 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['create-token', 'delete-token'])
+const emit = defineEmits(['create-token', 'delete-token', 'update-beta-access'])
 
 const note = ref('')
+
+const betaAccessModel = computed({
+  get: () => props.betaAccessEnabled,
+  set: (value) => emit('update-beta-access', value),
+})
 
 const submit = () => {
   emit('create-token', {
@@ -44,17 +57,92 @@ const formatDate = (value) => {
 }
 
 const tokenStateLabel = (token) => {
-  if (token.used) return 'Использован'
-  if (!token.is_active) return 'Отключен'
-  return 'Активен'
+  return token.used ? 'Активный' : 'Неактивный'
 }
 </script>
 
 <template>
   <section class="apanel-settings">
+    <section class="apanel-card apanel-token-card">
+      <div class="apanel-card__head">
+        <p class="apanel-eyebrow">Хранится в базе данных</p>
+        <h2>Выданные токены</h2>
+      </div>
+
+      <div class="apanel-token-list">
+        <div v-if="tokens.length" class="apanel-token-table-wrap">
+          <table class="apanel-token-table">
+            <thead>
+              <tr>
+                <th>Токен</th>
+                <th>Заметка</th>
+                <th>Статус</th>
+                <th>Использован</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="token in tokens" :key="token.id">
+                <td>
+                  <div class="apanel-token-value">
+                    <code>{{ token.token || '-' }}</code>
+                  </div>
+                </td>
+                <td class="apanel-token-note">{{ token.note || '-' }}</td>
+                <td>
+                  <span
+                    class="apanel-token-status"
+                    :class="{
+                      'apanel-token-status--active': token.used,
+                    }"
+                  >
+                    {{ tokenStateLabel(token) }}
+                  </span>
+                </td>
+                <td>{{ formatDate(token.usedAt || token.used_at) }}</td>
+                <td>
+                  <div class="apanel-token-actions">
+                    <button
+                      v-if="token.token"
+                      type="button"
+                      class="apanel-action-button apanel-copy-button"
+                      aria-label="Копировать токен"
+                      @click="copyToken(token.token)"
+                    >
+                      <i class="fas fa-copy"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="apanel-action-button btn-token-delete"
+                      aria-label="Удалить токен"
+                      @click="emit('delete-token', token)"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p v-else class="apanel-empty">Токенов пока нет.</p>
+      </div>
+    </section>
+
     <form class="apanel-card apanel-form" @submit.prevent="submit">
+      <label class="toggle-field toggle-switch">
+        <span>Бета-доступ</span>
+        <span class="toggle-switch__control">
+          <input v-model="betaAccessModel" type="checkbox" :disabled="isSavingSettings" />
+          <span class="toggle-switch__track" aria-hidden="true">
+            <span class="toggle-switch__thumb"></span>
+          </span>
+        </span>
+      </label>
+
       <div>
-        <p class="apanel-eyebrow">Beta access</p>
+        <p class="apanel-eyebrow">Бета-доступ</p>
         <h2>Создать токен</h2>
       </div>
 
@@ -72,80 +160,12 @@ const tokenStateLabel = (token) => {
         <code>{{ createdToken }}</code>
       </div>
     </form>
-
-    <section class="apanel-card">
-      <div class="apanel-card__head">
-        <p class="apanel-eyebrow">Хранится в базе данных</p>
-        <h2>Выданные токены</h2>
-      </div>
-
-      <div class="apanel-token-list">
-        <div v-if="tokens.length" class="apanel-token-table-wrap">
-          <table class="apanel-token-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Token</th>
-                <th>Статус</th>
-                <th>Created At</th>
-                <th>Used At</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="token in tokens" :key="token.id">
-                <td>{{ token.id }}</td>
-                <td>
-                  <div class="apanel-token-value">
-                    <code>{{ token.token || '-' }}</code>
-                    <button
-                      v-if="token.token"
-                      type="button"
-                      class="apanel-copy-button"
-                      aria-label="Копировать токен"
-                      @click="copyToken(token.token)"
-                    >
-                      <i class="fas fa-copy"></i>
-                    </button>
-                  </div>
-                </td>
-                <td>
-                  <span
-                    class="apanel-token-status"
-                    :class="{
-                      'apanel-token-status--used': token.used,
-                      'apanel-token-status--disabled': !token.used && !token.is_active,
-                    }"
-                  >
-                    {{ tokenStateLabel(token) }}
-                  </span>
-                </td>
-                <td>{{ formatDate(token.createdAt || token.created_at) }}</td>
-                <td>{{ formatDate(token.usedAt || token.used_at) }}</td>
-                <td>
-                  <button
-                    type="button"
-                    class="btn-secondary btn-token-delete"
-                    @click="emit('delete-token', token)"
-                  >
-                    Удалить
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p v-else class="apanel-empty">Токенов пока нет.</p>
-      </div>
-    </section>
   </section>
 </template>
 
 <style scoped>
 .apanel-settings {
   display: grid;
-  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -165,6 +185,11 @@ const tokenStateLabel = (token) => {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
+}
+
+.apanel-form {
+  grid-template-columns: minmax(12rem, 16rem) minmax(10rem, 16rem) minmax(16rem, 1fr) minmax(11rem, 14rem);
+  align-items: end;
 }
 
 .apanel-form h2,
@@ -189,6 +214,77 @@ label {
   gap: 0.45rem;
   color: var(--text-primary);
   font-weight: 700;
+}
+
+.toggle-field {
+  align-content: start;
+}
+
+.toggle-switch {
+  gap: 0.7rem;
+}
+
+.toggle-switch__control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 3.5rem;
+  height: 2rem;
+}
+
+.toggle-switch__control input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.toggle-switch__control input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+.toggle-switch__track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 0.0625rem solid color-mix(in srgb, var(--border-strong) 55%, white);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-subtle) 78%, white);
+  box-shadow: inset 0 0.0625rem 0.2rem rgba(15, 23, 42, 0.08);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-switch__thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0.2rem 0.55rem rgba(15, 23, 42, 0.16);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track {
+  border-color: color-mix(in srgb, var(--brand-strong) 70%, white);
+  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
+  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
+}
+
+.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track .toggle-switch__thumb {
+  transform: translateX(1.5rem);
+}
+
+.toggle-switch__control input[type="checkbox"]:focus-visible + .toggle-switch__track {
+  outline: 0.1875rem solid rgba(20, 184, 87, 0.2);
+  outline-offset: 0.125rem;
 }
 
 input {
@@ -234,12 +330,6 @@ input:focus {
   color: var(--text-primary);
 }
 
-.btn-token-delete {
-  width: 6.5rem;
-  color: #be123c;
-  border-color: color-mix(in srgb, #be123c 24%, var(--border-subtle));
-}
-
 .btn-primary:hover:not(:disabled),
 .btn-secondary:hover:not(:disabled) {
   transform: translateY(-0.08rem);
@@ -278,7 +368,7 @@ input:focus {
 
 .apanel-token-table {
   width: 100%;
-  min-width: 42rem;
+  min-width: 50rem;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -314,14 +404,21 @@ input:focus {
 }
 
 .apanel-token-value {
-  display: grid;
-  grid-template-columns: minmax(10rem, 1fr) 2.35rem;
-  align-items: center;
-  gap: 0.45rem;
   min-width: 18rem;
 }
 
-.apanel-copy-button {
+.apanel-token-note {
+  max-width: 12rem;
+  color: var(--text-muted);
+}
+
+.apanel-token-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.apanel-action-button {
   width: 2.35rem;
   height: 2.35rem;
   display: inline-grid;
@@ -334,9 +431,19 @@ input:focus {
   transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
-.apanel-copy-button:hover {
+.btn-token-delete {
+  border-color: color-mix(in srgb, #be123c 24%, var(--border-subtle));
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.apanel-action-button:hover {
   transform: translateY(-0.08rem);
   box-shadow: 0 0.5rem 1rem rgba(22, 155, 97, 0.14);
+}
+
+.btn-token-delete:hover {
+  box-shadow: 0 0.5rem 1rem rgba(190, 18, 60, 0.12);
 }
 
 .apanel-token-status {
@@ -345,20 +452,15 @@ input:focus {
   align-items: center;
   padding: 0.2rem 0.6rem;
   border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 78%, white);
-  color: var(--brand-strong);
+  background: #f1f5f9;
+  color: var(--text-muted);
   font-size: 0.76rem;
   font-weight: 900;
 }
 
-.apanel-token-status--used {
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.apanel-token-status--disabled {
-  background: #f1f5f9;
-  color: var(--text-muted);
+.apanel-token-status--active {
+  background: color-mix(in srgb, var(--brand-soft) 78%, white);
+  color: var(--brand-strong);
 }
 
 .apanel-empty {
@@ -369,7 +471,7 @@ input:focus {
 }
 
 @media (max-width: 64rem) {
-  .apanel-settings {
+  .apanel-form {
     grid-template-columns: 1fr;
   }
 }

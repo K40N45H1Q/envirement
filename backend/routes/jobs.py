@@ -130,7 +130,7 @@ async def create_job(
 
     banner_path = store_upload_file(banner) if banner else (banner_url or "")
 
-    job_status = "approved"
+    job_status = "approved" if current_user.account_type == "admin" else "pending"
 
     job = Job(
         title=title,
@@ -271,7 +271,7 @@ async def update_job(
     job.has_housing = has_housing
     job.has_transport = has_transport
 
-    job.status = "approved"
+    job.status = "approved" if current_user.account_type == "admin" else "pending"
 
     session.add(job)
     session.commit()
