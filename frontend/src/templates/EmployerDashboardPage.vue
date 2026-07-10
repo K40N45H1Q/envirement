@@ -72,8 +72,6 @@ const plans = [
   },
 ]
 
-const currentPlanId = 'standard'
-
 const isEnglish = computed(() => currentLanguage.value === 'en')
 const copy = computed(() => (
   isEnglish.value
@@ -415,10 +413,25 @@ const isEditing = computed(() => editingId.value !== null)
 const employerCompanyName = computed(() => String(auth.user?.company_name || '').trim())
 const employerCompanyLogo = computed(() => String(auth.user?.company_logo_url || '').trim())
 const approvedCount = computed(() => jobs.value.filter((job) => job.status === 'approved').length)
+const subscriptionExpiresAt = computed(() => auth.user?.subscription_expires_at || '')
+const hasActiveSubscription = computed(() => {
+  if (!auth.user?.subscription_plan || !subscriptionExpiresAt.value) return false
+  const expiresAt = new Date(subscriptionExpiresAt.value)
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt > new Date()
+})
+const currentPlanId = computed(() => (hasActiveSubscription.value ? auth.user?.subscription_plan || '' : ''))
 const canAddLanguage = computed(() => !form.value.languages.some((language) => (
   language.name === newLanguage.value && language.level === newLanguageLevel.value
 )))
-const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId) || localizedPlans.value[1])
+const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId.value) || null)
+const currentPlanName = computed(() => currentPlan.value?.name || (isEnglish.value ? 'No active plan' : 'Нет активного тарифа'))
+const currentPlanPrice = computed(() => currentPlan.value?.price || '-')
+const currentPlanLimit = computed(() => currentPlan.value?.vacancies || '-')
+const currentPlanExpires = computed(() => (
+  hasActiveSubscription.value
+    ? new Intl.DateTimeFormat(isEnglish.value ? 'en-GB' : 'ru-RU').format(new Date(subscriptionExpiresAt.value))
+    : '-'
+))
 const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
 const cityOptions = computed(() => {
   const availableCities = selectedCountry.value ? getCityOptions(selectedCountry.value.key) : []
@@ -711,6 +724,7 @@ function removeLanguage(index) {
 function addLicense() {
   const value = String(newLicense.value || '').trim()
   if (!value) return
+  if (!normalizeLicenses([value]).length) return
   if (form.value.licenses.some((license) => license.toLowerCase() === value.toLowerCase())) return
   form.value.licenses.push(value)
 }
@@ -807,7 +821,7 @@ async function submitJob() {
       country_label: selectedCountry.value.label,
       country_flag_code: selectedCountry.value.flagCode,
       languages_json: JSON.stringify(languages),
-      licenses_json: JSON.stringify(licenses),
+      licenses_json: JSON.stringify(normalizeLicenses(licenses)),
     }
 
     if (isEditing.value) {
@@ -1379,6 +1393,16 @@ onBeforeUnmount(() => {
                           <i class="fas fa-globe"></i>
                           {{ item.nationality }}
                         </span>
+                        <a
+                          v-if="item.candidate_resume_url"
+                          class="response-detail response-resume-link"
+                          :href="item.candidate_resume_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <i class="fas fa-file-pdf"></i>
+                          {{ language === 'ru' ? 'Открыть резюме PDF' : 'Open resume PDF' }}
+                        </a>
                       </div>
 
                       <div v-if="item.matchAnalysis.failedGates.length" class="response-failed-gates">
@@ -1456,23 +1480,23 @@ onBeforeUnmount(() => {
             <div class="panel-heading">
               <div>
                 <p class="eyebrow compact">{{ copy.currentPlan }}</p>
-                <h2>{{ currentPlan.name }}</h2>
+                <h2>{{ currentPlanName }}</h2>
               </div>
-              <span class="plan-badge">{{ copy.active }}</span>
+              <span v-if="hasActiveSubscription" class="plan-badge">{{ copy.active }}</span>
             </div>
 
             <div class="current-plan-grid">
               <div class="current-plan-card">
                 <span>{{ copy.cost }}</span>
-                <strong>{{ currentPlan.price }}</strong>
+                <strong>{{ currentPlanPrice }}</strong>
               </div>
               <div class="current-plan-card">
                 <span>{{ copy.limit }}</span>
-                <strong>{{ currentPlan.vacancies }}</strong>
+                <strong>{{ currentPlanLimit }}</strong>
               </div>
               <div class="current-plan-card">
                 <span>{{ copy.renewal }}</span>
-                <strong>{{ copy.in30Days }}</strong>
+                <strong>{{ currentPlanExpires }}</strong>
               </div>
             </div>
           </article>
@@ -2362,6 +2386,21 @@ textarea {
 .response-details {
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.response-resume-link {
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--border-subtle) 58%, var(--brand-base));
+  border-radius: 999rem;
+  background: color-mix(in srgb, var(--brand-soft) 64%, white);
+  color: var(--brand-strong);
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.response-resume-link:hover {
+  border-color: color-mix(in srgb, var(--brand-base) 55%, var(--border-subtle));
 }
 
 .response-failed-gates {

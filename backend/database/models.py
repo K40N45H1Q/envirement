@@ -19,6 +19,8 @@ class User(SQLModel, table=True):
     company_country: Optional[str] = None
     company_industry: Optional[str] = None
     company_registration_number: Optional[str] = None
+    subscription_plan: Optional[str] = None
+    subscription_expires_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -62,6 +64,8 @@ class JobApplication(SQLModel, table=True):
     surname: str
     nationality: Optional[str] = None
     message: Optional[str] = None
+    resume_name: Optional[str] = None
+    resume_url: Optional[str] = None
     chat_approved: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -310,6 +314,8 @@ def ensure_user_columns():
             "company_industry": "ALTER TABLE user ADD COLUMN company_industry VARCHAR",
             "company_registration_number": "ALTER TABLE user ADD COLUMN company_registration_number VARCHAR",
             "phone": "ALTER TABLE user ADD COLUMN phone VARCHAR",
+            "subscription_plan": "ALTER TABLE user ADD COLUMN subscription_plan VARCHAR",
+            "subscription_expires_at": "ALTER TABLE user ADD COLUMN subscription_expires_at DATETIME",
         }
 
         for column, statement in additions.items():
@@ -331,6 +337,16 @@ def ensure_application_columns():
         if "chat_approved" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE jobapplication ADD COLUMN chat_approved BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+        if "resume_name" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE jobapplication ADD COLUMN resume_name VARCHAR"
+            )
+
+        if "resume_url" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE jobapplication ADD COLUMN resume_url VARCHAR"
             )
 
 

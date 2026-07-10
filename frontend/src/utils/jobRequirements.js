@@ -72,6 +72,14 @@ export const getLicenseOptions = () => {
 export const licenseOptions = getLicenseOptions()
 
 const toText = (value) => (value == null ? '' : String(value))
+const noLicenseValues = new Set([
+  'no license',
+  'нет лицензий',
+  'нет лицензии',
+  'ÐÐµÑ‚ Ð»Ð¸Ñ†ÐµÐ½Ð·Ð¸Ð¹',
+].map((value) => value.toLowerCase()))
+
+export const isNoLicenseValue = (value) => noLicenseValues.has(toText(value).trim().toLowerCase())
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value
@@ -95,4 +103,4 @@ export const normalizeLanguages = (value) => toArray(value)
 export const normalizeLicenses = (value) => toArray(value)
   .map((license) => (typeof license === 'string' ? license : license?.name || license?.title || ''))
   .map((license) => toText(license).trim())
-  .filter(Boolean)
+  .filter((license) => license && !isNoLicenseValue(license))

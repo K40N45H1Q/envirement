@@ -19,6 +19,7 @@ import {
   rejectAdminJob,
   deleteAdminBetaToken,
   updateAdminBetaSettings,
+  updateAdminUserSubscription,
 } from './api'
 
 const route = useRoute()
@@ -136,6 +137,19 @@ const updateBetaAccess = async (enabled) => {
   }
 }
 
+const updateUserSubscription = async ({ user, plan, revoke = false }) => {
+  error.value = ''
+
+  try {
+    await updateAdminUserSubscription(user.id, revoke ? { revoke: true } : {
+      plan,
+    })
+    await loadAdminData()
+  } catch {
+    error.value = 'Не удалось изменить тариф пользователя.'
+  }
+}
+
 const approveJob = async (job) => {
   error.value = ''
 
@@ -198,12 +212,18 @@ onMounted(loadAdminData)
         <APanelUsers
           v-if="activeSection === 'users'"
           :users="users"
+          manage-subscriptions
+          subscription-mode="assign"
+          @update-subscription="updateUserSubscription"
           empty-text="Пользователей пока нет."
         />
 
         <APanelUsers
           v-else-if="activeSection === 'employers'"
           :users="employers"
+          manage-subscriptions
+          subscription-mode="revoke"
+          @update-subscription="updateUserSubscription"
           empty-text="Работодателей пока нет."
         />
 

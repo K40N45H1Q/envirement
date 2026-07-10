@@ -64,6 +64,12 @@ def payload_value(data: dict, snake_key: str, camel_key: str | None = None, defa
 
 
 def serialize_user(user: User) -> dict:
+    now = datetime.now(timezone.utc)
+    expires_at = user.subscription_expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    has_active_subscription = bool(user.subscription_plan and expires_at and expires_at > now)
+
     return {
         "id": user.id,
         "full_name": user.full_name or "",
@@ -75,6 +81,9 @@ def serialize_user(user: User) -> dict:
         "company_country": user.company_country or "",
         "company_industry": user.company_industry or "",
         "company_registration_number": user.company_registration_number or "",
+        "subscription_plan": user.subscription_plan or "",
+        "subscription_expires_at": user.subscription_expires_at,
+        "has_active_subscription": has_active_subscription,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
     }

@@ -44,11 +44,21 @@ export const deleteMessageConversation = (applicationId) => apiRequest(`/api/mes
   requireAuth: true,
 })
 
-export const applyToJob = (payload) => apiRequest('/api/apply', {
-  method: 'POST',
-  body: JSON.stringify(payload),
-  requireAuth: true,
-})
+export const applyToJob = (payload) => {
+  const formData = new FormData()
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      formData.append(key, value)
+    }
+  })
+
+  return apiRequest('/api/apply', {
+    method: 'POST',
+    body: formData,
+    requireAuth: true,
+  })
+}
 
 export const createJob = (payload) => {
   const formData = new FormData()

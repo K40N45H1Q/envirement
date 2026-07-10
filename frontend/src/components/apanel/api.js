@@ -11,6 +11,12 @@ export const getAdminUsers = (accountType = '') => {
   })
 }
 
+export const updateAdminUserSubscription = (userId, payload) => apiRequest(`/api/admin/users/${userId}/subscription`, {
+  method: 'PATCH',
+  requireAuth: true,
+  body: JSON.stringify(payload),
+})
+
 export const getAdminBetaTokens = () => apiRequest('/api/admin/beta-tokens', {
   requireAuth: true,
 })

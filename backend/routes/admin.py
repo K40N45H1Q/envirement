@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from secrets import token_urlsafe
 
@@ -11,6 +11,7 @@ from routes.safety import get_current_user, serialize_user
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+PLAN_IDS = {"basic", "standard", "pro"}
 
 
 def require_admin(user: User) -> User:
@@ -74,6 +75,10 @@ def serialize_admin_job(job: Job) -> dict:
     }
 
 
+def subscription_expires_at() -> datetime:
+    return datetime.now(timezone.utc) + timedelta(days=30)
+
+
 @router.get("/summary")
 def get_admin_summary(
     current_user: User = Depends(get_current_user),
@@ -127,6 +132,39 @@ def get_admin_users(
         serialize_admin_user(user, beta_user_ids, avatars_by_user_id.get(user.id, ""))
         for user in users
     ]
+
+
+@router.patch("/users/{user_id}/subscription")
+async def update_user_subscription(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    require_admin(current_user)
+    payload = await request.json()
+    user = session.exec(select(User).where(User.id == user_id)).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail={"error": "user_not_found"})
+
+    if payload.get("revoke"):
+        user.subscription_plan = None
+        user.subscription_expires_at = None
+        user.account_type = "candidate"
+    else:
+        plan = str(payload.get("plan") or "").strip().lower()
+        if plan not in PLAN_IDS:
+            raise HTTPException(status_code=400, detail={"error": "invalid_subscription_plan"})
+
+        user.subscription_plan = plan
+        user.subscription_expires_at = subscription_expires_at()
+        user.account_type = "employer"
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return serialize_admin_user(user, set())
 
 
 @router.get("/jobs")

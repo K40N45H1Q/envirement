@@ -224,15 +224,11 @@ watch(() => route.params.id, loadJob)
           <label class="wide upload">
             <input
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept="application/pdf,.pdf"
               @change="resume = $event.target.files?.[0] || null"
             />
-            <strong
-              >{{ language === 'ru' ? 'Загрузить резюме' : 'Upload resume' }}</strong
-            >
-            <span
-              >{{ resume?.name || (language === 'ru' ? 'PDF, DOC или DOCX' : 'PDF, DOC or DOCX') }}</span
-            >
+            <strong>{{ language === 'ru' ? 'Загрузить резюме' : 'Upload resume' }}</strong>
+            <span>{{ resume?.name || (language === 'ru' ? 'PDF-файл' : 'PDF file') }}</span>
           </label>
         </div>
         <p v-if="applyStatus" class="status">{{ applyStatus }}</p>
@@ -631,3 +627,4 @@ a {
   }
 }
 </style>
+

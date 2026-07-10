@@ -1,16 +1,22 @@
 import json
 import secrets
 import shutil
+from datetime import datetime, timezone
 from os import path, makedirs, getenv, remove
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Request, UploadFile
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
 from routes.safety import get_current_user, require_account_types
 
 router = APIRouter()
+PLAN_JOB_LIMITS = {
+    "basic": 1,
+    "standard": 5,
+    "pro": 20,
+}
 
 UPLOAD_DIR = getenv("UPLOAD_DIR")
 if not UPLOAD_DIR:
@@ -87,6 +93,40 @@ def remove_upload_file(upload_url: Optional[str]) -> None:
         pass
 
 
+def store_resume_file(upload: UploadFile) -> str:
+    filename = (upload.filename or "").strip()
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail={"key": "resume_must_be_pdf"})
+
+    return store_upload_file(upload)
+
+
+def has_active_subscription(user: User) -> bool:
+    expires_at = user.subscription_expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return bool(user.subscription_plan in PLAN_JOB_LIMITS and expires_at and expires_at > datetime.now(timezone.utc))
+
+
+def ensure_employer_plan_allows_job(user: User, session) -> None:
+    if user.account_type == "admin":
+        return
+
+    if not has_active_subscription(user):
+        raise HTTPException(status_code=403, detail={"key": "subscription_required"})
+
+    job_limit = PLAN_JOB_LIMITS[user.subscription_plan]
+    active_jobs_count = len(session.exec(
+        select(Job).where(
+            Job.user_id == user.id,
+            Job.status.in_(["pending", "approved"]),
+        )
+    ).all())
+
+    if active_jobs_count >= job_limit:
+        raise HTTPException(status_code=403, detail={"key": "subscription_job_limit_reached"})
+
+
 @router.post("/create_job")
 async def create_job(
     title: str = Form(...),
@@ -118,6 +158,7 @@ async def create_job(
     company_name = (current_user.company_name or "").strip()
     if not company_name:
         raise HTTPException(status_code=400, detail={"key": "missing_company_profile"})
+    ensure_employer_plan_allows_job(current_user, session)
 
     makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -347,13 +388,29 @@ def reject_job(
 
 @router.post("/apply")
 async def apply_to_job(
-    request_data: dict,
+    request: Request,
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
     require_account_types(current_user, "candidate")
 
+    content_type = request.headers.get("content-type", "")
+    resume_upload = None
+
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        request_data = dict(form)
+        resume_candidate = form.get("resume")
+        if getattr(resume_candidate, "filename", None):
+            resume_upload = resume_candidate
+    else:
+        request_data = await request.json()
+
     job_id = request_data.get("job_id")
+    try:
+        job_id = int(job_id)
+    except (TypeError, ValueError):
+        job_id = None
     phone = request_data.get("phone")
     email = request_data.get("email")
     username = request_data.get("username")
@@ -379,6 +436,13 @@ async def apply_to_job(
     if existing_application:
         raise HTTPException(status_code=400, detail={"key": "duplicate_application"})
 
+    resume_url = None
+    resume_name = None
+    if resume_upload:
+        makedirs(UPLOAD_DIR, exist_ok=True)
+        resume_url = store_resume_file(resume_upload)
+        resume_name = resume_upload.filename
+
     application = JobApplication(
         job_id=job_id,
         applicant_user_id=current_user.id,
@@ -389,6 +453,8 @@ async def apply_to_job(
         surname=surname,
         nationality=nationality,
         message=message,
+        resume_name=resume_name,
+        resume_url=resume_url,
         chat_approved=False,
     )
     session.add(application)
@@ -483,6 +549,8 @@ def get_my_job_responses(
             "surname": app.surname,
             "nationality": app.nationality,
             "message": app.message,
+            "candidate_resume_name": app.resume_name or (profile.resume_name if profile else ""),
+            "candidate_resume_url": app.resume_url or (profile.resume_url if profile else ""),
             "chat_approved": app.chat_approved,
             "candidate_current_role": profile.current_role if profile else "",
             "candidate_summary": profile.summary if profile else "",
@@ -493,7 +561,6 @@ def get_my_job_responses(
             "candidate_remote_ready": bool(profile.remote_ready) if profile else False,
             "candidate_work_permit": profile.work_permit if profile else "",
             "candidate_availability": profile.availability if profile else "",
-            "candidate_resume_url": profile.resume_url if profile else "",
             "candidate_avatar_url": profile.avatar_url if profile else "",
             "candidate_languages": parse_json_field(profile.languages_json, []) if profile else [],
             "candidate_licenses": parse_json_field(profile.licenses_json, []) if profile else [],
@@ -744,5 +811,6 @@ def delete_response(
     job = session.get(Job, application.job_id)
     if not job or job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="forbidden")
+    remove_upload_file(application.resume_url)
     session.delete(application)
     session.commit()
