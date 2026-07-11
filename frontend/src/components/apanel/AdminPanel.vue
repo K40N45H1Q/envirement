@@ -86,7 +86,12 @@ const loadAdminData = async () => {
     users.value = Array.isArray(userData) ? userData : []
     employers.value = Array.isArray(employerData) ? employerData : []
     jobs.value = Array.isArray(jobsData) ? jobsData : []
-    moderationJobs.value = Array.isArray(moderationData) ? moderationData : []
+    moderationJobs.value = Array.isArray(moderationData)
+      ? moderationData
+      : []
+    if (!moderationJobs.value.length && Array.isArray(jobsData)) {
+      moderationJobs.value = jobsData.filter((job) => job?.status === 'pending')
+    }
     tokens.value = Array.isArray(tokenData) ? tokenData : []
     betaAccessEnabled.value = Boolean(betaSettingsData?.enabled)
   } catch {

@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 
-defineProps({
+const props = defineProps({
   jobs: {
     type: Array,
     default: () => [],
@@ -57,6 +57,8 @@ const previewDescription = (job) => {
   return text || 'Описание вакансии не указано.'
 }
 
+const canModerateJob = (job) => props.moderation || job?.status === 'pending'
+
 const openBannerModal = (job) => {
   if (!job?.banner_url) return
   bannerModalJob.value = job
@@ -99,10 +101,10 @@ const openBannerModal = (job) => {
               <button type="button" class="apanel-icon-button apanel-icon-button--preview" title="Предпросмотр" aria-label="Предпросмотр" @click="previewJob = job">
                 <i class="fas fa-eye"></i>
               </button>
-              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--approve" title="Одобрить" aria-label="Одобрить" @click="emit('approve', job)">
+              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--approve" title="Одобрить" aria-label="Одобрить" @click="emit('approve', job)">
                 <i class="fas fa-check"></i>
               </button>
-              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--reject" title="Отклонить" aria-label="Отклонить" @click="emit('reject', job)">
+              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--reject" title="Отклонить" aria-label="Отклонить" @click="emit('reject', job)">
                 <i class="fas fa-xmark"></i>
               </button>
               <button type="button" class="apanel-icon-button apanel-icon-button--danger" title="Удалить" aria-label="Удалить" @click="emit('delete', job)">
