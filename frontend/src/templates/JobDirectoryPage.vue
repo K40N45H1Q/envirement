@@ -1,10 +1,10 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import AppFlag from '@/components/AppFlag.vue'
 import AppLayout from '@/components/AppLayout.vue'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import { useJobsStore } from '@/stores/jobs'
 import { countryByKey, getCityOptions, normalizeText } from '@/utils/countries'
 
@@ -14,62 +14,10 @@ const jobsStore = useJobsStore()
 const { t, language } = useI18n()
 const { enrichedJobs } = storeToRefs(jobsStore)
 
-const isEnglish = computed(() => language.value === 'en')
 const pageKey = computed(() => route.meta.directory || 'categories')
 
-const copy = computed(() => {
-  if (pageKey.value === 'countries') {
-    return isEnglish.value
-      ? {
-        eyebrow: 'Jobs by country',
-        title: 'Browse vacancies by country',
-        description: 'Choose a country and open the current vacancies already filtered for that destination.',
-        breadcrumbCurrent: 'Jobs by country',
-        count: (value) => `${value} jobs`,
-      }
-      : {
-        eyebrow: 'Работа по странам',
-        title: 'Вакансии по странам',
-        description: 'Выберите страну и откройте актуальные вакансии, уже отфильтрованные по этому направлению.',
-        breadcrumbCurrent: 'Работа по странам',
-        count: (value) => `${value} вакансий`,
-      }
-  }
-
-  if (pageKey.value === 'latvia-cities') {
-    return isEnglish.value
-      ? {
-        eyebrow: 'Jobs by location',
-        title: 'Jobs in Latvia by city',
-        description: 'Choose a Latvian city and open the current vacancies already filtered for that location.',
-        breadcrumbCurrent: 'Jobs by location',
-        count: (value) => `${value} jobs`,
-      }
-      : {
-        eyebrow: 'Работа по локации',
-        title: 'Вакансии по городам Латвии',
-        description: 'Выберите город Латвии и откройте актуальные вакансии, уже отфильтрованные по этой локации.',
-        breadcrumbCurrent: 'Работа по локации',
-        count: (value) => `${value} вакансий`,
-      }
-  }
-
-  return isEnglish.value
-    ? {
-      eyebrow: 'Jobs by category',
-      title: 'Browse vacancies by category',
-      description: 'Open the category that fits you best and jump straight into filtered job results.',
-      breadcrumbCurrent: 'Jobs by category',
-      count: (value) => `${value} jobs`,
-    }
-    : {
-      eyebrow: 'Работа по категориям',
-      title: 'Работа по категориям',
-      description: 'Откройте подходящую категорию и сразу перейдите к списку вакансий с уже применённым фильтром.',
-      breadcrumbCurrent: 'Работа по категориям',
-      count: (value) => `${value} вакансий`,
-    }
-})
+const copy = computed(() => translate(`jobDirectoryPage.${pageKey.value}`, {}, language.value))
+const formatCount = (value) => translate(`jobDirectoryPage.${pageKey.value}.count`, { value }, language.value)
 
 const items = computed(() => {
   if (pageKey.value === 'countries') {
@@ -145,14 +93,14 @@ onMounted(async () => {
     <main class="directory-page">
       <section class="directory-topbar">
         <nav class="breadcrumbs">
-          <RouterLink to="/jobs">{{ isEnglish ? 'Jobs' : 'Главная' }}</RouterLink>
+          <RouterLink to="/jobs">{{ copy.breadcrumbRoot }}</RouterLink>
           <i class="fas fa-angle-right"></i>
           <span>{{ copy.breadcrumbCurrent }}</span>
         </nav>
 
         <button type="button" class="back-link" @click="goBack">
           <i class="fas fa-angle-left"></i>
-          <span>{{ isEnglish ? 'Back to previous page' : 'Вернуться на предыдущую страницу' }}</span>
+          <span>{{ copy.back }}</span>
         </button>
       </section>
 
@@ -173,7 +121,7 @@ onMounted(async () => {
             <AppFlag v-if="item.flagCode" :code="item.flagCode" :alt="item.title" />
             <span>{{ item.title }}</span>
           </strong>
-          <span>{{ copy.count(item.count) }}</span>
+          <span>{{ formatCount(item.count) }}</span>
         </RouterLink>
       </section>
     </main>

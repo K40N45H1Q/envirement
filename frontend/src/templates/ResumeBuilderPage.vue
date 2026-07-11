@@ -1,16 +1,16 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import Logo from '@/components/Logo.vue'
 import { getProfile, updateProfile } from '@/api/profile'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
 
 const AUTOSAVE_DELAY = 1200
-const GUEST_RESUME_DRAFT_KEY = 'cvhold:resume-builder:draft'
+const GUEST_RESUME_DRAFT_KEY = 'cvhold:createcv:draft'
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 const MAX_RESUME_SIZE = 10 * 1024 * 1024
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -20,156 +20,85 @@ const RESUME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
 
-const legacySectorExperienceOptions = [
-  { value: '1+ год', label: '1+ год' },
-  { value: '2+ года', label: '2+ года' },
-  { value: '3+ года', label: '3+ года' },
-  { value: '4+ года', label: '4+ года' },
-  { value: '5+ лет', label: '5+ лет' },
-  { value: '7+ лет', label: '7+ лет' },
-  { value: '10+ лет', label: '10+ лет' },
-]
-
-const LEGACY_DEFAULT_SECTOR_EXPERIENCE = legacySectorExperienceOptions[0].value
 const MAX_PRINT_SECTORS = 6
 const MAX_PRINT_SKILLS = 10
 const MAX_PRINT_LANGUAGES = 5
 const MAX_PRINT_LICENSES = 5
 
-const legacyLanguageNames = [
-  'Английский',
-  'Русский',
-  'Немецкий',
-  'Польский',
-  'Латышский',
-  'Литовский',
-  'Эстонский',
-  'Французский',
-]
-
 const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-const legacyLanguageOptions = legacyLanguageNames.map((label) => ({ value: label, label }))
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
-const legacyLicenseOptions = [
-  'AM',
-  'A1',
-  'A2',
-  'A',
-  'B',
-  'BE',
-  'C1',
-  'C1E',
-  'C',
-  'CE',
-  'D1',
-  'D1E',
-  'D',
-  'DE',
-  'Код 95',
-  'ADR',
-  'Forklift',
-  'VCA',
-].map((label) => ({ value: label, label }))
-
-const legacyPermitOptions = [
-  { value: '', label: 'Выберите' },
-  { value: 'гражданин ЕС', label: 'гражданин ЕС' },
-  { value: 'Есть виза', label: 'Есть виза' },
-]
-
-const legacyAvailabilityOptions = [
-  { value: '', label: 'Выберите' },
-  { value: 'Immediate', label: 'Немедленно' },
-  { value: '1 week notice', label: 'Через 1 неделю' },
-  { value: '2 weeks notice', label: 'Через 2 недели' },
-  { value: '1 month notice', label: 'Через 1 месяц' },
-  { value: 'By agreement', label: 'По договорённости' },
-]
 
 const { language } = useI18n()
 const isEnglish = computed(() => language.value === 'en')
+const isLatvian = computed(() => language.value === 'lv')
 
-const labelByLocale = (entry) => (isEnglish.value ? entry.en : entry.ru)
+const labelByLocale = (entry) => {
+  if (isLatvian.value) return entry.lv ?? entry.en ?? entry.ru
+  if (isEnglish.value) return entry.en
+  return entry.ru
+}
 
 const sectorExperienceCatalog = [
-  { value: '1_year', ru: '1+ год', en: '1+ year' },
-  { value: '2_years', ru: '2+ года', en: '2+ years' },
-  { value: '3_years', ru: '3+ года', en: '3+ years' },
-  { value: '4_years', ru: '4+ года', en: '4+ years' },
-  { value: '5_years', ru: '5+ лет', en: '5+ years' },
-  { value: '7_years', ru: '7+ лет', en: '7+ years' },
-  { value: '10_years', ru: '10+ лет', en: '10+ years' },
+  { value: '1_year', ru: '1+ год', en: '1+ year', lv: '1+ gads' },
+  { value: '2_years', ru: '2+ года', en: '2+ years', lv: '2+ gadi' },
+  { value: '3_years', ru: '3+ года', en: '3+ years', lv: '3+ gadi' },
+  { value: '4_years', ru: '4+ года', en: '4+ years', lv: '4+ gadi' },
+  { value: '5_years', ru: '5+ лет', en: '5+ years', lv: '5+ gadi' },
+  { value: '7_years', ru: '7+ лет', en: '7+ years', lv: '7+ gadi' },
+  { value: '10_years', ru: '10+ лет', en: '10+ years', lv: '10+ gadi' },
 ]
 
 const languageCatalog = [
-  { value: 'english', ru: 'Английский', en: 'English' },
-  { value: 'russian', ru: 'Русский', en: 'Russian' },
-  { value: 'german', ru: 'Немецкий', en: 'German' },
-  { value: 'polish', ru: 'Польский', en: 'Polish' },
-  { value: 'latvian', ru: 'Латышский', en: 'Latvian' },
-  { value: 'lithuanian', ru: 'Литовский', en: 'Lithuanian' },
-  { value: 'estonian', ru: 'Эстонский', en: 'Estonian' },
-  { value: 'french', ru: 'Французский', en: 'French' },
+  { value: 'english', ru: 'Английский', en: 'English', lv: 'Angļu' },
+  { value: 'russian', ru: 'Русский', en: 'Russian', lv: 'Krievu' },
+  { value: 'german', ru: 'Немецкий', en: 'German', lv: 'Vācu' },
+  { value: 'polish', ru: 'Польский', en: 'Polish', lv: 'Poļu' },
+  { value: 'latvian', ru: 'Латышский', en: 'Latvian', lv: 'Latviešu' },
+  { value: 'lithuanian', ru: 'Литовский', en: 'Lithuanian', lv: 'Lietuviešu' },
+  { value: 'estonian', ru: 'Эстонский', en: 'Estonian', lv: 'Igauņu' },
+  { value: 'french', ru: 'Французский', en: 'French', lv: 'Franču' },
 ]
 
 const licenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE', 'Код 95', 'ADR', 'Forklift', 'VCA']
 
 const permitCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose' },
-  { value: 'eu_citizen', ru: 'гражданин ЕС', en: 'EU citizen' },
-  { value: 'has_visa', ru: 'Есть виза', en: 'Visa available' },
+  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
+  { value: 'eu_citizen', ru: 'гражданин ЕС', en: 'EU citizen', lv: 'ES pilsonis' },
+  { value: 'has_visa', ru: 'Есть виза', en: 'Visa available', lv: 'Ir vīza' },
 ]
 
 const availabilityCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose' },
-  { value: 'Immediate', ru: 'Немедленно', en: 'Immediate' },
-  { value: '1 week notice', ru: 'Через 1 неделю', en: 'In 1 week' },
-  { value: '2 weeks notice', ru: 'Через 2 недели', en: 'In 2 weeks' },
-  { value: '1 month notice', ru: 'Через 1 месяц', en: 'In 1 month' },
-  { value: 'By agreement', ru: 'По договорённости', en: 'By agreement' },
+  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
+  { value: 'Immediate', ru: 'Немедленно', en: 'Immediate', lv: 'Nekavējoties' },
+  { value: '1 week notice', ru: 'Через 1 неделю', en: 'In 1 week', lv: 'Pēc 1 nedēļas' },
+  { value: '2 weeks notice', ru: 'Через 2 недели', en: 'In 2 weeks', lv: 'Pēc 2 nedēļām' },
+  { value: '1 month notice', ru: 'Через 1 месяц', en: 'In 1 month', lv: 'Pēc 1 mēneša' },
+  { value: 'By agreement', ru: 'По договорённости', en: 'By agreement', lv: 'Pēc vienošanās' },
 ]
 
 const educationCatalog = [
-  { value: '', ru: 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ', en: 'Choose' },
-  { value: 'primary', ru: 'ÐÐ°Ñ‡Ð°Ð»ÑŒÐ½Ð¾Ðµ', en: 'Primary' },
-  { value: 'secondary', ru: 'Ð¡Ñ€ÐµÐ´Ð½ÐµÐµ', en: 'Secondary' },
-  { value: 'vocational', ru: 'ÐŸÑ€Ð¾Ñ„ÐµÑÑÐ¸Ð¾Ð½Ð°Ð»ÑŒÐ½Ð¾Ðµ', en: 'Vocational' },
-  { value: 'bachelor', ru: 'Ð‘Ð°ÐºÐ°Ð»Ð°Ð²Ñ€', en: 'Bachelor' },
-  { value: 'master', ru: 'ÐœÐ°Ð³Ð¸ÑÑ‚Ñ€', en: 'Master' },
-  { value: 'phd', ru: 'PhD', en: 'PhD' },
+  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
+  { value: 'primary', ru: 'Начальное', en: 'Primary', lv: 'Pamatizglītība' },
+  { value: 'secondary', ru: 'Среднее', en: 'Secondary', lv: 'Vidējā izglītība' },
+  { value: 'vocational', ru: 'Профессиональное', en: 'Vocational', lv: 'Profesionālā izglītība' },
+  { value: 'bachelor', ru: 'Бакалавр', en: 'Bachelor', lv: 'Bakalaurs' },
+  { value: 'master', ru: 'Магистр', en: 'Master', lv: 'Maģistrs' },
+  { value: 'phd', ru: 'PhD', en: 'PhD', lv: 'PhD' },
 ]
 
 const preferredEmploymentCatalog = [
-  { value: '', ru: 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ', en: 'Choose' },
-  { value: 'full-time', ru: 'ÐŸÐ¾Ð»Ð½Ð°Ñ Ð·Ð°Ð½ÑÑ‚Ð¾ÑÑ‚ÑŒ', en: 'Full-time' },
-  { value: 'part-time', ru: 'Ð§Ð°ÑÑ‚Ð¸Ñ‡Ð½Ð°Ñ Ð·Ð°Ð½ÑÑ‚Ð¾ÑÑ‚ÑŒ', en: 'Part-time' },
-  { value: 'contract', ru: 'ÐŸÑ€Ð¾ÐµÐºÑ‚ / ÐºÐ¾Ð½Ñ‚Ñ€Ð°ÐºÑ‚', en: 'Project / contract' },
+  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
+  { value: 'full-time', ru: 'Полная занятость', en: 'Full-time', lv: 'Pilna slodze' },
+  { value: 'part-time', ru: 'Частичная занятость', en: 'Part-time', lv: 'Nepilna slodze' },
+  { value: 'contract', ru: 'Проект / контракт', en: 'Project / contract', lv: 'Projekts / līgums' },
 ]
 
 const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceCatalog[0].value
 
-const educationRuLabels = {
-  '': 'Выберите',
-  primary: 'Начальное',
-  secondary: 'Среднее',
-  vocational: 'Профессиональное',
-  bachelor: 'Бакалавр',
-  master: 'Магистр',
-  phd: 'PhD',
-}
-
-const preferredEmploymentRuLabels = {
-  '': 'Выберите',
-  'full-time': 'Полная занятость',
-  'part-time': 'Частичная занятость',
-  contract: 'Проект / контракт',
-}
-
 const sectorExperienceValues = new Set(sectorExperienceCatalog.map((entry) => entry.value))
 
 const sectorExperienceAliases = {
-  [LEGACY_DEFAULT_SECTOR_EXPERIENCE]: DEFAULT_SECTOR_EXPERIENCE,
   '1+ год': '1_year',
   '1+ year': '1_year',
   '2+ года': '2_years',
@@ -245,7 +174,7 @@ const languageOptions = computed(() => languageCatalog.map((entry) => ({
 })))
 
 const licenseOptions = computed(() => {
-  const noLicenseLabel = isEnglish.value ? 'No license' : 'Нет лицензий'
+  const noLicenseLabel = copy.value.noLicense
   return [
     { value: noLicenseLabel, label: noLicenseLabel },
     ...licenseValues.map((label) => ({ value: label, label })),
@@ -255,11 +184,11 @@ const permitOptions = computed(() => permitCatalog.map((entry) => ({ value: entr
 const baseAvailabilityOptions = computed(() => availabilityCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
 const educationOptions = computed(() => educationCatalog.map((entry) => ({
   value: entry.value,
-  label: isEnglish.value ? entry.en : (educationRuLabels[entry.value] ?? entry.ru),
+  label: labelByLocale(entry),
 })))
 const preferredEmploymentOptions = computed(() => preferredEmploymentCatalog.map((entry) => ({
   value: entry.value,
-  label: isEnglish.value ? entry.en : (preferredEmploymentRuLabels[entry.value] ?? entry.ru),
+  label: labelByLocale(entry),
 })))
 
 const normalizeSectorExperience = (value) => {
@@ -278,113 +207,23 @@ const displaySectorExperience = (value) => getLocalizedLabel(sectorExperienceCat
 const displayPermit = (value) => getLocalizedLabel(permitCatalog, normalizePermit(value), toText(value).trim())
 const displayEducation = (value) => {
   const normalized = toText(value).trim()
-  if (!isEnglish.value && normalized in educationRuLabels) return educationRuLabels[normalized]
   return getLocalizedLabel(educationCatalog, normalized, normalized)
 }
 const displayPreferredEmployment = (value) => {
   const normalized = toText(value).trim()
-  if (!isEnglish.value && normalized in preferredEmploymentRuLabels) return preferredEmploymentRuLabels[normalized]
   return getLocalizedLabel(preferredEmploymentCatalog, normalized, normalized)
 }
 const displayAvailability = (value) => {
   const normalized = toText(value).trim()
   if (isDateAvailability(normalized)) {
-    return isEnglish.value ? `Date: ${normalized}` : `Дата: ${normalized}`
+    return translate('resumeBuilderPage.dateValue', { value: normalized }, language.value)
   }
 
   const option = availabilityCatalog.find((entry) => entry.value === normalized)
   return option ? labelByLocale(option) : normalized
 }
 
-const copy = computed(() => (isEnglish.value ? {
-  jobsCount: 'jobs',
-  sectorHint: 'Work area',
-  sectorChoose: 'Choose work area',
-  sectorListHint: 'Categories match the jobs page',
-  steps: [
-    { id: 1, title: 'Basics', subtitle: 'Contacts and role' },
-    { id: 2, title: 'Experience', subtitle: 'Skills and conditions' },
-    { id: 3, title: 'Ready CV', subtitle: 'Photo, review and PDF' },
-  ],
-  loadingProfile: 'Loading profile...',
-  saving: 'Saving...',
-  unsaved: 'You have unsaved changes.',
-  candidateName: 'CVHOLD Candidate',
-  candidateRole: 'Specialist',
-  summaryRole: 'Role',
-  summarySectors: 'Work areas',
-  summarySkills: 'Key skills',
-  summaryFallback: 'The candidate profile will appear after the main information is filled in.',
-  readyToStart: 'Available from',
-  workPermit: 'Work permit',
-  notSpecified: 'Not specified',
-  guestDraftLoaded: 'Resume draft loaded from this browser.',
-  guestMode: 'Guest mode: the draft will be saved only in this browser.',
-  loadProfileError: 'Failed to load profile.',
-  saveDraftSuccess: 'Draft saved in this browser.',
-  saveDraftError: 'Failed to save the local draft.',
-  saveLatest: 'Saving your latest changes...',
-  saveSuccess: 'Profile saved successfully.',
-  saveError: 'Failed to save profile.',
-  firstNameRequired: 'Enter your first name.',
-  lastNameRequired: 'Enter your last name.',
-  roleRequired: 'Enter your desired role.',
-  availabilityInvalid: 'Choose availability from the list.',
-  requiredFields: 'Check the required fields.',
-  fileNotSelected: 'file not selected',
-  fileUnsupported: 'unsupported file format',
-  fileTooLarge: 'file is too large',
-  sectorDuplicate: 'This work area has already been added.',
-  licenseDuplicate: 'This license or certificate has already been added.',
-  avatarLabel: 'Avatar',
-  resumeLabel: 'CV',
-  pdfPrepareError: 'Failed to prepare the CV for PDF.',
-  printHint: 'Open the system print dialog and choose "Save as PDF".',
-} : {
-  jobsCount: 'вакансий',
-  sectorHint: 'Сфера деятельности',
-  sectorChoose: 'Выберите сферу деятельности',
-  sectorListHint: 'Категории как на странице вакансий',
-  steps: [
-    { id: 1, title: 'Основное', subtitle: 'Контакты и позиция' },
-    { id: 2, title: 'Опыт', subtitle: 'Навыки и условия' },
-    { id: 3, title: 'Готовое CV', subtitle: 'Фото, проверка и PDF' },
-  ],
-  loadingProfile: 'Загрузка профиля...',
-  saving: 'Сохраняем...',
-  unsaved: 'Есть несохранённые изменения.',
-  candidateName: 'Кандидат CVHOLD',
-  candidateRole: 'Специалист',
-  summaryRole: 'Специалист',
-  summarySectors: 'Сферы деятельности',
-  summarySkills: 'Ключевые навыки',
-  summaryFallback: 'Профиль кандидата будет сформирован после заполнения основной информации.',
-  readyToStart: 'Готов приступить',
-  workPermit: 'Разрешение на работу',
-  notSpecified: 'Не указано',
-  guestDraftLoaded: 'Черновик резюме загружен из этого браузера.',
-  guestMode: 'Гостевой режим: черновик будет сохраняться только в этом браузере.',
-  loadProfileError: 'Не удалось загрузить профиль.',
-  saveDraftSuccess: 'Черновик сохранен в этом браузере.',
-  saveDraftError: 'Не удалось сохранить черновик локально.',
-  saveLatest: 'Сохраняем последние изменения...',
-  saveSuccess: 'Профиль успешно сохранён.',
-  saveError: 'Не удалось сохранить профиль.',
-  firstNameRequired: 'Укажите имя.',
-  lastNameRequired: 'Укажите фамилию.',
-  roleRequired: 'Укажите желаемую позицию.',
-  availabilityInvalid: 'Выберите доступность из списка.',
-  requiredFields: 'Проверьте обязательные поля.',
-  fileNotSelected: 'файл не выбран',
-  fileUnsupported: 'неподдерживаемый формат файла',
-  fileTooLarge: 'файл слишком большой',
-  sectorDuplicate: 'Такая сфера уже добавлена.',
-  licenseDuplicate: 'Такая лицензия или сертификат уже добавлены.',
-  avatarLabel: 'Аватар',
-  resumeLabel: 'CV',
-  pdfPrepareError: 'Не удалось подготовить CV к PDF.',
-  printHint: 'Откройте системное окно печати и выберите «Сохранить в PDF».',
-}))
+const copy = computed(() => translate('resumeBuilderPage', {}, language.value))
 
 const { state } = useAuth()
 const jobsStore = useJobsStore()
@@ -404,7 +243,7 @@ const selectedSector = ref('')
 const selectedSectorExperience = ref(DEFAULT_SECTOR_EXPERIENCE)
 const newLanguage = ref(languageCatalog[0].value)
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref(isEnglish.value ? 'No license' : 'Нет лицензий')
+const newLicense = ref(copy.value.noLicense)
 const cvDocumentRef = ref(null)
 const avatarInputRef = ref(null)
 const resumeInputRef = ref(null)
@@ -982,25 +821,33 @@ const cvAdditionalItems = computed(() => [
   },
   {
     icon: 'fas fa-user-graduate',
-    label: isEnglish.value ? 'Education' : 'Образование',
+    label: copy.value.education,
     value: displayEducation(profile.value.education_level) || copy.value.notSpecified,
   },
   {
     icon: 'fas fa-wallet',
-    label: isEnglish.value ? 'Salary expectation' : 'Ожидаемая зарплата',
+    label: copy.value.salaryExpectation,
     value: profile.value.salary_expectation.trim() || copy.value.notSpecified,
   },
   {
     icon: 'fas fa-briefcase',
-    label: isEnglish.value ? 'Preferred employment' : 'Предпочитаемая занятость',
+    label: copy.value.preferredEmployment,
     value: displayPreferredEmployment(profile.value.preferred_employment_type) || copy.value.notSpecified,
   },
   {
     icon: 'fas fa-laptop-house',
-    label: isEnglish.value ? 'Remote work' : 'Удалённая работа',
-    value: profile.value.remote_ready ? (isEnglish.value ? 'Ready' : 'Готов') : (isEnglish.value ? 'No' : 'Нет'),
+    label: copy.value.remoteWork,
+    value: profile.value.remote_ready ? copy.value.ready : copy.value.no,
   },
 ])
+
+const currentStepHeading = computed(() => {
+  if (step.value === 1) return copy.value.step1Heading
+  if (step.value === 2) return copy.value.step2Heading
+  return copy.value.step3Heading
+})
+
+const formatMore = (key, count) => translate(`resumeBuilderPage.${key}`, { count }, language.value)
 
 const cvQrCells = computed(() => Array.from({ length: 121 }, (_, index) => {
   const row = Math.floor(index / 11)
@@ -2060,13 +1907,11 @@ onBeforeUnmount(() => {
       <section class="hero no-print">
         <div class="hero-copy">
           <div class="title-row">
-            <h1>{{ isEnglish ? 'Candidate Resume' : 'Резюме кандидата' }}</h1>
+            <h1>{{ copy.pageTitle }}</h1>
           </div>
 
           <p>
-            {{ isEnglish
-              ? 'Fill in your profile step by step: core details, experience and skills, then final files. Everything is saved to your account and used when applying for jobs.'
-              : 'Заполните профиль по шагам: основная информация, опыт и навыки, затем реальные файлы. Всё сохраняется в аккаунт и используется в откликах на вакансии.' }}
+            {{ copy.pageDescription }}
           </p>
         </div>
 
@@ -2092,23 +1937,21 @@ onBeforeUnmount(() => {
       <section class="builder">
         <div class="main-card">
           <div class="card-head no-print">
-            <h2 v-if="step === 1">{{ isEnglish ? 'Step 1. Core information' : 'Шаг 1. Основная информация' }}</h2>
-            <h2 v-else-if="step === 2">{{ isEnglish ? 'Step 2. Experience and skills' : 'Шаг 2. Опыт и навыки' }}</h2>
-            <h2 v-else>{{ isEnglish ? 'Step 3. Photo, CV and final review' : 'Шаг 3. Фото, CV и финальная проверка' }}</h2>
+            <h2>{{ currentStepHeading }}</h2>
             <p v-if="statusMessage" class="hint">{{ statusMessage }}</p>
           </div>
 
           <template v-if="step === 1">
             <div class="grid-two">
               <label>
-                {{ isEnglish ? 'First name' : 'Имя' }}
-                <input v-model="profile.first_name" :placeholder="isEnglish ? 'John' : 'Иван'" @input="clearError('first_name')" />
+                {{ copy.firstName }}
+                <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" @input="clearError('first_name')" />
                 <span v-if="errors.first_name" class="field-error">{{ errors.first_name }}</span>
               </label>
 
               <label>
-                {{ isEnglish ? 'Last name' : 'Фамилия' }}
-                <input v-model="profile.last_name" :placeholder="isEnglish ? 'Doe' : 'Иванов'" @input="clearError('last_name')" />
+                {{ copy.lastName }}
+                <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
                 <span v-if="errors.last_name" class="field-error">{{ errors.last_name }}</span>
               </label>
 
@@ -2124,39 +1967,39 @@ onBeforeUnmount(() => {
               </label>
 
               <label>
-                {{ isEnglish ? 'Phone' : 'Телефон' }}
+                {{ copy.phone }}
                 <input v-model="profile.phone" placeholder="+371 2X XXX XXX" />
               </label>
 
               <label class="grid-span-2">
-                {{ isEnglish ? 'Desired role' : 'Желаемая позиция' }}
+                {{ copy.desiredRole }}
                 <input
                   v-model="profile.current_role"
-                  :placeholder="isEnglish ? 'For example, MIG/MAG Welder' : 'Например, Сварщик MIG/MAG'"
+                  :placeholder="copy.desiredRolePlaceholder"
                   @input="clearError('current_role')"
                 />
                 <span v-if="errors.current_role" class="field-error">{{ errors.current_role }}</span>
               </label>
 
               <label class="grid-span-2">
-                {{ isEnglish ? 'Key skills' : 'Ключевые навыки' }}
-                <input v-model="profile.skills" :placeholder="isEnglish ? 'MIG/MAG, TIG, installation, blueprint reading' : 'MIG/MAG, TIG, монтаж, чтение чертежей'" />
+                {{ copy.keySkills }}
+                <input v-model="profile.skills" :placeholder="copy.keySkillsPlaceholder" />
               </label>
             </div>
 
             <label>
-              {{ isEnglish ? 'About me' : 'О себе' }}
+              {{ copy.aboutMe }}
               <textarea
                 v-model="profile.summary"
                 rows="6"
-                :placeholder="isEnglish ? 'Briefly describe your experience, strengths, and the kind of work you are looking for.' : 'Кратко опишите ваш опыт, сильные стороны и формат работы, который ищете.'"
+                :placeholder="copy.aboutMePlaceholder"
               ></textarea>
             </label>
           </template>
 
           <template v-else-if="step === 2">
             <div class="section">
-              <label class="section-label">{{ isEnglish ? 'Work areas' : 'Сферы деятельности' }}</label>
+              <label class="section-label">{{ copy.workAreas }}</label>
 
               <div class="chips sector-chips">
                 <span
@@ -2178,7 +2021,7 @@ onBeforeUnmount(() => {
               <div class="inline-add sector-add">
                 <BaseDropdown
                   v-model="selectedSector"
-                  :aria-label="isEnglish ? 'Work area' : 'Сфера деятельности'"
+                  :aria-label="copy.workAreaAria"
                   class="sector-dropdown"
                   :options="sectorDropdownOptions"
                   full-width
@@ -2188,14 +2031,14 @@ onBeforeUnmount(() => {
 
                 <BaseDropdown
                   v-model="selectedSectorExperience"
-                  :aria-label="isEnglish ? 'Experience in this area' : 'Опыт в сфере'"
+                  :aria-label="copy.workAreaExperienceAria"
                   class="sector-dropdown sector-dropdown--experience"
                   :options="sectorExperienceOptions"
                   full-width
                 />
 
                 <button type="button" class="ghost-button" :disabled="!canAddSector" @click="addSector">
-                  {{ isEnglish ? 'Add' : 'Добавить' }}
+                  {{ copy.add }}
                 </button>
               </div>
 
@@ -2203,7 +2046,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="section">
-              <label class="section-label">{{ isEnglish ? 'Languages' : 'Языки' }}</label>
+              <label class="section-label">{{ copy.languages }}</label>
 
               <div class="chips">
                 <span
@@ -2220,14 +2063,14 @@ onBeforeUnmount(() => {
               <div class="grid-two">
                 <BaseDropdown
                   v-model="newLanguage"
-                  :aria-label="isEnglish ? 'Language' : 'Язык'"
+                  :aria-label="copy.languageAria"
                   full-width
                   :options="languageOptions"
                 />
 
                 <BaseDropdown
                   v-model="newLanguageLevel"
-                  :aria-label="isEnglish ? 'Language level' : 'Уровень языка'"
+                  :aria-label="copy.languageLevelAria"
                   full-width
                   :options="languageLevelOptions"
                 />
@@ -2239,26 +2082,26 @@ onBeforeUnmount(() => {
                 :disabled="!canAddLanguage"
                 @click="addLanguage"
               >
-                {{ isEnglish ? 'Add language' : 'Добавить язык' }}
+                {{ copy.addLanguage }}
               </button>
             </div>
 
             <div class="grid-two">
               <label>
-                {{ isEnglish ? 'Work permit' : 'Разрешение на работу' }}
+                {{ copy.workPermit }}
                 <BaseDropdown
                   v-model="profile.work_permit"
-                  :aria-label="isEnglish ? 'Work permit' : 'Разрешение на работу'"
+                  :aria-label="copy.workPermit"
                   full-width
                   :options="permitOptions"
                 />
               </label>
 
               <label>
-                {{ isEnglish ? 'Availability' : 'Доступность' }}
+                {{ copy.availability }}
                 <BaseDropdown
                   v-model="profile.availability"
-                  :aria-label="isEnglish ? 'Availability' : 'Доступность'"
+                  :aria-label="copy.availability"
                   full-width
                   :options="availabilityDropdownOptions"
                   @change="clearError('availability')"
@@ -2269,20 +2112,20 @@ onBeforeUnmount(() => {
 
             <div class="grid-two">
               <label>
-                {{ isEnglish ? 'Education' : 'Образование' }}
+                {{ copy.education }}
                 <BaseDropdown
                   v-model="profile.education_level"
-                  :aria-label="isEnglish ? 'Education' : 'Образование'"
+                  :aria-label="copy.education"
                   full-width
                   :options="educationOptions"
                 />
               </label>
 
               <label>
-                {{ isEnglish ? 'Preferred employment type' : 'Предпочитаемая занятость' }}
+                {{ copy.preferredEmploymentType }}
                 <BaseDropdown
                   v-model="profile.preferred_employment_type"
-                  :aria-label="isEnglish ? 'Preferred employment type' : 'Предпочитаемая занятость'"
+                  :aria-label="copy.preferredEmploymentType"
                   full-width
                   :options="preferredEmploymentOptions"
                 />
@@ -2291,16 +2134,16 @@ onBeforeUnmount(() => {
 
             <div class="grid-two">
               <label>
-                {{ isEnglish ? 'Salary expectation' : 'Ожидаемая зарплата' }}
+                {{ copy.salaryExpectation }}
                 <input
                   v-model="profile.salary_expectation"
                   type="text"
-                  :placeholder="isEnglish ? '2 000 - 2 500 EUR' : '2 000 - 2 500 EUR'"
+                  :placeholder="copy.salaryExpectationPlaceholder"
                 />
               </label>
 
               <label class="toggle-field toggle-switch">
-                <span>{{ isEnglish ? 'Ready for remote work' : 'Готов к удалённой работе' }}</span>
+                <span>{{ copy.remoteReady }}</span>
                 <span class="toggle-switch__control">
                   <input v-model="profile.remote_ready" type="checkbox" />
                   <span class="toggle-switch__track" aria-hidden="true">
@@ -2311,7 +2154,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="section">
-              <label class="section-label">{{ isEnglish ? 'Licenses and certificates' : 'Права, лицензии и сертификаты' }}</label>
+              <label class="section-label">{{ copy.licensesAndCertificates }}</label>
 
               <div class="chips">
                 <span v-for="(license, index) in profile.licenses" :key="`${license}-${index}`" class="chip">
@@ -2323,12 +2166,12 @@ onBeforeUnmount(() => {
               <div class="inline-add inline-add--dropdown">
                 <BaseDropdown
                   v-model="newLicense"
-                  :aria-label="isEnglish ? 'License category, certificate or permit' : 'Категория прав, лицензия или сертификат'"
+                  :aria-label="copy.licenseAria"
                   full-width
                   :options="licenseOptions"
                   @change="clearError('licenses')"
                 />
-                <button type="button" class="ghost-button" @click="addLicense">{{ isEnglish ? 'Add' : 'Добавить' }}</button>
+                <button type="button" class="ghost-button" @click="addLicense">{{ copy.add }}</button>
               </div>
 
               <span v-if="errors.licenses" class="field-error">{{ errors.licenses }}</span>
@@ -2339,20 +2182,16 @@ onBeforeUnmount(() => {
             <div class="final-tools no-print">
               <div class="review-card">
                 <div>
-                  <h3>{{ isEnglish ? 'Ready CV' : 'Готовое CV' }}</h3>
-                  <p>
-                    {{ isEnglish
-                      ? 'Your CV is generated automatically from the profile data. Review the result below and save it as PDF.'
-                      : 'CV собирается автоматически из данных профиля. Проверьте результат ниже и сохраните PDF.' }}
-                  </p>
+                  <h3>{{ copy.readyCv }}</h3>
+                  <p>{{ copy.readyCvDescription }}</p>
                 </div>
 
                 <div class="review-actions">
                   <button v-if="isAuthenticated" type="button" class="btn-light" :disabled="isSaving" @click="handleFinalSave">
-                    {{ isSaving ? copy.saving : (isEnglish ? 'Save' : 'Сохранить') }}
+                    {{ isSaving ? copy.saving : copy.save }}
                   </button>
                   <button type="button" class="btn-primary" :disabled="isSaving" @click="printCv">
-                    {{ isEnglish ? 'Download PDF' : 'Скачать PDF' }}
+                    {{ copy.downloadPdf }}
                   </button>
                 </div>
               </div>
@@ -2405,7 +2244,7 @@ onBeforeUnmount(() => {
                 <section class="cv-body">
                   <main class="cv-main">
                     <section class="cv-section cv-section--summary">
-                      <h2>{{ isEnglish ? 'About me' : 'О себе' }}</h2>
+                      <h2>{{ copy.aboutMe }}</h2>
                       <p
                         v-for="paragraph in cvSummaryParagraphs"
                         :key="paragraph"
@@ -2416,7 +2255,7 @@ onBeforeUnmount(() => {
                     </section>
 
                     <section v-if="cvVisibleSectors.length" class="cv-section">
-                      <h2>{{ isEnglish ? 'Work areas' : 'Сферы деятельности' }}</h2>
+                      <h2>{{ copy.workAreas }}</h2>
                       <div class="cv-sector-grid">
                         <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
                           <i :class="sector.iconClass"></i>
@@ -2426,17 +2265,17 @@ onBeforeUnmount(() => {
                           </span>
                         </div>
                         <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
-                          <span>{{ isEnglish ? `+ ${cvMoreSectorsCount} more` : `+ ещё ${cvMoreSectorsCount}` }}</span>
+                          <span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span>
                         </div>
                       </div>
                     </section>
 
                     <section v-if="cvVisibleSkills.length" class="cv-section">
-                      <h2>{{ isEnglish ? 'Skills' : 'Навыки' }}</h2>
+                      <h2>{{ copy.skills }}</h2>
                       <ul class="cv-list">
                         <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
                         <li v-if="cvMoreSkillsCount" class="cv-more-item">
-                          {{ isEnglish ? `+ ${cvMoreSkillsCount} more` : `+ ещё ${cvMoreSkillsCount}` }}
+                          {{ formatMore('moreItems', cvMoreSkillsCount) }}
                         </li>
                       </ul>
                     </section>
@@ -2444,29 +2283,29 @@ onBeforeUnmount(() => {
 
                   <aside class="cv-aside">
                     <section v-if="cvVisibleLanguages.length" class="cv-section">
-                      <h2>{{ isEnglish ? 'Languages' : 'Языки' }}</h2>
+                      <h2>{{ copy.languages }}</h2>
                       <ul class="cv-list">
                         <li v-for="language in cvVisibleLanguages" :key="`${language.name}-${language.level}`">
                           {{ displayLanguageName(language.name) }} — {{ language.level }}
                         </li>
                         <li v-if="cvMoreLanguagesCount" class="cv-more-item">
-                          {{ isEnglish ? `+ ${cvMoreLanguagesCount} more` : `+ ещё ${cvMoreLanguagesCount}` }}
+                          {{ formatMore('moreItems', cvMoreLanguagesCount) }}
                         </li>
                       </ul>
                     </section>
 
                     <section v-if="cvVisibleLicenses.length" class="cv-section">
-                      <h2>{{ isEnglish ? 'Certificates and licenses' : 'Сертификаты и лицензии' }}</h2>
+                      <h2>{{ copy.certificatesAndLicenses }}</h2>
                       <ul class="cv-list">
                         <li v-for="license in cvVisibleLicenses" :key="license">{{ license }}</li>
                         <li v-if="cvMoreLicensesCount" class="cv-more-item">
-                          {{ isEnglish ? `+ ${cvMoreLicensesCount} more` : `+ ещё ${cvMoreLicensesCount}` }}
+                          {{ formatMore('moreItems', cvMoreLicensesCount) }}
                         </li>
                       </ul>
                     </section>
 
                     <section class="cv-section">
-                      <h2>{{ isEnglish ? 'Additional details' : 'Дополнительно' }}</h2>
+                      <h2>{{ copy.additionalDetails }}</h2>
                       <ul class="cv-extra-list">
                         <li v-for="item in cvAdditionalItems" :key="item.label">
                           <i :class="item.icon"></i>
@@ -2482,7 +2321,7 @@ onBeforeUnmount(() => {
                     <Logo class="cv-brand__logo" aria-hidden="true" />
                   </div>
 
-                  <span>Verified • Secure • Professional</span>
+                  <span>{{ copy.cvFooterTagline }}</span>
                   <span>www.cvhold.com</span>
                 </footer>
               </article>
@@ -2491,11 +2330,11 @@ onBeforeUnmount(() => {
 
           <div class="footer-actions no-print">
             <button type="button" class="btn-light" :disabled="step === 1 || isSaving" @click="goPrev">
-              {{ isEnglish ? 'Back' : 'Назад' }}
+              {{ copy.back }}
             </button>
 
             <button v-if="step < 3" type="button" class="btn-primary" :disabled="isSaving" @click="goNext">
-              {{ isSaving ? copy.saving : (isEnglish ? 'Next' : 'Далее') }}
+              {{ isSaving ? copy.saving : copy.next }}
             </button>
           </div>
         </div>
@@ -2511,13 +2350,13 @@ onBeforeUnmount(() => {
             />
             <div class="profile-card__top">
               <button type="button" class="profile-avatar profile-avatar--button">
-                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="isEnglish ? 'Avatar' : 'Аватар'" />
+                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="copy.avatar" />
                 <span v-else>{{ avatarInitials }}</span>
               </button>
 
               <div>
-                <strong>{{ fullName || (isEnglish ? 'Your name' : 'Ваше имя') }}</strong>
-                <p>{{ profile.current_role || (isEnglish ? 'Profession' : 'Профессия') }}</p>
+                <strong>{{ fullName || copy.yourName }}</strong>
+                <p>{{ profile.current_role || copy.profession }}</p>
               </div>
             </div>
 
@@ -2525,7 +2364,7 @@ onBeforeUnmount(() => {
               <span>{{ profileEmail || 'email@example.com' }}</span>
               <span>{{ profile.phone || '+000 00 000 000' }}</span>
               <button type="button" class="text-link-button" @click="openAvatarPicker">
-                {{ avatarPreview ? (isEnglish ? 'Change avatar' : 'Изменить аватар') : (isEnglish ? 'Upload avatar' : 'Загрузить аватар') }}
+                {{ avatarPreview ? copy.changeAvatar : copy.uploadAvatar }}
               </button>
               <span v-if="errors.avatar" class="field-error">{{ errors.avatar }}</span>
             </div>
@@ -2533,7 +2372,7 @@ onBeforeUnmount(() => {
 
           <div class="side-card">
             <div class="side-card__head">
-              <strong>{{ isEnglish ? 'Profile completion' : 'Заполненность профиля' }}</strong>
+              <strong>{{ copy.profileCompletion }}</strong>
               <span class="shield">✓</span>
             </div>
 
@@ -2543,33 +2382,33 @@ onBeforeUnmount(() => {
               <span class="progress-bar" :style="{ width: `${progress}%` }"></span>
             </div>
 
-            <p>{{ isEnglish ? 'A complete profile speeds up applications and makes the candidate clearer to employers.' : 'Готовый профиль ускоряет отклик на вакансии и делает кандидата понятнее работодателю.' }}</p>
+            <p>{{ copy.profileCompletionDescription }}</p>
           </div>
 
           <div class="side-card side-card--dashed">
-            <h3>{{ isEnglish ? 'What a strong CV should include' : 'Что должно быть в хорошем CV' }}</h3>
+            <h3>{{ copy.strongCvTitle }}</h3>
 
             <div class="feature">
               <span class="feature-icon">1</span>
               <div class="feature-text">
-                <strong>{{ isEnglish ? 'Clear role' : 'Понятная роль' }}</strong>
-                <small>{{ isEnglish ? 'State your specialization and strongest points in a few words.' : 'Укажите специализацию и сильные стороны в нескольких словах.' }}</small>
+                <strong>{{ copy.strongCvClearRoleTitle }}</strong>
+                <small>{{ copy.strongCvClearRoleText }}</small>
               </div>
             </div>
 
             <div class="feature">
               <span class="feature-icon">2</span>
               <div class="feature-text">
-                <strong>{{ isEnglish ? 'Work areas and experience' : 'Сферы деятельности и опыт' }}</strong>
-                <small>{{ isEnglish ? 'Add your fields of work, experience for each area, and languages.' : 'Добавьте направления работы, опыт по каждой сфере и языки.' }}</small>
+                <strong>{{ copy.strongCvExperienceTitle }}</strong>
+                <small>{{ copy.strongCvExperienceText }}</small>
               </div>
             </div>
 
             <div class="feature">
               <span class="feature-icon">3</span>
               <div class="feature-text">
-                <strong>{{ isEnglish ? 'Ready CV' : 'Готовое CV' }}</strong>
-                <small>{{ isEnglish ? 'On the last step, the profile is assembled into a clean PDF-ready resume.' : 'На последнем шаге профиль собирается в аккуратное резюме для PDF.' }}</small>
+                <strong>{{ copy.readyCv }}</strong>
+                <small>{{ copy.strongCvReadyCvText }}</small>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref, watch } from 'vue'
 import { getPricingPlans } from '@/api/pricing'
 import { useI18n } from '@/i18n'
@@ -44,7 +44,7 @@ const fallbackPrices = {
 }
 
 const formatPrice = (value) => {
-  const locale = language.value === 'en' ? 'en-US' : 'ru-RU'
+  const locale = language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-US' : 'ru-RU'
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
     maximumFractionDigits: 2,
@@ -111,7 +111,7 @@ const plans = computed(() => {
     </template>
 
     <p v-if="pricingError" class="pricing-note">
-      {{ language === 'en' ? 'Prices are shown from the local fallback.' : 'Цены показаны из локального резервного набора.' }}
+      {{ t('pricing.fallbackNotice') }}
     </p>
 
     <div class="pricing-grid">
@@ -332,3 +332,4 @@ p {
   }
 }
 </style>
+

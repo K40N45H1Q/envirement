@@ -1,4 +1,4 @@
-import { useUiStore } from '@/stores/ui'
+﻿import { useUiStore } from '@/stores/ui'
 
 const makeCity = (value, ru, aliases = []) => ({
   value,
@@ -207,7 +207,7 @@ export const salaryCurrencyOptions = [
 
 const getLanguage = () => {
   try {
-    return useUiStore().language === 'en' ? 'en' : 'ru'
+    return useUiStore().language === 'ru' ? 'ru' : 'en'
   } catch {
     return 'ru'
   }
@@ -220,7 +220,7 @@ export const normalizeText = (value = '') => String(value || '')
   .replace(/[^\p{L}\p{N}]+/gu, ' ')
   .trim()
 
-const looksLikeMojibake = (value = '') => /[ÃÐÑ]/.test(String(value || ''))
+const looksLikeMojibake = (value = '') => /[���]/.test(String(value || ''))
 const normalizeCountryKey = (value = '') => normalizeText(value).replace(/\s+/g, '')
 
 const countryAliases = Object.fromEntries(
@@ -247,14 +247,14 @@ export const citiesByCountry = Object.fromEntries(
 export const getLocalizedCountryLabel = (countryKey = '', fallback = '') => {
   const country = countryByKey[countryKey]
   if (!country) return fallback
-  return getLanguage() === 'en' ? country.canonicalLabel : country.label
+  return getLanguage() !== 'ru' ? country.canonicalLabel : country.label
 }
 
 export const getCityOptions = (countryKey = '') => {
   const country = countryByKey[countryKey]
   if (!country) return []
 
-  const isEnglish = getLanguage() === 'en'
+  const isEnglish = getLanguage() !== 'ru'
   return country.cities.map((city) => ({
     value: city.value,
     label: isEnglish ? city.value : city.ru,
@@ -273,7 +273,7 @@ export const getLocalizedCityName = (value = '', countryKey = '') => {
     || cityLookup.find((item) => item.aliases.some((alias) => normalizeText(alias) === normalizedValue))
 
   if (!city) return String(value || '').trim()
-  return getLanguage() === 'en' ? city.value : city.ru
+  return getLanguage() !== 'ru' ? city.value : city.ru
 }
 
 export const getCountrySearchValues = (countryKey = '') => {
@@ -368,3 +368,4 @@ export const formatJobLocation = (job = {}) => {
   if (countryLabel && location) return `${countryLabel}, ${location}`
   return countryLabel || location || 'Локация не указана'
 }
+

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <header class="navbar">
     <RouterLink to="/" class="logo-link" @click="closeMenu">
       <Logo />
@@ -264,6 +264,7 @@ export default {
       languageOptions: [
         { value: 'ru', label: 'RU', hint: 'Русский' },
         { value: 'en', label: 'EN', hint: 'English' },
+        { value: 'lv', label: 'LV', hint: 'Latviešu' },
       ],
     }
   },
@@ -290,7 +291,7 @@ export default {
       const items = [
         { label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
         { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
-        { label: this.t('navbar.resume'), to: '/resume-builder', icon: 'fas fa-file-lines' },
+        { label: this.t('navbar.resume'), to: '/createcv', icon: 'fas fa-file-lines' },
         { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
         { label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' },
       ]
@@ -338,7 +339,7 @@ export default {
       if (this.normalizedAccountType === 'candidate') return this.t('navbar.accountCandidate')
       if (this.normalizedAccountType === 'employer') return this.t('navbar.accountEmployer')
       if (this.normalizedAccountType === 'admin') return this.t('navbar.accountAdmin')
-      return 'Account'
+      return this.t('common.account')
     },
 
     mobileAccountLinks() {
@@ -377,7 +378,7 @@ export default {
     },
 
     mobileGuestLabel() {
-      return this.currentLanguage === 'en' ? 'Guest' : 'Гость'
+      return this.t('navbar.guest')
     },
 
     mobileUserRole() {

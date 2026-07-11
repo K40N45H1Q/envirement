@@ -1,3 +1,5 @@
+import { translate } from '@/i18n'
+import { getLocaleFromPath } from '@/router/locale'
 import { formatJobLocation, resolveCountryMeta } from './countries'
 
 const colors = ['#19785a', '#1e2326', '#2563eb', '#9333ea', '#0f766e', '#b45309']
@@ -14,6 +16,13 @@ const parseJsonArray = (value) => {
   }
 }
 
+const getLanguage = () => {
+  if (typeof window === 'undefined') return 'ru'
+  return getLocaleFromPath(window.location.pathname)
+}
+
+const t = (key) => translate(`jobsUtil.${key}`, {}, getLanguage())
+
 export const initialsFor = (value = '') => {
   const words = value.trim().split(/\s+/).filter(Boolean)
   return (words.length ? words : ['CV'])
@@ -28,18 +37,18 @@ export const normalizeJob = (job, index = 0) => {
 
   return {
     id: job.id ?? job.slug ?? index,
-    title: job.title || 'Вакансия',
-    company: job.company || 'Компания',
-    location: job.location || 'Локация не указана',
+    title: job.title || t('vacancy'),
+    company: job.company || t('company'),
+    location: job.location || t('locationMissing'),
     displayLocation: formatJobLocation(job),
     employment_type: job.employment_type || job.employmentType || '',
     experience_level: job.experience_level || job.job_experience_level || '',
     education_level: job.education_level || '',
     category: job.category || job.job_category || '',
     countryKey: country.countryKey,
-    countryLabel: country.countryLabel || 'Европа',
+    countryLabel: country.countryLabel || t('europe'),
     countryFlagCode: country.countryFlagCode || 'eu',
-    salary: job.salary || 'По договоренности',
+    salary: job.salary || t('salaryNegotiable'),
     description: job.description || '',
     logo: job.logo || '',
     banner_url: job.banner_url || job.job_banner_url || '',

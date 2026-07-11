@@ -1,19 +1,21 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 
 const route = useRoute()
+const { t } = useI18n()
 
 const destinationLabel = computed(() => {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
 
-  if (redirect.startsWith('/dashboard?section=jobs') || redirect.startsWith('/dashboard')) return 'личному кабинету'
-  if (redirect.startsWith('/responses')) return 'откликам'
-  if (redirect.startsWith('/messages')) return 'сообщениям'
-  if (redirect.startsWith('/profile')) return 'профилю'
-  if (redirect.startsWith('/resume-builder')) return 'резюме'
-  return 'личному кабинету'
+  if (redirect.startsWith('/dashboard?section=jobs') || redirect.startsWith('/dashboard')) return t('signInPage.destinations.dashboard')
+  if (redirect.startsWith('/responses')) return t('signInPage.destinations.responses')
+  if (redirect.startsWith('/messages')) return t('signInPage.destinations.messages')
+  if (redirect.startsWith('/profile')) return t('signInPage.destinations.profile')
+  if (redirect.startsWith('/createcv') || redirect.startsWith('/resume-builder')) return t('signInPage.destinations.resume')
+  return t('signInPage.destinations.dashboard')
 })
 </script>
 
@@ -22,20 +24,17 @@ const destinationLabel = computed(() => {
     <main class="page">
       <section class="hero">
         <div class="copy">
-          <p class="eyebrow">Безопасный вход</p>
-          <h1>Войдите, чтобы перейти к {{ destinationLabel }}</h1>
-          <p>
-            Закрытые страницы доступны только после авторизации. Используйте вход или
-            создайте аккаунт через кнопки в шапке.
-          </p>
+          <p class="eyebrow">{{ t('signInPage.eyebrow') }}</p>
+          <h1>{{ t('signInPage.title', { destination: destinationLabel }) }}</h1>
+          <p>{{ t('signInPage.description') }}</p>
         </div>
 
         <div class="panel">
-          <strong>Что доступно после входа</strong>
+          <strong>{{ t('signInPage.panelTitle') }}</strong>
           <ul>
-            <li>Кабинет соискателя и профиль</li>
-            <li>CRUD вакансий работодателя</li>
-            <li>Отклики и личные сообщения</li>
+            <li>{{ t('signInPage.featureProfile') }}</li>
+            <li>{{ t('signInPage.featureEmployer') }}</li>
+            <li>{{ t('signInPage.featureMessages') }}</li>
           </ul>
         </div>
       </section>

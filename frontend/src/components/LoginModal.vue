@@ -21,7 +21,7 @@
           <input
             v-model.trim="email"
             type="email"
-            placeholder="Email"
+            :placeholder="t('loginExtra.emailPlaceholder')"
             class="input"
             :class="{ error: feedbackType === 'error' && feedbackMessage }"
             @input="clearFeedback"
@@ -176,7 +176,7 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 const { setUser } = useAuth()
-const { language, t } = useI18n()
+const { t } = useI18n()
 
 const email = ref('')
 const password = ref('')
@@ -305,7 +305,7 @@ const submitLogin = async () => {
 
   const user = await getMe()
   setUser(user)
-  setFeedback(language.value === 'en' ? 'Signed in successfully.' : 'Вход выполнен успешно.', 'success')
+  setFeedback(t('loginExtra.signedIn'), 'success')
   const redirectTo = typeof route.query.redirect === 'string'
     ? route.query.redirect
     : defaultRouteForAccount(user.account_type)

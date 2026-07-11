@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import APanelJobs from './APanelJobs.vue'
@@ -9,6 +10,7 @@ import APanelUsers from './APanelUsers.vue'
 import {
   approveAdminJob,
   createAdminBetaToken,
+  deleteAdminBetaToken,
   deleteAdminJob,
   getAdminBetaSettings,
   getAdminBetaTokens,
@@ -17,24 +19,24 @@ import {
   getAdminSummary,
   getAdminUsers,
   rejectAdminJob,
-  deleteAdminBetaToken,
   updateAdminBetaSettings,
   updateAdminUserSubscription,
 } from './api'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const sections = [
-  { id: 'users', label: 'Пользователи', icon: 'fas fa-users' },
-  { id: 'employers', label: 'Работодатели', icon: 'fas fa-building' },
-  { id: 'moderation', label: 'Модерация', icon: 'fas fa-shield-halved' },
-  { id: 'vacancies', label: 'Вакансии', icon: 'fas fa-briefcase' },
-  { id: 'settings', label: 'Настройки', icon: 'fas fa-gear' },
-]
+const sections = computed(() => [
+  { id: 'users', label: t('adminPanel.sections.users'), icon: 'fas fa-users' },
+  { id: 'employers', label: t('adminPanel.sections.employers'), icon: 'fas fa-building' },
+  { id: 'moderation', label: t('adminPanel.sections.moderation'), icon: 'fas fa-shield-halved' },
+  { id: 'vacancies', label: t('adminPanel.sections.vacancies'), icon: 'fas fa-briefcase' },
+  { id: 'settings', label: t('adminPanel.sections.settings'), icon: 'fas fa-gear' },
+])
 
-const validSections = sections.map((section) => section.id)
-const normalizeSection = (value) => (validSections.includes(value) ? value : 'users')
+const validSections = computed(() => sections.value.map((section) => section.id))
+const normalizeSection = (value) => (validSections.value.includes(value) ? value : 'users')
 
 const activeSection = ref(normalizeSection(route.query.section))
 const summary = ref(null)
@@ -51,13 +53,13 @@ const error = ref('')
 const createdToken = ref('')
 
 const stats = computed(() => [
-  { label: 'Всего пользователей', value: summary.value?.total_users ?? users.value.length + employers.value.length, section: 'users' },
-  { label: 'Активных работодателей', value: summary.value?.employers ?? employers.value.length, section: 'employers' },
-  { label: 'Ожидают модерации', value: summary.value?.pending_vacancies ?? moderationJobs.value.length, section: 'moderation' },
-  { label: 'Всего вакансий', value: summary.value?.vacancies ?? jobs.value.length, section: 'vacancies' },
+  { label: t('adminPanel.stats.totalUsers'), value: summary.value?.total_users ?? users.value.length + employers.value.length, section: 'users' },
+  { label: t('adminPanel.stats.activeEmployers'), value: summary.value?.employers ?? employers.value.length, section: 'employers' },
+  { label: t('adminPanel.stats.pendingVacancies'), value: summary.value?.pending_vacancies ?? moderationJobs.value.length, section: 'moderation' },
+  { label: t('adminPanel.stats.totalVacancies'), value: summary.value?.vacancies ?? jobs.value.length, section: 'vacancies' },
 ])
 
-const activeTitle = computed(() => sections.find((section) => section.id === activeSection.value)?.label || 'Админка')
+const activeTitle = computed(() => sections.value.find((section) => section.id === activeSection.value)?.label || t('adminPanel.fallbackTitle'))
 
 const setSection = async (sectionId) => {
   activeSection.value = normalizeSection(sectionId)
@@ -86,16 +88,14 @@ const loadAdminData = async () => {
     users.value = Array.isArray(userData) ? userData : []
     employers.value = Array.isArray(employerData) ? employerData : []
     jobs.value = Array.isArray(jobsData) ? jobsData : []
-    moderationJobs.value = Array.isArray(moderationData)
-      ? moderationData
-      : []
+    moderationJobs.value = Array.isArray(moderationData) ? moderationData : []
     if (!moderationJobs.value.length && Array.isArray(jobsData)) {
       moderationJobs.value = jobsData.filter((job) => job?.status === 'pending')
     }
     tokens.value = Array.isArray(tokenData) ? tokenData : []
     betaAccessEnabled.value = Boolean(betaSettingsData?.enabled)
   } catch {
-    error.value = 'Не удалось загрузить админку.'
+    error.value = t('adminPanel.loadError')
   } finally {
     isLoading.value = false
   }
@@ -111,7 +111,7 @@ const createToken = async ({ note }) => {
     createdToken.value = token.token || ''
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось создать бета-токен.'
+    error.value = t('adminPanel.createTokenError')
   } finally {
     isSaving.value = false
   }
@@ -124,7 +124,7 @@ const deleteToken = async (token) => {
     await deleteAdminBetaToken(token.id)
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось удалить токен.'
+    error.value = t('adminPanel.deleteTokenError')
   }
 }
 
@@ -136,7 +136,7 @@ const updateBetaAccess = async (enabled) => {
     const settings = await updateAdminBetaSettings({ enabled })
     betaAccessEnabled.value = Boolean(settings?.enabled)
   } catch {
-    error.value = 'Не удалось изменить режим бета-доступа.'
+    error.value = t('adminPanel.updateBetaError')
   } finally {
     isSavingSettings.value = false
   }
@@ -146,12 +146,10 @@ const updateUserSubscription = async ({ user, plan, revoke = false }) => {
   error.value = ''
 
   try {
-    await updateAdminUserSubscription(user.id, revoke ? { revoke: true } : {
-      plan,
-    })
+    await updateAdminUserSubscription(user.id, revoke ? { revoke: true } : { plan })
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось изменить тариф пользователя.'
+    error.value = t('adminPanel.updateSubscriptionError')
   }
 }
 
@@ -162,7 +160,7 @@ const approveJob = async (job) => {
     await approveAdminJob(job.id)
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось одобрить вакансию.'
+    error.value = t('adminPanel.approveError')
   }
 }
 
@@ -173,7 +171,7 @@ const rejectJob = async (job) => {
     await rejectAdminJob(job.id)
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось отклонить вакансию.'
+    error.value = t('adminPanel.rejectError')
   }
 }
 
@@ -184,7 +182,7 @@ const deleteJob = async (job) => {
     await deleteAdminJob(job.id)
     await loadAdminData()
   } catch {
-    error.value = 'Не удалось удалить вакансию.'
+    error.value = t('adminPanel.deleteError')
   }
 }
 
@@ -203,15 +201,15 @@ onMounted(loadAdminData)
     <DashboardShell
       :sections="sections"
       :active-section="activeSection"
-      eyebrow="Администрирование"
+      :eyebrow="t('adminPanel.eyebrow')"
       :title="activeTitle"
-      description="Управление пользователями, работодателями, вакансиями и бета-доступом."
+      :description="t('adminPanel.description')"
       :stats="stats"
       @select-section="setSection"
       @stat-click="setSection"
     >
       <p v-if="error" class="apanel-status apanel-status--danger">{{ error }}</p>
-      <p v-if="isLoading" class="apanel-state">Загрузка...</p>
+      <p v-if="isLoading" class="apanel-state">{{ t('adminPanel.loading') }}</p>
 
       <template v-else>
         <APanelUsers
@@ -219,8 +217,8 @@ onMounted(loadAdminData)
           :users="users"
           manage-subscriptions
           subscription-mode="assign"
+          :empty-text="t('adminPanel.emptyUsers')"
           @update-subscription="updateUserSubscription"
-          empty-text="Пользователей пока нет."
         />
 
         <APanelUsers
@@ -228,14 +226,14 @@ onMounted(loadAdminData)
           :users="employers"
           manage-subscriptions
           subscription-mode="revoke"
+          :empty-text="t('adminPanel.emptyEmployers')"
           @update-subscription="updateUserSubscription"
-          empty-text="Работодателей пока нет."
         />
 
         <APanelJobs
           v-else-if="activeSection === 'vacancies'"
           :jobs="jobs"
-          empty-text="Вакансий пока нет."
+          :empty-text="t('adminPanel.emptyJobs')"
           @delete="deleteJob"
         />
 
@@ -243,7 +241,7 @@ onMounted(loadAdminData)
           v-else-if="activeSection === 'moderation'"
           :jobs="moderationJobs"
           moderation
-          empty-text="Вакансий на модерации нет."
+          :empty-text="t('adminPanel.emptyModeration')"
           @approve="approveJob"
           @reject="rejectJob"
           @delete="deleteJob"

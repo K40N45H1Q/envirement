@@ -1,7 +1,7 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
@@ -40,11 +40,7 @@ const router = useRouter()
 const messaging = useMessagingStore()
 const auth = useAuth()
 const { language: currentLanguage, t } = useI18n()
-const employmentTypeOptions = [
-  { id: 'full-time', ru: 'Полная занятость', en: 'Full-time' },
-  { id: 'shift', ru: 'Вахта / смены', en: 'Shift work' },
-  { id: 'contract', ru: 'Проект / контракт', en: 'Project / contract' },
-]
+const employmentTypeOptions = ['full-time', 'shift', 'contract']
 
 const plans = [
   {
@@ -73,252 +69,22 @@ const plans = [
   },
 ]
 
-const isEnglish = computed(() => currentLanguage.value === 'en')
-const copy = computed(() => (
-  isEnglish.value
-    ? {
-      sections: { jobs: 'Jobs', responses: 'Applications', messages: 'Messages', pricing: 'Plans' },
-      stats: { jobs: 'Total jobs', published: 'Published', responses: 'Applications', conversations: 'Conversations' },
-      fallbackSection: 'Jobs',
-      saving: 'Saving...',
-      saveChanges: 'Save changes',
-      saveJob: 'Save vacancy',
-      failLabel: 'Not a fit',
-      activeJobs: 'Active vacancies',
-      totalResponses: 'Total applications',
-      strongMatch: 'Strong match',
-      chatActive: 'Active chats',
-      candidate: 'Candidate',
-      noCandidateMessage: 'The candidate applied without an extra message.',
-      dashboardLoadError: 'Failed to load the employer dashboard.',
-      chooseCountryError: 'Choose the vacancy country.',
-      jobUpdated: 'Vacancy updated.',
-      jobSaved: 'Vacancy saved.',
-      jobSaveError: 'Failed to save the vacancy.',
-      companyRequired: 'Enter your company name to publish the vacancy.',
-      companyRestored: 'Company name saved to your employer account.',
-      missingCompanyProfileError: 'Add your company name before publishing the vacancy.',
-      subscriptionRequiredError: 'An active employer plan is required to publish vacancies.',
-      subscriptionJobLimitReachedError: 'Your current plan limit for active vacancies has been reached.',
-      deleteConfirm: 'Delete vacancy "{title}"?',
-      jobDeleted: 'Vacancy deleted.',
-      jobDeleteError: 'Failed to delete the vacancy.',
-      chatConfirmed: 'Chat approved and opened in messages.',
-      chatConfirmError: 'Failed to approve the chat.',
-      statusApproved: 'Published',
-      statusPending: 'In review',
-      statusRejected: 'Rejected',
-      statusDraft: 'Draft',
-      shellEyebrow: 'Employer dashboard',
-      shellDescription: 'Workspace for vacancies, applications, messages, and plans.',
-      loadingDashboard: 'Loading dashboard...',
-      editingEyebrow: 'Editing',
-      newJobEyebrow: 'New vacancy',
-      updateJob: 'Update vacancy',
-      createJob: 'Create vacancy',
-      title: 'Title',
-      titlePlaceholder: 'Electrician',
-      company: 'Company',
-      companyLockedHint: 'Taken from your employer account and used for every vacancy.',
-      salary: 'Salary',
-      salaryAmount: 'Salary amount',
-      salaryAmountPlaceholder: '2 200 - 2 800',
-      salaryCurrency: 'Currency',
-      employmentType: 'Employment type',
-      country: 'Country',
-      countryAria: 'Vacancy country',
-      city: 'City',
-      cityAria: 'Vacancy city',
-      chooseCity: 'Choose city',
-      selectedCountry: 'Selected country',
-      notSelected: 'Not selected',
-      vacancyPhoto: 'Vacancy photo',
-      vacancyPhotoHint: 'PNG, JPG, or WEBP',
-      chooseFile: 'Choose file',
-      noFileSelected: 'No file selected',
-      vacancyPreview: 'Vacancy preview',
-      hasHousing: 'Housing included',
-      hasHousingHint: 'Show accommodation on the vacancy card',
-      hasTransport: 'Transport included',
-      hasTransportHint: 'Show shuttle or company transport on the vacancy card',
-      description: 'Description',
-      descriptionPlaceholder: 'Responsibilities, requirements, and working conditions',
-      vacancyLanguages: 'Languages for the vacancy',
-      requiredLanguage: 'Required languages',
-      requiredLanguageLevel: 'Proficiency level',
-      addLanguage: 'Add language',
-      licenses: 'Licences and certificates',
-      licenseAria: 'Driving licence, certificate, or permit',
-      add: 'Add',
-      reset: 'Reset',
-      publications: 'Publications',
-      myJobs: 'My vacancies',
-      noJobsYet: 'No vacancies yet.',
-      housingTag: 'Housing included',
-      transportTag: 'Transport included',
-      open: 'Open',
-      edit: 'Edit',
-      deleting: 'Deleting...',
-      delete: 'Delete',
-      responsesEyebrow: 'Applications',
-      candidatesByJobs: 'Candidates by vacancy',
-      responsesSubtitle: 'Review candidates quickly, approve chats, and move straight into conversation.',
-      noResponsesYet: 'No applications yet.',
-      locationMissing: 'Location not specified',
-      salaryNegotiable: 'Negotiable',
-      responsesCount: '{count} applications',
-      hideResponses: 'Hide applications',
-      showResponses: 'View applications',
-      candidateKicker: 'Candidate',
-      chatWaiting: 'Awaiting approval',
-      confirming: 'Approving...',
-      confirmChat: 'Approve chat',
-      openMessages: 'Open messages',
-      currentPlan: 'Current plan',
-      active: 'Active',
-      cost: 'Price',
-      limit: 'Limit',
-      renewal: 'Renewal',
-      in30Days: 'In 30 days',
-      yourPlan: 'Your plan',
-      available: 'Available',
-      current: 'Current',
-      renew: 'Renew',
-      choosePlan: 'Choose plan',
-    }
-    : {
-      sections: { jobs: 'Вакансии', responses: 'Отклики', messages: 'Сообщения', pricing: 'Тарифы' },
-      stats: { jobs: 'Всего вакансий', published: 'Опубликовано', responses: 'Откликов', conversations: 'Диалогов' },
-      fallbackSection: 'Вакансии',
-      saving: 'Сохранение...',
-      saveChanges: 'Сохранить изменения',
-      saveJob: 'Сохранить вакансию',
-      failLabel: 'Не соответствует',
-      activeJobs: 'Активных вакансий',
-      totalResponses: 'Всего откликов',
-      strongMatch: 'Сильное совпадение',
-      chatActive: 'Чат активен',
-      candidate: 'Кандидат',
-      noCandidateMessage: 'Кандидат отправил отклик без дополнительного сообщения.',
-      dashboardLoadError: 'Не удалось загрузить кабинет работодателя.',
-      chooseCountryError: 'Выберите страну вакансии.',
-      jobUpdated: 'Вакансия обновлена.',
-      jobSaved: 'Вакансия сохранена.',
-      jobSaveError: 'Не удалось сохранить вакансию.',
-      deleteConfirm: 'Удалить вакансию "{title}"?',
-      jobDeleted: 'Вакансия удалена.',
-      jobDeleteError: 'Не удалось удалить вакансию.',
-      chatConfirmed: 'Чат подтверждён и открыт в сообщениях.',
-      chatConfirmError: 'Не удалось подтвердить чат.',
-      statusApproved: 'Опубликована',
-      statusPending: 'На модерации',
-      statusRejected: 'Отклонена',
-      statusDraft: 'Черновик',
-      shellEyebrow: 'Личный кабинет работодателя',
-      shellDescription: 'Рабочее пространство для вакансий, откликов, сообщений и тарифа.',
-      loadingDashboard: 'Загрузка кабинета...',
-      editingEyebrow: 'Редактирование',
-      newJobEyebrow: 'Новая вакансия',
-      updateJob: 'Обновить вакансию',
-      createJob: 'Создать вакансию',
-      title: 'Название',
-      titlePlaceholder: 'Электрик',
-      company: 'Компания',
-      companyLockedHint: 'Берется из аккаунта работодателя и используется для каждой вакансии.',
-      salary: 'Зарплата',
-      salaryAmount: 'Сумма зарплаты',
-      salaryAmountPlaceholder: '2 200 - 2 800',
-      salaryCurrency: 'Валюта',
-      employmentType: 'Тип занятости',
-      country: 'Страна',
-      countryAria: 'Страна вакансии',
-      city: 'Город',
-      cityAria: 'Город вакансии',
-      chooseCity: 'Выберите город',
-      selectedCountry: 'Выбранная страна',
-      notSelected: 'Не выбрана',
-      vacancyPhoto: 'Фото вакансии',
-      vacancyPhotoHint: 'PNG, JPG или WEBP',
-      chooseFile: 'Выбрать файл',
-      noFileSelected: 'Файл не выбран',
-      vacancyPreview: 'Превью вакансии',
-      hasHousing: 'Есть жильё',
-      hasHousingHint: 'Показывать проживание в карточке вакансии',
-      hasTransport: 'Есть транспорт',
-      hasTransportHint: 'Показывать наличие трансфера или служебного транспорта',
-      description: 'Описание',
-      descriptionPlaceholder: 'Обязанности, требования и условия работы',
-      vacancyLanguages: 'Языки для вакансии',
-      requiredLanguage: 'Требуемые языки',
-      requiredLanguageLevel: 'Уровень владения',
-      addLanguage: 'Добавить язык',
-      licenses: 'Права, лицензии и сертификаты',
-      licenseAria: 'Категория прав, лицензия или сертификат',
-      add: 'Добавить',
-      reset: 'Сбросить',
-      publications: 'Публикации',
-      myJobs: 'Мои вакансии',
-      noJobsYet: 'Вакансий пока нет.',
-      housingTag: 'Есть жильё',
-      transportTag: 'Есть транспорт',
-      open: 'Открыть',
-      edit: 'Редактировать',
-      deleting: 'Удаление...',
-      delete: 'Удалить',
-      responsesEyebrow: 'Отклики',
-      candidatesByJobs: 'Кандидаты по вакансиям',
-      responsesSubtitle: 'Быстро оценивайте кандидатов, подтверждайте чат и переходите к общению.',
-      noResponsesYet: 'Откликов пока нет.',
-      locationMissing: 'Локация не указана',
-      salaryNegotiable: 'По договорённости',
-      responsesCount: '{count} откликов',
-      hideResponses: 'Скрыть отклики',
-      showResponses: 'Смотреть отклики',
-      candidateKicker: 'Кандидат',
-      chatWaiting: 'Ждёт подтверждения',
-      confirming: 'Подтверждаем...',
-      confirmChat: 'Подтвердить чат',
-      openMessages: 'Открыть сообщения',
-      currentPlan: 'Текущий тариф',
-      active: 'Активен',
-      cost: 'Стоимость',
-      limit: 'Лимит',
-      renewal: 'Продление',
-      in30Days: 'Через 30 дней',
-      yourPlan: 'Ваш пакет',
-      available: 'Доступно',
-      current: 'Текущий',
-      renew: 'Продлить',
-      choosePlan: 'Выбрать тариф',
-    }
-))
+const copy = computed(() => translate('employerDashboardPage', {}, currentLanguage.value))
 
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 const sections = [
-  { id: 'jobs', label: 'Вакансии', icon: 'fas fa-briefcase', to: '/dashboard?section=jobs' },
-  { id: 'responses', label: 'Отклики', icon: 'fas fa-user-check', to: '/dashboard?section=responses' },
-  { id: 'messages', label: 'Сообщения', icon: 'fas fa-message', to: '/dashboard?section=messages' },
-  { id: 'pricing', label: 'Тарифы', icon: 'fas fa-credit-card', to: '/dashboard?section=pricing' },
+  { id: 'jobs', icon: 'fas fa-briefcase', to: '/dashboard?section=jobs' },
+  { id: 'responses', icon: 'fas fa-user-check', to: '/dashboard?section=responses' },
+  { id: 'messages', icon: 'fas fa-message', to: '/dashboard?section=messages' },
+  { id: 'pricing', icon: 'fas fa-credit-card', to: '/dashboard?section=pricing' },
 ]
 
 const localizedPlans = computed(() => plans.map((plan) => ({
   ...plan,
-  vacancies: plan.id === 'basic'
-    ? (isEnglish.value ? '1 job' : '1 вакансия')
-    : plan.id === 'standard'
-      ? (isEnglish.value ? '5 jobs' : '5 вакансий')
-      : (isEnglish.value ? '20 jobs' : '20 вакансий'),
-  description: plan.id === 'basic'
-    ? (isEnglish.value ? 'For occasional hiring and one-off publications.' : 'Для точечного найма и редких публикаций.')
-    : plan.id === 'standard'
-      ? (isEnglish.value ? 'The best balance for an active employer.' : 'Лучший баланс для активного работодателя.')
-      : (isEnglish.value ? 'For teams with a constant hiring pipeline.' : 'Для команд с постоянным потоком найма.'),
-  features: plan.id === 'basic'
-    ? (isEnglish.value ? ['30 days online', 'Basic vacancy card', 'Candidate applications'] : ['30 дней публикации', 'Базовая карточка вакансии', 'Отклики кандидатов'])
-    : plan.id === 'standard'
-      ? (isEnglish.value ? ['30 days online', 'Employer dashboard', 'Candidate comparison'] : ['30 дней публикации', 'Кабинет работодателя', 'Сравнение кандидатов'])
-      : (isEnglish.value ? ['Priority listing', 'Advanced analytics', 'Priority support'] : ['Приоритетная выдача', 'Расширенная аналитика', 'Приоритетная поддержка']),
+  vacancies: copy.value.planMeta[plan.id]?.vacancies || '',
+  description: copy.value.planMeta[plan.id]?.description || '',
+  features: copy.value.planMeta[plan.id]?.features || [],
 })))
 
 const localizedSections = computed(() => sections.map((section) => ({
@@ -332,7 +98,7 @@ const localizedLicenseOptions = computed(() => getLicenseOptions())
 const localizedCategoryOptions = computed(() => ([
   {
     value: '',
-    label: isEnglish.value ? 'Choose category' : 'Выберите категорию',
+    label: copy.value.chooseCategory,
     iconClass: 'fas fa-list',
   },
   ...localizeCategoryConfigs((key) => t(key))
@@ -343,30 +109,30 @@ const localizedCategoryOptions = computed(() => ([
       iconClass: category.icon,
     })),
 ]))
-const categoryFieldLabel = computed(() => (isEnglish.value ? 'Job category' : 'Категория работы'))
-const categoryPlaceholder = computed(() => (isEnglish.value ? 'Choose category' : 'Выберите категорию'))
+const categoryFieldLabel = computed(() => copy.value.categoryFieldLabel)
+const categoryPlaceholder = computed(() => copy.value.chooseCategory)
 const localizedEmploymentTypeOptions = computed(() => employmentTypeOptions.map((option) => ({
-  id: option.id,
-  label: isEnglish.value ? option.en : option.ru,
+  id: option,
+  label: copy.value.employmentTypes[option],
 })))
 const localizedExperienceOptions = computed(() => ([
-  { value: 'no_experience', label: isEnglish.value ? 'No experience' : 'Без опыта' },
-  { value: '1_year', label: isEnglish.value ? '1+ year' : '1+ год' },
-  { value: '2_years', label: isEnglish.value ? '2+ years' : '2+ года' },
-  { value: '3_years', label: isEnglish.value ? '3+ years' : '3+ года' },
-  { value: '4_years', label: isEnglish.value ? '4+ years' : '4+ года' },
-  { value: '5_years', label: isEnglish.value ? '5+ years' : '5+ лет' },
-  { value: '7_years', label: isEnglish.value ? '7+ years' : '7+ лет' },
-  { value: '10_years', label: isEnglish.value ? '10+ years' : '10+ лет' },
+  { value: 'no_experience', label: copy.value.experienceOptions.no_experience },
+  { value: '1_year', label: copy.value.experienceOptions['1_year'] },
+  { value: '2_years', label: copy.value.experienceOptions['2_years'] },
+  { value: '3_years', label: copy.value.experienceOptions['3_years'] },
+  { value: '4_years', label: copy.value.experienceOptions['4_years'] },
+  { value: '5_years', label: copy.value.experienceOptions['5_years'] },
+  { value: '7_years', label: copy.value.experienceOptions['7_years'] },
+  { value: '10_years', label: copy.value.experienceOptions['10_years'] },
 ]))
 const localizedEducationOptions = computed(() => ([
-  { value: '', label: isEnglish.value ? 'Choose education level' : 'Выберите уровень образования' },
-  { value: 'primary', label: isEnglish.value ? 'Primary' : 'Начальное' },
-  { value: 'secondary', label: isEnglish.value ? 'Secondary' : 'Среднее' },
-  { value: 'vocational', label: isEnglish.value ? 'Vocational' : 'Профессиональное' },
-  { value: 'bachelor', label: isEnglish.value ? 'Bachelor' : 'Бакалавр' },
-  { value: 'master', label: isEnglish.value ? 'Master' : 'Магистр' },
-  { value: 'phd', label: isEnglish.value ? 'PhD' : 'Доктор / PhD' },
+  { value: '', label: copy.value.educationPlaceholder },
+  { value: 'primary', label: copy.value.educationOptions.primary },
+  { value: 'secondary', label: copy.value.educationOptions.secondary },
+  { value: 'vocational', label: copy.value.educationOptions.vocational },
+  { value: 'bachelor', label: copy.value.educationOptions.bachelor },
+  { value: 'master', label: copy.value.educationOptions.master },
+  { value: 'phd', label: copy.value.educationOptions.phd },
 ]))
 const validSectionIds = sections.map((section) => section.id)
 const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'jobs')
@@ -409,7 +175,7 @@ const objectUrl = ref('')
 const bannerObjectUrl = ref('')
 const newLanguage = ref(localizedLanguageOptions.value[0]?.value || 'English')
 const newLanguageLevel = ref(languageLevelOptions[2].value)
-const newLicense = ref(isEnglish.value ? 'No license' : 'Нет лицензий')
+const newLicense = ref(copy.value.noLicense)
 const expandedResponseJobIds = ref([])
 const brokenAvatars = ref(new Set())
 const dashboardRefreshTimer = ref(null)
@@ -430,12 +196,12 @@ const canAddLanguage = computed(() => !form.value.languages.some((language) => (
   language.name === newLanguage.value && language.level === newLanguageLevel.value
 )))
 const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId.value) || null)
-const currentPlanName = computed(() => currentPlan.value?.name || (isEnglish.value ? 'No active plan' : 'Нет активного тарифа'))
+const currentPlanName = computed(() => currentPlan.value?.name || copy.value.noActivePlan)
 const currentPlanPrice = computed(() => currentPlan.value?.price || '-')
 const currentPlanLimit = computed(() => currentPlan.value?.vacancies || '-')
 const currentPlanExpires = computed(() => (
   hasActiveSubscription.value
-    ? new Intl.DateTimeFormat(isEnglish.value ? 'en-GB' : 'ru-RU').format(new Date(subscriptionExpiresAt.value))
+    ? new Intl.DateTimeFormat(currentLanguage.value === 'lv' ? 'lv-LV' : currentLanguage.value === 'en' ? 'en-GB' : 'ru-RU').format(new Date(subscriptionExpiresAt.value))
     : '-'
 ))
 const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
@@ -507,10 +273,10 @@ const groupedResponses = computed(() => {
       ...group,
       responses: group.responses.sort((left, right) => right.matchAnalysis.score - left.matchAnalysis.score),
       badges: [
-        { key: 'strong', label: 'Strong', count: group.counts.strong },
-        { key: 'good', label: 'Good', count: group.counts.good },
-        { key: 'partial', label: 'Partial', count: group.counts.partial },
-        { key: 'weak', label: 'Weak', count: group.counts.weak },
+        { key: 'strong', label: copy.value.matchSummary.strong, count: group.counts.strong },
+        { key: 'good', label: copy.value.matchSummary.good, count: group.counts.good },
+        { key: 'partial', label: copy.value.matchSummary.partial, count: group.counts.partial },
+        { key: 'weak', label: copy.value.matchSummary.weak, count: group.counts.weak },
         { key: 'fail', label: copy.value.failLabel, count: group.counts.fail },
       ].filter((item) => item.count > 0),
     }))
@@ -535,10 +301,10 @@ const responseMatchSummary = computed(() => {
   })
 
   return [
-    { key: 'strong', label: 'Strong', count: counters.strong },
-    { key: 'good', label: 'Good', count: counters.good },
-    { key: 'partial', label: 'Partial', count: counters.partial },
-    { key: 'weak', label: 'Weak', count: counters.weak },
+    { key: 'strong', label: copy.value.matchSummary.strong, count: counters.strong },
+    { key: 'good', label: copy.value.matchSummary.good, count: counters.good },
+    { key: 'partial', label: copy.value.matchSummary.partial, count: counters.partial },
+    { key: 'weak', label: copy.value.matchSummary.weak, count: counters.weak },
     { key: 'fail', label: copy.value.failLabel, count: counters.fail },
   ].filter((item) => item.count > 0)
 })
@@ -551,7 +317,7 @@ const localizedShellStats = computed(() => ([
 ]))
 const localizedActiveSectionLabel = computed(() => localizedSections.value.find((item) => item.id === activeSection.value)?.label || copy.value.fallbackSection)
 const localizedSubmitLabel = computed(() => (isSaving.value ? copy.value.saving : (isEditing.value ? copy.value.saveChanges : copy.value.saveJob)))
-const categoryRequiredError = computed(() => (isEnglish.value ? 'Choose a vacancy category.' : 'Выберите категорию вакансии.'))
+const categoryRequiredError = computed(() => copy.value.categoryRequiredError)
 const localizedResponseStats = computed(() => ([
   { label: copy.value.activeJobs, value: groupedResponses.value.length },
   { label: copy.value.totalResponses, value: scoredResponses.value.length },
@@ -818,7 +584,7 @@ async function submitJob() {
       return
     }
     if (!String(form.value.company || '').trim()) {
-      error.value = copy.value.companyRequired || 'Enter your company name to publish the vacancy.'
+      error.value = copy.value.companyRequired
       return
     }
 
@@ -840,7 +606,7 @@ async function submitJob() {
     } else {
       await createJob(payload)
       status.value = (!employerCompanyName.value && form.value.company)
-        ? `${copy.value.jobSaved} ${copy.value.companyRestored || 'Company name saved to your employer account.'}`
+        ? `${copy.value.jobSaved} ${copy.value.companyRestored}`
         : copy.value.jobSaved
     }
 
@@ -851,11 +617,11 @@ async function submitJob() {
   } catch (caughtError) {
     if (caughtError instanceof ApiError) {
       if (caughtError.key === 'missing_company_profile') {
-        error.value = copy.value.missingCompanyProfileError || 'Add your company name before publishing the vacancy.'
+        error.value = copy.value.missingCompanyProfileError
       } else if (caughtError.key === 'subscription_required') {
-        error.value = copy.value.subscriptionRequiredError || 'An active employer plan is required to publish vacancies.'
+        error.value = copy.value.subscriptionRequiredError
       } else if (caughtError.key === 'subscription_job_limit_reached') {
-        error.value = copy.value.subscriptionJobLimitReachedError || 'Your current plan limit for active vacancies has been reached.'
+        error.value = copy.value.subscriptionJobLimitReachedError
       } else {
         error.value = copy.value.jobSaveError
       }
@@ -931,10 +697,15 @@ function statusLabel(value) {
 }
 
 watch(
-  () => isEnglish.value,
+  () => currentLanguage.value,
   () => {
-    if (newLicense.value === 'No license' || newLicense.value === 'Нет лицензий') {
-      newLicense.value = isEnglish.value ? 'No license' : 'Нет лицензий'
+    const previousLabels = [
+      translate('employerDashboardPage.noLicense', {}, 'en'),
+      translate('employerDashboardPage.noLicense', {}, 'ru'),
+      translate('employerDashboardPage.noLicense', {}, 'lv'),
+    ]
+    if (previousLabels.includes(newLicense.value)) {
+      newLicense.value = copy.value.noLicense
     }
   },
 )
@@ -1148,18 +919,18 @@ onBeforeUnmount(() => {
 
             <div class="upload-grid">
               <label class="upload-card">
-                <span class="upload-title">{{ isEnglish ? 'Vacancy banner' : 'Баннер вакансии' }}</span>
-                <span class="upload-copy">{{ isEnglish ? 'Displayed on the vacancy page hero section' : 'Отображается как баннер на странице вакансии' }}</span>
+                <span class="upload-title">{{ copy.vacancyBanner }}</span>
+                <span class="upload-copy">{{ copy.vacancyBannerHint }}</span>
                 <span class="upload-button">{{ copy.chooseFile }}</span>
                 <span class="upload-filename">{{ form.banner?.name || copy.noFileSelected }}</span>
                 <input type="file" accept="image/*" @change="onBannerChange" />
               </label>
 
               <div class="preview-card preview-card--banner">
-                <img v-if="bannerPreview" :src="bannerPreview" :alt="isEnglish ? 'Vacancy banner preview' : 'Превью баннера вакансии'" />
+                <img v-if="bannerPreview" :src="bannerPreview" :alt="copy.vacancyBannerPreview" />
                 <div v-else class="preview-placeholder">
                   <i class="fas fa-panorama"></i>
-                  <span>{{ isEnglish ? 'Vacancy banner preview' : 'Превью баннера вакансии' }}</span>
+                  <span>{{ copy.vacancyBannerPreview }}</span>
                 </div>
               </div>
             </div>
@@ -1222,20 +993,20 @@ onBeforeUnmount(() => {
 
             <div class="field-grid">
               <label>
-                {{ isEnglish ? 'Minimum experience' : 'Минимальный опыт' }}
+                {{ copy.minimumExperience }}
                 <BaseDropdown
                   v-model="form.experience_level"
-                  :aria-label="isEnglish ? 'Minimum experience' : 'Минимальный опыт'"
+                  :aria-label="copy.minimumExperience"
                   full-width
                   :options="localizedExperienceOptions"
                 />
               </label>
 
               <label>
-                {{ isEnglish ? 'Education requirement' : 'Требуемое образование' }}
+                {{ copy.educationRequirement }}
                 <BaseDropdown
                   v-model="form.education_level"
-                  :aria-label="isEnglish ? 'Education requirement' : 'Требуемое образование'"
+                  :aria-label="copy.educationRequirement"
                   full-width
                   :options="localizedEducationOptions"
                 />
@@ -1431,7 +1202,7 @@ onBeforeUnmount(() => {
                           rel="noopener noreferrer"
                         >
                           <i class="fas fa-file-pdf"></i>
-                          {{ language === 'ru' ? 'Открыть резюме PDF' : 'Open resume PDF' }}
+                          {{ copy.openResumePdf }}
                         </a>
                       </div>
 

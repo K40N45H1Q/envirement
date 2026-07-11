@@ -2,160 +2,10 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 
 const { language } = useI18n()
-const isEnglish = computed(() => language.value === 'en')
-
-const copy = computed(() => (
-  isEnglish.value
-    ? {
-      eyebrow: 'About CVHOLD',
-      titleLead: 'You see who fits',
-      titleAccent: 'before reading a single resume.',
-      subtitle: 'A hiring platform for practical roles in the Baltics where candidates and employers understand fit before time is lost on blind applications and manual screening.',
-      pills: ['Deterministic Match Score', 'Structured vacancy data', 'Built for Baltic hiring'],
-      primaryCta: 'Browse jobs',
-      secondaryCta: 'For employers',
-      manifestoEyebrow: 'What makes us different',
-      manifestoTitle: 'Structured matching instead of hiring chaos',
-      manifestoBody: [
-        'CVHOLD exists because too much time in operational hiring disappears before either side understands whether there is a real fit.',
-        'Candidates often apply blindly. Employers often open profile after profile before they understand who meets the baseline requirements.',
-        'We replace that with a structured candidate profile, a structured vacancy, and a visible Match Score that can be explained clearly.',
-      ],
-      manifestoNotes: [
-        'The score is visible before the application.',
-        'The same profile can be reused across vacancies.',
-        'The logic is explainable, not hidden in a black box.',
-      ],
-      principlesEyebrow: 'How we work',
-      principlesTitle: 'Three principles we do not compromise on',
-      principles: [
-        {
-          mark: '01',
-          title: 'No black box',
-          body: 'The Match Score is calculated by a deterministic algorithm rather than an opaque model. Both sides can understand what shaped the result.',
-        },
-        {
-          mark: '02',
-          title: 'Data instead of free text',
-          body: 'Vacancies and profiles are built from the same structured fields, which makes comparison measurable, repeatable, and fair.',
-        },
-        {
-          mark: '03',
-          title: 'Practical hiring speed',
-          body: 'Employers do not need to manually read dozens of irrelevant profiles before they see who deserves attention first.',
-        },
-      ],
-      candidateEyebrow: 'For candidates',
-      candidateTitle: 'You understand your chances before you apply',
-      candidateSubtitle: 'CVHOLD helps candidates make a better decision before the click, not after a silent rejection.',
-      candidatePoints: [
-        {
-          title: 'Visible fit before the application',
-          body: 'Candidates can judge how well they match a vacancy before spending time on the application itself.',
-        },
-        {
-          title: 'One profile across all vacancies',
-          body: 'A structured profile is filled in once and then reused across applications, together with a generated PDF CV.',
-        },
-        {
-          title: 'No hidden premium wall for basic clarity',
-          body: 'The core value is understanding fit, not pushing candidates into blind mass applications.',
-        },
-      ],
-      founderEyebrow: 'Who is behind it',
-      founderTitle: 'Built from real hiring experience in the Baltics',
-      founderRole: 'Riga · Latvia',
-      founderBody: [
-        'The platform grew out of hands-on recruiting experience in construction, logistics, transport, production, and other practical sectors across the Baltic market.',
-        'That is why the product focuses on clarity, operational usefulness, and direct communication instead of decorative product noise.',
-        'If a business trusts a platform with candidate data and hiring flow, that platform should be visible, accountable, and understandable.',
-      ],
-      contactEyebrow: 'Contacts',
-      contactTitle: 'Write directly',
-      contactSubtitle: 'Questions about the platform, partnerships, candidate flow, or employer hiring workflow all come to one place.',
-      contacts: [
-        { label: 'Email', value: 'hello@cvhold.com', href: 'mailto:hello@cvhold.com' },
-        { label: 'LinkedIn', value: 'linkedin.com/company/cvhold', href: 'https://linkedin.com/company/cvhold' },
-        { label: 'Telegram', value: '@cvhold', href: 'https://t.me/cvhold' },
-      ],
-    }
-    : {
-      eyebrow: 'О нас',
-      titleLead: 'Вы видите кто подходит',
-      titleAccent: 'до того как открыли хоть одно резюме.',
-      subtitle: 'Платформа найма для практических ролей в Балтии, где кандидат и работодатель понимают совпадение до того, как теряют время на слепые отклики и ручной перебор.',
-      pills: ['Детерминированный Match Score', 'Структурированные вакансии', 'Фокус на найме в Балтии'],
-      primaryCta: 'Смотреть вакансии',
-      secondaryCta: 'Работодателям',
-      manifestoEyebrow: 'Что делает нас другими',
-      manifestoTitle: 'Структурированный matching вместо хаоса в найме',
-      manifestoBody: [
-        'CVHOLD существует потому, что в операционном найме слишком много времени теряется ещё до того, как стороны понимают, есть ли реальное совпадение.',
-        'Кандидаты часто откликаются вслепую. Работодатели открывают профиль за профилем, прежде чем понимают, кто проходит по базовым требованиям.',
-        'Мы заменяем это структурированным профилем кандидата, структурированной вакансией и видимым Match Score, который можно понятно объяснить.',
-      ],
-      manifestoNotes: [
-        'Баллы видны ещё до отклика.',
-        'Один профиль можно использовать для разных вакансий.',
-        'Логика прозрачна и не прячется в чёрном ящике.',
-      ],
-      principlesEyebrow: 'Как мы работаем',
-      principlesTitle: 'Три принципа, которыми мы не жертвуем',
-      principles: [
-        {
-          mark: '01',
-          title: 'Никакого чёрного ящика',
-          body: 'Match Score считается детерминированным алгоритмом, а не непрозрачной моделью. Обе стороны понимают, что повлияло на результат.',
-        },
-        {
-          mark: '02',
-          title: 'Данные вместо свободного текста',
-          body: 'Вакансии и профили строятся по одинаковым структурированным полям, поэтому сравнение становится измеримым, повторяемым и честным.',
-        },
-        {
-          mark: '03',
-          title: 'Практичная скорость найма',
-          body: 'Работодателю не нужно вручную читать десятки нерелевантных профилей, прежде чем увидеть, кому действительно стоит уделить внимание.',
-        },
-      ],
-      candidateEyebrow: 'Для кандидатов',
-      candidateTitle: 'Вы понимаете свои шансы ещё до отклика',
-      candidateSubtitle: 'CVHOLD помогает принять более точное решение до нажатия кнопки, а не после очередного молчаливого отказа.',
-      candidatePoints: [
-        {
-          title: 'Видимое совпадение до отклика',
-          body: 'Кандидат заранее понимает, насколько хорошо он подходит под вакансию, ещё до того как тратит время на отклик.',
-        },
-        {
-          title: 'Один профиль для всех вакансий',
-          body: 'Структурированный профиль заполняется один раз и потом используется для разных откликов вместе с готовым PDF CV.',
-        },
-        {
-          title: 'Без скрытой premium-стены',
-          body: 'Ключевая ценность платформы в понимании совпадения, а не в подталкивании кандидата к массовым слепым откликам.',
-        },
-      ],
-      founderEyebrow: 'Кто за этим стоит',
-      founderTitle: 'Платформа, выросшая из реального опыта найма в Балтии',
-      founderRole: 'Рига · Латвия',
-      founderBody: [
-        'Платформа выросла из практического опыта рекрутинга в строительстве, логистике, транспорте, производстве и других прикладных секторах балтийского рынка.',
-        'Именно поэтому продукт делает ставку на ясность, операционную пользу и прямую коммуникацию, а не на декоративный продуктовый шум.',
-        'Если бизнес доверяет платформе данные кандидатов и свой hiring flow, эта платформа должна быть понятной, ответственной и видимой.',
-      ],
-      contactEyebrow: 'Контакты',
-      contactTitle: 'Напишите напрямую',
-      contactSubtitle: 'Вопросы о платформе, партнёрстве, опыте кандидатов и воронке найма работодателя собираются в одном месте.',
-      contacts: [
-        { label: 'Email', value: 'support@cvhold.com', href: 'mailto:support@cvhold.com' },
-        { label: 'LinkedIn', value: 'linkedin.com/company/cvhold', href: 'https://linkedin.com/company/cvhold' },
-        { label: 'Telegram', value: '@cvhold', href: 'https://t.me/cvhold' },
-      ],
-    }
-))
+const copy = computed(() => translate('aboutPage', {}, language.value))
 </script>
 
 <template>
@@ -184,7 +34,7 @@ const copy = computed(() => (
           <div class="signal-card signal-card--main">
             <span class="signal-kicker">CVHOLD</span>
             <strong>Match Score</strong>
-            <p>{{ isEnglish ? 'Visible fit before wasted effort.' : 'Видимое совпадение до потерянного времени.' }}</p>
+            <p>{{ copy.signalLead }}</p>
           </div>
 
           <div class="signal-grid">
@@ -209,7 +59,7 @@ const copy = computed(() => (
 
           <div class="manifesto-panel">
             <div class="manifesto-panel__line"></div>
-            <p>{{ isEnglish ? 'A vacancy and a profile speak the same language of fields, requirements, and clear signals.' : 'Вакансия и профиль говорят на одном языке полей, требований и понятных сигналов.' }}</p>
+            <p>{{ copy.manifestoPanel }}</p>
           </div>
         </div>
       </section>

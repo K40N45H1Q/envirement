@@ -2,12 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
-import Profile from '@/components/Profile.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
+import Profile from '@/components/Profile.vue'
 import { getJobs, getMyApplications } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useMessagingStore } from '@/stores/messaging'
 import { normalizeJob } from '@/utils/jobs'
@@ -18,83 +18,7 @@ const { state } = useAuth()
 const messaging = useMessagingStore()
 const { language } = useI18n()
 
-const isEnglish = computed(() => language.value === 'en')
-const copy = computed(() => (
-  isEnglish.value
-    ? {
-      sections: {
-        messages: 'Messages',
-        profile: 'Profile',
-        jobs: 'Jobs',
-        resume: 'Resume',
-      },
-      fallbackCandidate: 'candidate',
-      stats: {
-        profile: 'Profile completion',
-        applications: 'My applications',
-        conversations: 'Conversations',
-        recommendations: 'Recommendations',
-      },
-      onlyCandidate: 'This dashboard is available to candidates only.',
-      loadJobsError: 'Failed to load the jobs list.',
-      loadCandidateDataError: 'Part of the profile data could not be loaded. Please verify the candidate account type.',
-      noPublishedJobs: 'There are no published vacancies yet.',
-      loadDashboardError: 'Failed to load the dashboard data.',
-      eyebrow: 'Candidate dashboard',
-      titleMessages: 'Messages',
-      titleGreeting: 'Hello, {name}',
-      description: 'Track applications, update your profile, and keep your conversations in one place.',
-      findJob: 'Find a job',
-      recommendationsEyebrow: 'Recommendations',
-      recommendationsTitle: 'Jobs to apply for',
-      refresh: 'Refresh',
-      loadingJobs: 'Loading jobs...',
-      apply: 'Apply now',
-      noRecommendations: 'There are no new jobs to apply for yet.',
-      activityEyebrow: 'My applications',
-      activityTitle: 'Latest activity',
-      chatPending: 'Chat is awaiting approval',
-      completeProfile: 'Complete your profile and start applying',
-      messagesHint: 'All active conversations for approved applications',
-    }
-    : {
-      sections: {
-        messages: 'Сообщения',
-        profile: 'Профиль',
-        jobs: 'Вакансии',
-        resume: 'Резюме',
-      },
-      fallbackCandidate: 'кандидат',
-      stats: {
-        profile: 'Заполнение профиля',
-        applications: 'Моих откликов',
-        conversations: 'Диалогов',
-        recommendations: 'Рекомендаций',
-      },
-      onlyCandidate: 'Этот кабинет доступен только кандидату.',
-      loadJobsError: 'Не удалось загрузить список вакансий.',
-      loadCandidateDataError: 'Часть данных профиля не загрузилась. Проверьте тип аккаунта кандидата.',
-      noPublishedJobs: 'Пока опубликованных вакансий нет.',
-      loadDashboardError: 'Не удалось загрузить данные кабинета.',
-      eyebrow: 'Личный кабинет соискателя',
-      titleMessages: 'Сообщения',
-      titleGreeting: 'Привет, {name}',
-      description: 'Следите за откликами, обновляйте профиль и держите переписку внутри одного кабинета.',
-      findJob: 'Найти работу',
-      recommendationsEyebrow: 'Рекомендации',
-      recommendationsTitle: 'Вакансии для отклика',
-      refresh: 'Обновить',
-      loadingJobs: 'Загрузка вакансий...',
-      apply: 'Откликнуться',
-      noRecommendations: 'Новых вакансий для отклика пока нет.',
-      activityEyebrow: 'Мои отклики',
-      activityTitle: 'Последняя активность',
-      chatPending: 'Чат ждёт подтверждения',
-      completeProfile: 'Заполнить профиль и начать откликаться',
-      messagesHint: 'Все активные диалоги по подтверждённым откликам',
-    }
-))
-
+const copy = computed(() => translate('candidateDashboardPage', {}, language.value))
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 const jobs = ref([])
@@ -112,7 +36,7 @@ const shellSections = computed(() => ([
   { id: 'messages', label: copy.value.sections.messages, icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/dashboard?section=profile' },
   { id: 'jobs', label: copy.value.sections.jobs, icon: 'fas fa-briefcase', to: '/jobs' },
-  { id: 'resume', label: copy.value.sections.resume, icon: 'fas fa-file-lines', to: '/resume-builder' },
+  { id: 'resume', label: copy.value.sections.resume, icon: 'fas fa-file-lines', to: '/createcv' },
 ]))
 
 const normalizeAccountType = (accountType) => {
@@ -234,8 +158,6 @@ const refreshApplicationsSilently = async () => {
   try {
     const applicationsData = await getMyApplications()
     applications.value = Array.isArray(applicationsData) ? applicationsData : []
-  } catch {
-    // Silent refresh should not break the dashboard UI.
   } finally {
     isRefreshingApplications.value = false
   }
@@ -251,7 +173,6 @@ const startApplicationsRealtime = () => {
 
 const stopApplicationsRealtime = () => {
   if (!applicationsRefreshTimer.value) return
-
   window.clearInterval(applicationsRefreshTimer.value)
   applicationsRefreshTimer.value = null
 }
@@ -324,7 +245,7 @@ onBeforeUnmount(() => {
               class="job-row"
             >
               <div class="job-logo" :style="{ background: job.color }">
-                <img v-if="job.logo" :src="job.logo" :alt="job.company" />
+                <img v-if="job.logo" :src="job.logo" :alt="job.company">
                 <span v-else>{{ job.initials }}</span>
               </div>
 
@@ -338,6 +259,7 @@ onBeforeUnmount(() => {
             </RouterLink>
           </div>
 
+          <p v-else class="notice">{{ copy.noRecommendations }}</p>
         </div>
 
         <div class="panel panel-activity">
@@ -379,11 +301,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else class="message-shell">
-        <MessagesPanel
-          embedded
-          :hint="copy.messagesHint"
-          @open="openDashboardConversation"
-        />
+        <MessagesPanel embedded :hint="copy.messagesHint" @open="openDashboardConversation" />
       </section>
     </DashboardShell>
   </AppLayout>

@@ -5,28 +5,7 @@ import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 
 const route = useRoute()
-const { language } = useI18n()
-
-const isEnglish = computed(() => language.value === 'en')
-const copy = computed(() => (
-  isEnglish.value
-    ? {
-      eyebrow: 'Unauthorized',
-      title: 'Your session is no longer valid',
-      text: 'Access to this page requires an active authorization token. Please sign in again to continue.',
-      signIn: 'Go to sign in',
-      home: 'Go to home',
-      hint: 'If the token expired or was revoked, protected pages are closed automatically.',
-    }
-    : {
-      eyebrow: 'Unauthorized',
-      title: 'Сессия больше не действительна',
-      text: 'Для доступа к этой странице нужен активный токен авторизации. Пожалуйста, войдите заново.',
-      signIn: 'Перейти ко входу',
-      home: 'На главную',
-      hint: 'Если токен истёк или был отозван, защищённые страницы закрываются автоматически.',
-    }
-))
+const { language, t } = useI18n()
 
 const signInTarget = computed(() => ({
   path: `/${language.value}/signin`,
@@ -43,16 +22,16 @@ const homeTarget = computed(() => `/${language.value}`)
   <AppLayout>
     <main class="page">
       <section class="card">
-        <p class="eyebrow">{{ copy.eyebrow }}</p>
-        <h1>{{ copy.title }}</h1>
-        <p class="lead">{{ copy.text }}</p>
+        <p class="eyebrow">{{ t('unauthorizedPage.eyebrow') }}</p>
+        <h1>{{ t('unauthorizedPage.title') }}</h1>
+        <p class="lead">{{ t('unauthorizedPage.text') }}</p>
 
         <div class="actions">
-          <RouterLink :to="signInTarget" class="btn-primary">{{ copy.signIn }}</RouterLink>
-          <RouterLink :to="homeTarget" class="btn-secondary">{{ copy.home }}</RouterLink>
+          <RouterLink :to="signInTarget" class="btn-primary">{{ t('unauthorizedPage.signIn') }}</RouterLink>
+          <RouterLink :to="homeTarget" class="btn-secondary">{{ t('unauthorizedPage.home') }}</RouterLink>
         </div>
 
-        <p class="hint">{{ copy.hint }}</p>
+        <p class="hint">{{ t('unauthorizedPage.hint') }}</p>
       </section>
     </main>
   </AppLayout>

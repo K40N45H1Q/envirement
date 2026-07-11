@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from '@/i18n'
 
 const props = defineProps({
   tokens: {
@@ -25,7 +26,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['create-token', 'delete-token', 'update-beta-access'])
-
+const { language, t } = useI18n()
 const note = ref('')
 
 const betaAccessModel = computed({
@@ -34,9 +35,7 @@ const betaAccessModel = computed({
 })
 
 const submit = () => {
-  emit('create-token', {
-    note: note.value,
-  })
+  emit('create-token', { note: note.value })
   note.value = ''
 }
 
@@ -47,7 +46,8 @@ const copyToken = async (token) => {
 
 const formatDate = (value) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru-RU', {
+  const locale = language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-GB' : 'ru-RU'
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -56,17 +56,15 @@ const formatDate = (value) => {
   }).format(new Date(value))
 }
 
-const tokenStateLabel = (token) => {
-  return token.used ? 'Активный' : 'Неактивный'
-}
+const tokenStateLabel = (token) => (token.used ? t('aPanelSettings.active') : t('aPanelSettings.inactive'))
 </script>
 
 <template>
   <section class="apanel-settings">
     <section class="apanel-card apanel-token-card">
       <div class="apanel-card__head">
-        <p class="apanel-eyebrow">Хранится в базе данных</p>
-        <h2>Выданные токены</h2>
+        <p class="apanel-eyebrow">{{ t('aPanelSettings.storedEyebrow') }}</p>
+        <h2>{{ t('aPanelSettings.issuedTokens') }}</h2>
       </div>
 
       <div class="apanel-token-list">
@@ -74,11 +72,11 @@ const tokenStateLabel = (token) => {
           <table class="apanel-token-table">
             <thead>
               <tr>
-                <th>Токен</th>
-                <th>Заметка</th>
-                <th>Статус</th>
-                <th>Использован</th>
-                <th>Действия</th>
+                <th>{{ t('aPanelSettings.tokenColumn') }}</th>
+                <th>{{ t('aPanelSettings.noteColumn') }}</th>
+                <th>{{ t('aPanelSettings.statusColumn') }}</th>
+                <th>{{ t('aPanelSettings.usedColumn') }}</th>
+                <th>{{ t('aPanelSettings.actionsColumn') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -92,9 +90,7 @@ const tokenStateLabel = (token) => {
                 <td>
                   <span
                     class="apanel-token-status"
-                    :class="{
-                      'apanel-token-status--active': token.used,
-                    }"
+                    :class="{ 'apanel-token-status--active': token.used }"
                   >
                     {{ tokenStateLabel(token) }}
                   </span>
@@ -106,7 +102,7 @@ const tokenStateLabel = (token) => {
                       v-if="token.token"
                       type="button"
                       class="apanel-action-button apanel-copy-button"
-                      aria-label="Копировать токен"
+                      :aria-label="t('aPanelSettings.copyToken')"
                       @click="copyToken(token.token)"
                     >
                       <i class="fas fa-copy"></i>
@@ -114,7 +110,7 @@ const tokenStateLabel = (token) => {
                     <button
                       type="button"
                       class="apanel-action-button btn-token-delete"
-                      aria-label="Удалить токен"
+                      :aria-label="t('aPanelSettings.deleteToken')"
                       @click="emit('delete-token', token)"
                     >
                       <i class="fas fa-trash"></i>
@@ -126,13 +122,13 @@ const tokenStateLabel = (token) => {
           </table>
         </div>
 
-        <p v-else class="apanel-empty">Токенов пока нет.</p>
+        <p v-else class="apanel-empty">{{ t('aPanelSettings.emptyTokens') }}</p>
       </div>
     </section>
 
     <form class="apanel-card apanel-form" @submit.prevent="submit">
       <label class="toggle-field toggle-switch">
-        <span>Бета-доступ</span>
+        <span>{{ t('aPanelSettings.betaAccess') }}</span>
         <span class="toggle-switch__control">
           <input v-model="betaAccessModel" type="checkbox" :disabled="isSavingSettings" />
           <span class="toggle-switch__track" aria-hidden="true">
@@ -142,21 +138,21 @@ const tokenStateLabel = (token) => {
       </label>
 
       <div>
-        <p class="apanel-eyebrow">Бета-доступ</p>
-        <h2>Создать токен</h2>
+        <p class="apanel-eyebrow">{{ t('aPanelSettings.betaAccess') }}</p>
+        <h2>{{ t('aPanelSettings.createToken') }}</h2>
       </div>
 
       <label>
-        Заметка
-        <input v-model="note" placeholder="Например: тестовый доступ" />
+        {{ t('aPanelSettings.note') }}
+        <input v-model="note" :placeholder="t('aPanelSettings.notePlaceholder')" />
       </label>
 
       <button class="btn-primary" type="submit" :disabled="isSaving">
-        {{ isSaving ? 'Создаем...' : 'Создать токен' }}
+        {{ isSaving ? t('aPanelSettings.creating') : t('aPanelSettings.createToken') }}
       </button>
 
       <div v-if="createdToken" class="apanel-token-result">
-        <span>Новый токен</span>
+        <span>{{ t('aPanelSettings.newToken') }}</span>
         <code>{{ createdToken }}</code>
       </div>
     </form>
@@ -221,256 +217,166 @@ label {
 }
 
 .toggle-switch {
-  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
 }
 
 .toggle-switch__control {
   position: relative;
   display: inline-flex;
   align-items: center;
-  width: 3.5rem;
-  height: 2rem;
 }
 
-.toggle-switch__control input[type="checkbox"] {
+.toggle-switch__control input {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 100%;
-  min-height: 100%;
-  margin: 0;
   opacity: 0;
-  cursor: pointer;
-  z-index: 2;
-}
-
-.toggle-switch__control input[type="checkbox"]:disabled {
-  cursor: not-allowed;
 }
 
 .toggle-switch__track {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border: 0.0625rem solid color-mix(in srgb, var(--border-strong) 55%, white);
+  width: 3.4rem;
+  height: 1.95rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--border-subtle) 78%, white);
-  box-shadow: inset 0 0.0625rem 0.2rem rgba(15, 23, 42, 0.08);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(15, 23, 42, 0.15);
+  padding: 0.2rem;
+  transition: background 0.2s ease;
 }
 
 .toggle-switch__thumb {
-  position: absolute;
-  top: 0.1875rem;
-  left: 0.1875rem;
-  width: 1.5rem;
-  height: 1.5rem;
+  display: block;
+  width: 1.55rem;
+  height: 1.55rem;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0.2rem 0.55rem rgba(15, 23, 42, 0.16);
+  box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.18);
   transition: transform 0.2s ease;
 }
 
-.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track {
-  border-color: color-mix(in srgb, var(--brand-strong) 70%, white);
-  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
-  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
+.toggle-switch__control input:checked + .toggle-switch__track {
+  background: color-mix(in srgb, var(--brand-strong) 70%, white);
 }
 
-.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track .toggle-switch__thumb {
-  transform: translateX(1.5rem);
-}
-
-.toggle-switch__control input[type="checkbox"]:focus-visible + .toggle-switch__track {
-  outline: 0.1875rem solid rgba(20, 184, 87, 0.2);
-  outline-offset: 0.125rem;
+.toggle-switch__control input:checked + .toggle-switch__track .toggle-switch__thumb {
+  transform: translateX(1.45rem);
 }
 
 input {
   width: 100%;
-  min-height: 2.8rem;
-  padding: 0.75rem 0.85rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
-  border-radius: 0.7rem;
-  background: #fff;
-  color: var(--text-primary);
-  font: inherit;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-input:focus {
-  border-color: color-mix(in srgb, var(--brand-base) 72%, var(--border-subtle));
-  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-soft) 78%, transparent);
-  outline: none;
-}
-
-.btn-primary,
-.btn-secondary {
-  min-height: 2.6rem;
-  padding: 0.65rem 0.95rem;
-  border: 0.0625rem solid transparent;
-  border-radius: 0.78rem;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 850;
-  cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
-  color: white;
-  box-shadow: 0 0.7rem 1.25rem rgba(22, 155, 97, 0.18);
-}
-
-.btn-secondary {
-  border-color: color-mix(in srgb, var(--border-subtle) 70%, var(--brand-base));
-  background: var(--surface-secondary);
-  color: var(--text-primary);
-}
-
-.btn-primary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
-  transform: translateY(-0.08rem);
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.apanel-token-result {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.85rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 20%, transparent);
+  min-height: 2.9rem;
+  padding: 0.8rem 0.95rem;
+  border: 0.0625rem solid rgba(15, 23, 42, 0.12);
   border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--brand-soft) 70%, transparent);
-}
-
-.apanel-token-result span {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.apanel-token-result code {
-  overflow-wrap: anywhere;
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text-primary);
+  font: inherit;
+}
+
+.apanel-token-list {
+  padding: 0 1.25rem 1.25rem;
 }
 
 .apanel-token-table-wrap {
-  width: 100%;
   overflow-x: auto;
 }
 
 .apanel-token-table {
   width: 100%;
-  min-width: 50rem;
   border-collapse: separate;
   border-spacing: 0;
+  min-width: 46rem;
 }
 
 .apanel-token-table th,
 .apanel-token-table td {
-  padding: 0.85rem 1rem;
-  border-top: 0.0625rem solid var(--border-subtle);
-  color: var(--text-primary);
+  padding: 0.85rem 0.8rem;
+  border-bottom: 0.0625rem solid var(--border-subtle);
   text-align: left;
-  vertical-align: middle;
+  color: var(--text-primary);
 }
 
 .apanel-token-table th {
   background: color-mix(in srgb, var(--brand-soft) 42%, white);
   color: color-mix(in srgb, var(--text-muted) 86%, var(--brand-strong));
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.apanel-token-table code {
+.apanel-token-value code,
+.apanel-token-result code {
   display: inline-block;
-  padding: 0.28rem 0.45rem;
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--surface-secondary) 84%, var(--brand-soft));
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.55rem;
+  background: rgba(15, 23, 42, 0.06);
   color: var(--text-primary);
-  overflow-wrap: anywhere;
-  user-select: text;
-  vertical-align: middle;
-  white-space: normal;
-}
-
-.apanel-token-value {
-  min-width: 18rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
 }
 
 .apanel-token-note {
-  max-width: 12rem;
+  max-width: 20rem;
+  word-break: break-word;
+}
+
+.apanel-token-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
   color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.apanel-token-status--active {
+  background: color-mix(in srgb, var(--brand-soft) 72%, white);
+  color: var(--brand-strong);
 }
 
 .apanel-token-actions {
   display: flex;
   gap: 0.45rem;
-  align-items: center;
 }
 
 .apanel-action-button {
-  width: 2.35rem;
-  height: 2.35rem;
-  display: inline-grid;
-  place-items: center;
-  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
   border-radius: 0.72rem;
-  background: color-mix(in srgb, var(--brand-soft) 58%, white);
-  color: var(--brand-strong);
-  cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
 }
 
 .btn-token-delete {
-  border-color: color-mix(in srgb, #be123c 24%, var(--border-subtle));
-  background: #fff1f2;
   color: #be123c;
 }
 
-.apanel-action-button:hover {
-  transform: translateY(-0.08rem);
-  box-shadow: 0 0.5rem 1rem rgba(22, 155, 97, 0.14);
-}
-
-.btn-token-delete:hover {
-  box-shadow: 0 0.5rem 1rem rgba(190, 18, 60, 0.12);
-}
-
-.apanel-token-status {
-  display: inline-flex;
-  min-height: 1.7rem;
-  align-items: center;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999rem;
-  background: #f1f5f9;
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
-.apanel-token-status--active {
-  background: color-mix(in srgb, var(--brand-soft) 78%, white);
-  color: var(--brand-strong);
+.apanel-token-result {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.95rem 1rem;
+  border: 0.0625rem dashed color-mix(in srgb, var(--brand-strong) 30%, white);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--brand-soft) 40%, white);
 }
 
 .apanel-empty {
   margin: 0;
-  padding: 2rem 1.25rem;
   color: var(--text-muted);
-  font-weight: 800;
 }
 
-@media (max-width: 64rem) {
+@media (max-width: 72rem) {
+  .apanel-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 52rem) {
   .apanel-form {
     grid-template-columns: 1fr;
   }

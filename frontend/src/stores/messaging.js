@@ -5,6 +5,7 @@ import {
   getMessageThread,
   sendMessage,
 } from '@/api/jobs'
+import { translate } from '@/i18n'
 import { getLocaleFromPath } from '@/router/locale'
 
 const sortConversations = (conversations) => {
@@ -20,28 +21,7 @@ const getCurrentLanguage = () => {
   return getLocaleFromPath(window.location.pathname)
 }
 
-const messageCopy = {
-  ru: {
-    chatAvailableAfterApproval: 'Чат станет доступен после подтверждения работодателем.',
-    threadLoadError: 'Не удалось открыть переписку по выбранному отклику.',
-    conversationsLoadError: 'Не удалось загрузить сообщения. Проверьте подключение и вход в аккаунт.',
-    pickConversationFirst: 'Сначала выберите диалог.',
-    chatNotApproved: 'Работодатель еще не подтвердил чат по этому отклику.',
-    sendError: 'Не удалось отправить сообщение.',
-    deleteError: 'Не удалось удалить диалог.',
-  },
-  en: {
-    chatAvailableAfterApproval: 'The chat will become available after the employer approves it.',
-    threadLoadError: 'Failed to open the conversation for the selected application.',
-    conversationsLoadError: 'Failed to load messages. Please check your connection and sign-in status.',
-    pickConversationFirst: 'Choose a conversation first.',
-    chatNotApproved: 'The employer has not approved the chat for this application yet.',
-    sendError: 'Failed to send the message.',
-    deleteError: 'Failed to delete the conversation.',
-  },
-}
-
-const t = (key) => messageCopy[getCurrentLanguage()]?.[key] || messageCopy.ru[key] || ''
+const t = (key) => translate(`messagingStore.${key}`, {}, getCurrentLanguage())
 
 export const useMessagingStore = defineStore('messaging', {
   state: () => ({
@@ -177,7 +157,6 @@ export const useMessagingStore = defineStore('messaging', {
       if (this.pollingTimer) return
 
       this.refreshConversations()
-
       this.pollingTimer = window.setInterval(() => {
         this.refreshConversations()
       }, 2500)

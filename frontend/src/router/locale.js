@@ -1,7 +1,7 @@
 import { normalizeLanguage } from '@/i18n'
 
-export const SUPPORTED_LOCALES = ['ru', 'en']
-const LOCALE_PREFIX_RE = /^\/(ru|en)(?=\/|$)/
+export const SUPPORTED_LOCALES = ['ru', 'en', 'lv']
+const LOCALE_PREFIX_RE = /^\/(ru|en|lv)(?=\/|$)/
 
 export const getLocaleFromPath = (path = '') => {
   const match = String(path || '').match(LOCALE_PREFIX_RE)

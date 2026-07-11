@@ -1,31 +1,31 @@
+<script setup>
+import { useI18n } from '@/i18n'
+
+const { t } = useI18n()
+</script>
+
 <template>
   <section class="comparison-shell">
     <div class="comparison-card">
       <article class="comparison-column comparison-column--current">
-        <p class="comparison-eyebrow">Как сейчас</p>
-        <p class="comparison-lead">
-          Вы размещаете вакансию, приходят отклики. Дальше — открываете каждое резюме, читаете, решаете на глаз.
-          При большом количестве откликов это занимает очень много времени.
-        </p>
+        <p class="comparison-eyebrow">{{ t('hiringComparison.currentEyebrow') }}</p>
+        <p class="comparison-lead">{{ t('hiringComparison.currentLead') }}</p>
 
         <ul class="comparison-list comparison-list--current">
-          <li>Все кандидаты в одной куче без приоритета</li>
-          <li>Чтобы понять кто подходит — нужно прочитать каждое резюме</li>
-          <li>Вакансии закрываются, но процесс занимает слишком много времени из-за ручного отбора кандидатов.</li>
+          <li>{{ t('hiringComparison.currentPoint1') }}</li>
+          <li>{{ t('hiringComparison.currentPoint2') }}</li>
+          <li>{{ t('hiringComparison.currentPoint3') }}</li>
         </ul>
       </article>
 
       <article class="comparison-column comparison-column--cvhold">
-        <p class="comparison-eyebrow">С CVHOLD</p>
-        <p class="comparison-lead">
-          Кандидаты отсортированы по баллу совпадения с вашей вакансией ещё до того, как вы открыли первое резюме.
-          Начинаете с тех, кто подходит лучше всего.
-        </p>
+        <p class="comparison-eyebrow">{{ t('hiringComparison.cvhEyebrow') }}</p>
+        <p class="comparison-lead">{{ t('hiringComparison.cvhLead') }}</p>
 
         <ul class="comparison-list comparison-list--cvhold">
-          <li>Отклики сразу расставлены по приоритету — кто подходит лучше всего виден с первого экрана</li>
-          <li>Начинаете с топ-кандидатов — не тратите время на тех кто заведомо не подходит</li>
-          <li>Видите ключевые данные до контакта — связываетесь только с тем кто реально интересен</li>
+          <li>{{ t('hiringComparison.cvhPoint1') }}</li>
+          <li>{{ t('hiringComparison.cvhPoint2') }}</li>
+          <li>{{ t('hiringComparison.cvhPoint3') }}</li>
         </ul>
       </article>
     </div>
@@ -46,12 +46,10 @@
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 1.5rem;
   box-shadow: var(--shadow-soft);
-
   background:
     radial-gradient(circle at top right, rgba(26, 177, 111, 0.12), transparent 26%),
     radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.06), transparent 20%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.98));
-
 }
 
 .comparison-column {

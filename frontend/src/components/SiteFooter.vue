@@ -12,7 +12,7 @@
         <div class="footer-column">
           <h2>{{ t('footer.platform') }}</h2>
           <RouterLink to="/">{{ t('navbar.jobs') }}</RouterLink>
-          <RouterLink to="/resume-builder">{{ t('navbar.resume') }}</RouterLink>
+          <RouterLink to="/createcv">{{ t('navbar.resume') }}</RouterLink>
           <RouterLink to="/about">{{ t('footer.aboutUs') }}</RouterLink>
         </div>
 

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from '@/i18n'
 
 const props = defineProps({
   jobs: {
@@ -12,17 +13,19 @@ const props = defineProps({
   },
   emptyText: {
     type: String,
-    default: 'Нет вакансий',
+    default: '',
   },
 })
 
 const emit = defineEmits(['approve', 'reject', 'delete'])
+const { language, t } = useI18n()
 const previewJob = ref(null)
 const bannerModalJob = ref(null)
 
 const formatDate = (value) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru-RU', {
+  const locale = language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-GB' : 'ru-RU'
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -31,16 +34,7 @@ const formatDate = (value) => {
   }).format(new Date(value))
 }
 
-const statusLabel = (value) => {
-  const labels = {
-    pending: 'На модерации',
-    approved: 'Одобрена',
-    rejected: 'Отклонена',
-    active: 'Активна',
-    inactive: 'Неактивна',
-  }
-  return labels[value] || value || '-'
-}
+const statusLabel = (value) => t(`aPanelJobs.statuses.${value || 'inactive'}`)
 
 const jobInitials = (job) => {
   const source = job?.company || job?.title || '?'
@@ -54,7 +48,7 @@ const jobInitials = (job) => {
 
 const previewDescription = (job) => {
   const text = (job?.description || '').trim()
-  return text || 'Описание вакансии не указано.'
+  return text || t('aPanelJobs.descriptionFallback')
 }
 
 const canModerateJob = (job) => props.moderation || job?.status === 'pending'
@@ -71,13 +65,13 @@ const openBannerModal = (job) => {
       <table v-if="jobs.length" class="apanel-table">
         <thead>
           <tr>
-            <th>Вакансия</th>
-            <th>Компания</th>
-            <th>Статус</th>
-            <th>Локация</th>
-            <th>Зарплата</th>
-            <th>Создана</th>
-            <th>Действия</th>
+            <th>{{ t('aPanelJobs.vacancyColumn') }}</th>
+            <th>{{ t('aPanelJobs.companyColumn') }}</th>
+            <th>{{ t('aPanelJobs.statusColumn') }}</th>
+            <th>{{ t('aPanelJobs.locationColumn') }}</th>
+            <th>{{ t('aPanelJobs.salaryColumn') }}</th>
+            <th>{{ t('aPanelJobs.createdColumn') }}</th>
+            <th>{{ t('aPanelJobs.actionsColumn') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -85,7 +79,7 @@ const openBannerModal = (job) => {
             <td>
               <div class="apanel-job-title">
                 <span>{{ job.title }}</span>
-                <small>{{ job.location || 'Локация не указана' }}</small>
+                <small>{{ job.location || t('aPanelJobs.locationMissing') }}</small>
               </div>
             </td>
             <td>{{ job.company || '-' }}</td>
@@ -98,16 +92,16 @@ const openBannerModal = (job) => {
             <td>{{ job.salary || '-' }}</td>
             <td>{{ formatDate(job.created_at) }}</td>
             <td class="apanel-actions">
-              <button type="button" class="apanel-icon-button apanel-icon-button--preview" title="Предпросмотр" aria-label="Предпросмотр" @click="previewJob = job">
+              <button type="button" class="apanel-icon-button apanel-icon-button--preview" :title="t('aPanelJobs.preview')" :aria-label="t('aPanelJobs.preview')" @click="previewJob = job">
                 <i class="fas fa-eye"></i>
               </button>
-              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--approve" title="Одобрить" aria-label="Одобрить" @click="emit('approve', job)">
+              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--approve" :title="t('aPanelJobs.approve')" :aria-label="t('aPanelJobs.approve')" @click="emit('approve', job)">
                 <i class="fas fa-check"></i>
               </button>
-              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--reject" title="Отклонить" aria-label="Отклонить" @click="emit('reject', job)">
+              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--reject" :title="t('aPanelJobs.reject')" :aria-label="t('aPanelJobs.reject')" @click="emit('reject', job)">
                 <i class="fas fa-xmark"></i>
               </button>
-              <button type="button" class="apanel-icon-button apanel-icon-button--danger" title="Удалить" aria-label="Удалить" @click="emit('delete', job)">
+              <button type="button" class="apanel-icon-button apanel-icon-button--danger" :title="t('aPanelJobs.delete')" :aria-label="t('aPanelJobs.delete')" @click="emit('delete', job)">
                 <i class="fas fa-trash"></i>
               </button>
             </td>
@@ -115,13 +109,13 @@ const openBannerModal = (job) => {
         </tbody>
       </table>
 
-      <p v-else class="apanel-empty">{{ emptyText }}</p>
+      <p v-else class="apanel-empty">{{ emptyText || t('aPanelJobs.emptyText') }}</p>
     </div>
 
     <div v-if="previewJob" class="apanel-preview">
       <div class="apanel-preview-toolbar">
-        <strong>Предпросмотр страницы вакансии</strong>
-        <button type="button" class="apanel-icon-button" title="Закрыть" aria-label="Закрыть" @click="previewJob = null">
+        <strong>{{ t('aPanelJobs.previewTitle') }}</strong>
+        <button type="button" class="apanel-icon-button" :title="t('aPanelJobs.close')" :aria-label="t('aPanelJobs.close')" @click="previewJob = null">
           <i class="fas fa-xmark"></i>
         </button>
       </div>
@@ -134,34 +128,30 @@ const openBannerModal = (job) => {
           </div>
 
           <div>
-            <p>Вакансия</p>
+            <p>{{ t('aPanelJobs.vacancyLabel') }}</p>
             <h1>{{ previewJob.title }}</h1>
-            <p>{{ previewJob.company || 'Компания не указана' }} · {{ previewJob.location || 'Локация не указана' }}</p>
+            <p>{{ previewJob.company || t('aPanelJobs.companyMissing') }} · {{ previewJob.location || t('aPanelJobs.locationMissing') }}</p>
           </div>
 
           <aside>
-            <strong>{{ previewJob.salary || 'По договорённости' }}</strong>
-            <span>Актуальная ставка</span>
-            <span class="job-preview-link">Все вакансии</span>
+            <strong>{{ previewJob.salary || t('aPanelJobs.salaryFallback') }}</strong>
+            <span>{{ t('aPanelJobs.currentRate') }}</span>
+            <span class="job-preview-link">{{ t('aPanelJobs.allJobs') }}</span>
           </aside>
         </section>
 
         <section class="job-preview-grid">
           <article class="job-preview-panel">
-            <h2>Описание вакансии</h2>
+            <h2>{{ t('aPanelJobs.descriptionTitle') }}</h2>
             <div class="job-preview-wrapper" :class="{ 'job-preview-wrapper--text-only': !previewJob.banner_url }">
               <button
                 v-if="previewJob.banner_url"
                 type="button"
                 class="job-preview-banner-button"
-                :aria-label="`Открыть баннер вакансии ${previewJob.title}`"
+                :aria-label="t('aPanelJobs.openBanner', { title: previewJob.title })"
                 @click="openBannerModal(previewJob)"
               >
-                <img
-                  class="job-preview-banner"
-                  :src="previewJob.banner_url"
-                  :alt="previewJob.title"
-                />
+                <img class="job-preview-banner" :src="previewJob.banner_url" :alt="previewJob.title" />
               </button>
               <p>{{ previewDescription(previewJob) }}</p>
             </div>
@@ -170,15 +160,15 @@ const openBannerModal = (job) => {
           <section class="job-preview-panel job-preview-facts">
             <dl>
               <div>
-                <dt>Локация</dt>
+                <dt>{{ t('aPanelJobs.locationColumn') }}</dt>
                 <dd>{{ previewJob.location || '-' }}</dd>
               </div>
               <div>
-                <dt>Зарплата</dt>
+                <dt>{{ t('aPanelJobs.salaryColumn') }}</dt>
                 <dd>{{ previewJob.salary || '-' }}</dd>
               </div>
               <div>
-                <dt>Статус</dt>
+                <dt>{{ t('aPanelJobs.statusColumn') }}</dt>
                 <dd>{{ statusLabel(previewJob.status) }}</dd>
               </div>
             </dl>
@@ -188,7 +178,7 @@ const openBannerModal = (job) => {
     </div>
 
     <div v-if="bannerModalJob" class="banner-modal" role="dialog" aria-modal="true" @click.self="bannerModalJob = null">
-      <button type="button" class="banner-modal__close" aria-label="Закрыть" @click="bannerModalJob = null">
+      <button type="button" class="banner-modal__close" :aria-label="t('aPanelJobs.close')" @click="bannerModalJob = null">
         <i class="fas fa-xmark"></i>
       </button>
       <img :src="bannerModalJob.banner_url" :alt="bannerModalJob.title" />
@@ -241,17 +231,9 @@ const openBannerModal = (job) => {
   border-bottom: 0;
 }
 
-.apanel-table tbody tr:hover {
-  background: color-mix(in srgb, var(--brand-soft) 34%, transparent);
-}
-
 .apanel-job-title {
   display: grid;
-  gap: 0.18rem;
-}
-
-.apanel-job-title span {
-  font-weight: 850;
+  gap: 0.2rem;
 }
 
 .apanel-job-title small {
@@ -260,24 +242,24 @@ const openBannerModal = (job) => {
 
 .apanel-pill {
   display: inline-flex;
-  min-height: 1.8rem;
   align-items: center;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--brand-soft) 76%, white);
-  color: var(--brand-strong);
-  font-size: 0.78rem;
+  justify-content: center;
+  padding: 0.38rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--text-muted);
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
 .apanel-pill--pending {
-  background: #fff7ed;
-  color: #c2410c;
+  background: #fff6db;
+  color: #b45309;
 }
 
 .apanel-pill--approved,
 .apanel-pill--active {
-  background: color-mix(in srgb, var(--brand-soft) 78%, white);
+  background: color-mix(in srgb, var(--brand-soft) 70%, white);
   color: var(--brand-strong);
 }
 
@@ -290,81 +272,34 @@ const openBannerModal = (job) => {
 .apanel-actions {
   display: flex;
   gap: 0.45rem;
-  white-space: nowrap;
 }
 
 .apanel-icon-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-grid;
-  place-items: center;
-  border: 0.0625rem solid color-mix(in srgb, var(--border-subtle) 65%, var(--brand-base));
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0;
   border-radius: 0.72rem;
-  background: linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--brand-soft) 34%, white));
-  color: var(--brand-strong);
-  cursor: pointer;
-  box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.06);
-  transition:
-    transform 0.16s ease,
-    border-color 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease;
-}
-
-.apanel-icon-button i {
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.apanel-icon-button:hover {
-  transform: translateY(-0.08rem);
-  border-color: color-mix(in srgb, var(--brand-base) 45%, var(--border-subtle));
-  box-shadow: 0 0.7rem 1.25rem rgba(22, 155, 97, 0.12);
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
 }
 
 .apanel-icon-button--approve {
-  border-color: color-mix(in srgb, var(--brand-base) 45%, var(--border-subtle));
-  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
-  color: white;
-  box-shadow: 0 0.6rem 1.1rem rgba(22, 155, 97, 0.18);
-}
-
-.apanel-icon-button--approve:hover {
-  color: white;
-}
-
-.apanel-icon-button--reject {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.apanel-icon-button--danger {
-  border-color: #fecdd3;
-  background: #fff1f2;
-  color: #be123c;
-}
-
-.apanel-icon-button--preview {
-  border-color: color-mix(in srgb, var(--border-subtle) 55%, var(--brand-base));
-  background: color-mix(in srgb, var(--brand-soft) 64%, white);
   color: var(--brand-strong);
+}
+
+.apanel-icon-button--reject,
+.apanel-icon-button--danger {
+  color: #be123c;
 }
 
 .apanel-empty {
   margin: 0;
-  padding: 3rem 1.5rem;
+  padding: 1rem 1.1rem;
   color: var(--text-muted);
-  text-align: center;
-  font-weight: 800;
 }
 
 .apanel-preview {
-  margin: 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 0.95rem;
-  background: color-mix(in srgb, var(--surface-secondary) 80%, white);
-  overflow: hidden;
+  border-top: 0.0625rem solid var(--border-subtle);
 }
 
 .apanel-preview-toolbar {
@@ -372,228 +307,127 @@ const openBannerModal = (job) => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 0.0625rem solid var(--border-subtle);
-  background: white;
+  padding: 1rem 1.1rem;
 }
 
 .job-preview-page {
   display: grid;
   gap: 1rem;
-  padding: 1rem;
-}
-
-.job-preview-page :is(h1, h2, p) {
-  margin: 0;
-}
-
-.job-preview-hero,
-.job-preview-panel {
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-primary);
-  box-shadow: var(--shadow-soft);
+  padding: 0 1.1rem 1.1rem;
 }
 
 .job-preview-hero {
-  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1.25rem;
-  overflow: hidden;
-  padding: 2rem;
-}
-
-.job-preview-hero::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 0.22rem;
-  background: linear-gradient(90deg, var(--brand-base), color-mix(in srgb, var(--brand-base) 20%, white));
-  content: "";
-}
-
-.job-preview-hero > div:nth-child(2),
-.job-preview-hero aside,
-.job-preview-panel {
-  display: grid;
   gap: 1rem;
-}
-
-.job-preview-hero p,
-.job-preview-hero span,
-.job-preview-facts dt {
-  color: var(--text-muted);
-}
-
-.job-preview-hero h1 {
-  font-size: clamp(1.65rem, 2.6vw, 2.6rem);
-  line-height: 1.08;
-}
-
-.job-preview-hero aside {
-  justify-items: end;
-  text-align: right;
-}
-
-.job-preview-hero strong {
-  color: var(--brand-strong);
-  font-size: clamp(1.45rem, 2vw, 2rem);
-}
-
-.job-preview-link {
-  color: var(--brand-strong);
-  font-weight: 700;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(25, 120, 90, 0.08), rgba(37, 99, 235, 0.06));
 }
 
 .job-preview-logo {
-  width: 5rem;
-  height: 5rem;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 1rem;
-  background: var(--brand-strong);
-  color: #fff;
-  font-weight: 900;
+  background: rgba(255, 255, 255, 0.96);
+  font-weight: 800;
+  color: var(--brand-strong);
 }
 
 .job-preview-logo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  background: white;
+  object-fit: cover;
+}
+
+.job-preview-hero p,
+.job-preview-hero span {
+  color: var(--text-muted);
 }
 
 .job-preview-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
   gap: 1rem;
 }
 
 .job-preview-panel {
-  width: 100%;
-  padding: 1.5rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-primary);
 }
 
 .job-preview-wrapper {
   display: grid;
-  grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1fr);
   gap: 1rem;
-  align-items: stretch;
-}
-
-.job-preview-wrapper--text-only {
-  grid-template-columns: 1fr;
 }
 
 .job-preview-banner-button {
-  min-height: 0;
-  padding: 0;
   border: 0;
-  border-radius: 1rem;
-  background: var(--surface-secondary);
-  cursor: zoom-in;
-  overflow: hidden;
+  padding: 0;
+  background: transparent;
 }
 
 .job-preview-banner {
   width: 100%;
-  height: 100%;
-  max-height: 31rem;
-  display: block;
-  object-fit: contain;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface-secondary) 80%, white);
-}
-
-.job-preview-wrapper p {
-  min-height: 16rem;
-  max-height: 31rem;
-  margin: 0;
-  padding: 1.25rem;
-  overflow-y: auto;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-secondary);
-  line-height: 1.65;
-  white-space: pre-wrap;
+  border-radius: 0.9rem;
+  object-fit: cover;
 }
 
 .job-preview-facts dl {
-  width: 100%;
-  margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.8rem;
+  margin: 0;
 }
 
-.job-preview-facts dl > div {
-  padding: 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-secondary);
+.job-preview-facts dt {
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 .job-preview-facts dd {
-  margin: 0;
+  margin: 0.25rem 0 0;
   color: var(--text-primary);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .banner-modal {
   position: fixed;
-  z-index: 1000;
   inset: 0;
+  z-index: 30;
   display: grid;
   place-items: center;
-  padding: 2rem;
-  background: rgba(15, 23, 42, 0.82);
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.74);
 }
 
 .banner-modal img {
-  max-width: min(96vw, 90rem);
-  max-height: 90vh;
+  max-width: min(92vw, 70rem);
+  max-height: 88vh;
   border-radius: 1rem;
-  background: white;
-  object-fit: contain;
-  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
 }
 
 .banner-modal__close {
-  position: fixed;
-  top: 1.2rem;
-  right: 1.2rem;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
   width: 2.8rem;
   height: 2.8rem;
-  display: grid;
-  place-items: center;
-  border: 0.0625rem solid rgba(255, 255, 255, 0.24);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  color: white;
-  cursor: pointer;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
-@media (max-width: 60rem) {
+@media (max-width: 64rem) {
   .job-preview-hero,
-  .job-preview-wrapper,
-  .job-preview-facts dl {
+  .job-preview-grid {
     grid-template-columns: 1fr;
-  }
-
-  .job-preview-hero {
-    padding: 1rem;
-  }
-
-  .job-preview-hero aside {
-    justify-items: start;
-    text-align: left;
-  }
-
-  .job-preview-panel {
-    padding: 1rem;
   }
 }
 </style>

@@ -1,4 +1,4 @@
-import { translate } from '@/i18n'
+﻿import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
 
 const languageValues = ['English', 'Russian', 'German', 'Polish', 'Latvian', 'Lithuanian', 'Estonian', 'French']
@@ -61,7 +61,7 @@ export const languageOptions = getLanguageOptions()
 export const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
 export const getLicenseOptions = () => {
   const language = getLanguage()
-  const noLicenseLabel = language === 'en' ? 'No license' : 'Нет лицензий'
+  const noLicenseLabel = language !== 'ru' ? 'No license' : 'Нет лицензий'
 
   return [
     { value: noLicenseLabel, label: noLicenseLabel },
@@ -76,7 +76,7 @@ const noLicenseValues = new Set([
   'no license',
   'нет лицензий',
   'нет лицензии',
-  'ÐÐµÑ‚ Ð»Ð¸Ñ†ÐµÐ½Ð·Ð¸Ð¹',
+  'Нет лицензий',
 ].map((value) => value.toLowerCase()))
 
 export const isNoLicenseValue = (value) => noLicenseValues.has(toText(value).trim().toLowerCase())
@@ -104,3 +104,4 @@ export const normalizeLicenses = (value) => toArray(value)
   .map((license) => (typeof license === 'string' ? license : license?.name || license?.title || ''))
   .map((license) => toText(license).trim())
   .filter((license) => license && !isNoLicenseValue(license))
+

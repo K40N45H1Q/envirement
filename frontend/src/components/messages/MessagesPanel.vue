@@ -1,6 +1,6 @@
-<script setup>
+﻿<script setup>
 import { computed } from 'vue'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import { useMessagingStore } from '@/stores/messaging'
 import { useAuth } from '@/stores/auth'
 
@@ -25,37 +25,7 @@ const props = defineProps({
 
 const { language } = useI18n()
 const messaging = useMessagingStore()
-
-const isEnglish = computed(() => language.value === 'en')
-const copy = computed(() => (
-  isEnglish.value
-    ? {
-      title: 'Messages',
-      hint: 'All active conversations for approved applications and vacancies.',
-      fallbackTitle: 'Messages',
-      fallbackSubtitle: 'Approved conversations for applications',
-      loading: 'Loading conversations...',
-      emptyList: 'Conversations will appear after the employer approves a chat in the applications section.',
-      deleting: 'Deleting...',
-      deleteConversation: 'Delete conversation',
-      deleteConfirm: 'Delete this conversation? The related application will be deleted too.',
-      emptyThread: 'Choose a conversation on the left to start chatting.',
-      inputPlaceholder: 'Write a message',
-    }
-    : {
-      title: 'Сообщения',
-      hint: 'Все активные диалоги по подтвержденным откликам и вакансиям.',
-      fallbackTitle: 'Сообщения',
-      fallbackSubtitle: 'Подтвержденные диалоги по откликам',
-      loading: 'Загрузка диалогов...',
-      emptyList: 'Диалоги появятся после подтверждения работодателем',
-      deleting: 'Удаление...',
-      deleteConversation: 'Удалить диалог',
-      deleteConfirm: 'Удалить этот диалог? Вместе с ним будет удален и связанный отклик.',
-      emptyThread: 'Выберите диалог слева, чтобы начать общение.',
-      inputPlaceholder: 'Напишите сообщение',
-    }
-))
+const copy = computed(() => translate('messagesPanel', {}, language.value))
 
 const conversations = computed(() => messaging.conversations)
 const activeApplicationId = computed(() => messaging.activeApplicationId)
@@ -71,7 +41,7 @@ const isDeleting = computed(() => messaging.isDeleting)
 const activeConversation = computed(() => messaging.activeConversation)
 const panelTitle = computed(() => props.title || copy.value.title)
 const panelHint = computed(() => props.hint || copy.value.hint)
-const dateLocale = computed(() => (isEnglish.value ? 'en-US' : 'ru-RU'))
+const dateLocale = computed(() => (language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-US' : 'ru-RU'))
 const activeTitle = computed(() => activeConversation.value?.counterparty_name || copy.value.fallbackTitle)
 const activeSubtitle = computed(() => {
   if (!activeConversation.value) return copy.value.fallbackSubtitle

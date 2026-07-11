@@ -113,7 +113,15 @@ const localizedChildren = [
   { path: 'jobs/:id', component: JobDetailPage, meta: { logicalPath: '/jobs/:id' } },
   { path: 'employers', component: HomePage, meta: { logicalPath: '/employers' } },
   { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
-  { path: 'resume-builder', component: ResumeBuilderPage, meta: { logicalPath: '/resume-builder' } },
+  { path: 'createcv', component: ResumeBuilderPage, meta: { logicalPath: '/createcv' } },
+  {
+    path: 'resume-builder',
+    redirect: (to) => ({
+      path: '/createcv',
+      query: to.query,
+      hash: to.hash,
+    }),
+  },
   { path: 'beta-access', component: BLogin, meta: { logicalPath: '/beta-access' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
@@ -138,7 +146,7 @@ const localizedChildren = [
 
 const routes = [
   {
-    path: '/:locale(ru|en)',
+    path: '/:locale(ru|en|lv)',
     children: localizedChildren,
   },
   {

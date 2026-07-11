@@ -1,9 +1,9 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { getProfile, updateProfile } from '@/api/profile'
-import { useI18n } from '@/i18n'
+import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 
 const props = defineProps({
@@ -34,128 +34,9 @@ const isSaving = ref(false)
 const saveMessage = ref('')
 const errorMessage = ref('')
 
-const isEnglish = computed(() => language.value === 'en')
 const user = computed(() => state.user)
 
-const copy = computed(() =>
-  isEnglish.value
-    ? {
-        notAuth: 'Log in to open your profile.',
-        candidateProfile: 'Candidate profile',
-        employerProfile: 'Employer profile',
-        adminProfile: 'Administrator profile',
-        fillProfile: 'Complete your profile',
-        profileDescriptionCandidate: 'Add your core information, photo, and resume to apply for jobs faster.',
-        profileDescriptionEmployer: 'Keep contact details, avatar, and account documents updated in one place.',
-        profileDescriptionAdmin: 'Keep account data and attached files up to date.',
-        completed: 'completed',
-        accountType: 'Account type',
-        filesInProfile: 'Files in profile',
-        contactPhone: 'Contact phone',
-        yes: 'Yes',
-        no: 'No',
-        present: 'Present',
-        mainData: 'Main details',
-        personalInformation: 'Personal information',
-        loadingProfile: 'Loading profile...',
-        uploadAvatar: 'Upload avatar',
-        profileAvatar: 'Profile avatar',
-        uploadPhoto: 'Upload photo',
-        firstName: 'First name',
-        lastName: 'Last name',
-        phone: 'Phone number',
-        currentRole: 'Current role',
-        currentRolePlaceholder: 'For example, Recruiter or MIG/MAG Welder',
-        about: 'About',
-        aboutPlaceholder: 'Briefly describe your experience, skills, and current work focus',
-        saving: 'Saving...',
-        saveProfile: 'Save profile',
-        files: 'Files',
-        resumeAndDocuments: 'Resume and documents',
-        uploadResume: 'Upload a resume or document',
-        dropHint: 'PDF, DOC, DOCX. You can drag and drop the file here.',
-        openCurrentFile: 'Open current file',
-        hints: 'Hints',
-        improve: 'What to improve',
-        hintNameDone: 'First and last name are filled in',
-        hintNameTodo: 'Add your first and last name',
-        hintPhoneDone: 'Phone number added',
-        hintPhoneTodo: 'Add a phone number',
-        hintResumeDone: 'Profile file attached',
-        hintResumeTodo: 'Attach a resume or document',
-        hintSummaryDone: 'Profile summary added',
-        hintSummaryTodo: 'Add a short summary',
-        loadProfileError: 'Failed to load the profile.',
-        saveProfileSuccess: 'Profile saved successfully.',
-        saveProfileError: 'Failed to save the profile.',
-        accountCandidate: 'Candidate',
-        accountEmployer: 'Employer',
-        accountAdmin: 'Administrator',
-        accountFallback: 'Account',
-        navMessages: 'Messages',
-        navProfile: 'Profile',
-        navJobs: 'Jobs',
-        navResume: 'Resume',
-      }
-    : {
-        notAuth: 'Войдите в аккаунт, чтобы открыть профиль.',
-        candidateProfile: 'Профиль кандидата',
-        employerProfile: 'Профиль работодателя',
-        adminProfile: 'Профиль администратора',
-        fillProfile: 'Заполните профиль',
-        profileDescriptionCandidate: 'Добавьте основную информацию, аватар и резюме, чтобы быстрее откликаться на вакансии.',
-        profileDescriptionEmployer: 'Обновляйте контактные данные, аватар и документы аккаунта в одном месте.',
-        profileDescriptionAdmin: 'Поддерживайте данные аккаунта и прикрепленные файлы в актуальном состоянии.',
-        completed: 'заполнено',
-        accountType: 'Тип аккаунта',
-        filesInProfile: 'Файлы в профиле',
-        contactPhone: 'Контактный номер',
-        yes: 'Да',
-        no: 'Нет',
-        present: 'Есть',
-        mainData: 'Основные данные',
-        personalInformation: 'Личная информация',
-        loadingProfile: 'Загрузка профиля...',
-        uploadAvatar: 'Загрузить аватар',
-        profileAvatar: 'Аватар профиля',
-        uploadPhoto: 'Загрузить фото',
-        firstName: 'Имя',
-        lastName: 'Фамилия',
-        phone: 'Номер телефона',
-        currentRole: 'Текущая роль',
-        currentRolePlaceholder: 'Например, Recruiter или MIG/MAG Welder',
-        about: 'О себе',
-        aboutPlaceholder: 'Коротко опишите опыт, навыки и текущий фокус работы',
-        saving: 'Сохранение...',
-        saveProfile: 'Сохранить профиль',
-        files: 'Файлы',
-        resumeAndDocuments: 'Резюме и документы',
-        uploadResume: 'Загрузите резюме',
-        dropHint: 'PDF, DOC, DOCX. Можно перетащить файл в эту область.',
-        openCurrentFile: 'Открыть текущий файл',
-        hints: 'Подсказки',
-        improve: 'Что улучшить',
-        hintNameDone: 'Имя и фамилия заполнены',
-        hintNameTodo: 'Добавьте имя и фамилию',
-        hintPhoneDone: 'Контактный номер добавлен',
-        hintPhoneTodo: 'Укажите номер телефона',
-        hintResumeDone: 'Файл профиля прикреплен',
-        hintResumeTodo: 'Прикрепите резюме или документ',
-        hintSummaryDone: 'Описание профиля заполнено',
-        hintSummaryTodo: 'Добавьте короткое описание',
-        loadProfileError: 'Не удалось загрузить профиль.',
-        saveProfileSuccess: 'Профиль успешно сохранен.',
-        saveProfileError: 'Не удалось сохранить профиль.',
-        accountCandidate: 'Кандидат',
-        accountEmployer: 'Работодатель',
-        accountAdmin: 'Администратор',
-        accountFallback: 'Аккаунт',
-        navMessages: 'Сообщения',
-        navProfile: 'Профиль',
-        navJobs: 'Вакансии',
-        navResume: 'Резюме',
-      },
-)
+const copy = computed(() => translate('profilePage', {}, language.value))
 
 const fullName = computed(() => `${profile.value.first_name || ''} ${profile.value.last_name || ''}`.trim())
 const initials = computed(() => {
@@ -316,7 +197,7 @@ onBeforeUnmount(revokeAvatarPreview)
         <RouterLink to="/messages"><i class="fas fa-message"></i> {{ copy.navMessages }}</RouterLink>
         <RouterLink to="/profile"><i class="fas fa-user"></i> {{ copy.navProfile }}</RouterLink>
         <RouterLink to="/jobs"><i class="fas fa-briefcase"></i> {{ copy.navJobs }}</RouterLink>
-        <RouterLink to="/resume-builder"><i class="fas fa-file-lines"></i> {{ copy.navResume }}</RouterLink>
+        <RouterLink to="/createcv"><i class="fas fa-file-lines"></i> {{ copy.navResume }}</RouterLink>
       </aside>
 
       <section class="content">

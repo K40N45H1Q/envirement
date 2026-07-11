@@ -1,4 +1,4 @@
-import { normalizeLanguages, normalizeLicenses } from './jobRequirements'
+﻿import { normalizeLanguages, normalizeLicenses } from './jobRequirements'
 import { useUiStore } from '@/stores/ui'
 import { inferJobCategory } from '@/utils/jobCategories'
 
@@ -182,7 +182,7 @@ const getLanguage = () => {
 }
 
 const copy = () => {
-  if (getLanguage() === 'en') {
+  if (getLanguage() !== 'ru') {
     return {
       strongMatch: 'Excellent match',
       goodMatch: 'Good match',
@@ -807,3 +807,4 @@ export const analyzeCandidateMatch = (candidateRaw, vacancyRaw) => {
 }
 
 export const getMatchMetaByKey = (key) => MATCH_META[key] || MATCH_META.partial
+
