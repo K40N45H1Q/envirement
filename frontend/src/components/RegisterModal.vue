@@ -80,7 +80,7 @@
               <input
                 v-model.trim="email"
                 type="email"
-                placeholder="Email"
+                :placeholder="t('loginExtra.emailPlaceholder')"
                 class="input"
                 autocomplete="email"
                 @input="setError('')"

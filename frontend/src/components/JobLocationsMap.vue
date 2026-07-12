@@ -149,6 +149,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .job-map {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
   width: 100%;
   border-radius: 1rem;
   overflow: hidden;

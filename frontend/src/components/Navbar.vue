@@ -1,6 +1,6 @@
 ﻿<template>
   <header class="navbar">
-    <RouterLink to="/" class="logo-link" @click="closeMenu">
+    <RouterLink to="/" class="logo-link logo-link--header" @click="closeMenu">
       <Logo />
     </RouterLink>
 
@@ -107,13 +107,23 @@
       </template>
     </div>
 
-    <button class="burger-menu" type="button" :aria-expanded="isMenuOpen" @click="toggleMenu">
+    <button
+      class="burger-menu"
+      :class="{ 'burger-menu--open': isMenuOpen }"
+      type="button"
+      :aria-expanded="isMenuOpen"
+      @click="toggleMenu"
+    >
       <i :class="isMenuOpen ? 'fas fa-xmark' : 'fas fa-bars'"></i>
     </button>
 
     <transition name="menu-fade">
       <div v-if="isMenuOpen" class="mobile-menu-overlay">
         <aside class="mobile-menu" @click.stop>
+          <RouterLink to="/" class="logo-link logo-link--mobile-menu" @click="closeMenu">
+            <Logo />
+          </RouterLink>
+
           <div class="mobile-user-card">
             <div class="mobile-user-card__avatar">
               <img v-if="mobileUserAvatar" :src="mobileUserAvatar" :alt="mobileUserTitle" />
@@ -174,19 +184,6 @@
               </RouterLink>
             </template>
 
-            <div v-if="mobileAccountLinks.length" class="mobile-account-links">
-              <p class="mobile-account-links__title">{{ t('navbar.accountLinksTitle') }}</p>
-              <RouterLink
-                v-for="item in mobileAccountLinks"
-                :key="`${item.to}-${item.label}`"
-                :to="item.to"
-                class="mobile-nav-link mobile-nav-link--secondary"
-                @click="closeMenu"
-              >
-                <i :class="item.icon"></i>
-                <span>{{ item.label }}</span>
-              </RouterLink>
-            </div>
           </div>
 
           <div class="mobile-auth-buttons">
@@ -367,9 +364,7 @@ export default {
 
       if (this.normalizedAccountType === 'admin') {
         return [
-          { label: this.t('navbar.adminPanel'), to: '/admin', primary: true, icon: 'fas fa-shield-halved' },
-          { label: this.t('navbar.dashboard'), to: '/dashboard?section=users', icon: 'fas fa-table-columns' },
-          { label: this.t('navbar.profile'), to: '/profile', icon: 'fas fa-user' },
+          { label: this.t('navbar.dashboard'), to: '/dashboard?section=users', primary: true, icon: 'fas fa-table-columns' },
         ]
       }
 

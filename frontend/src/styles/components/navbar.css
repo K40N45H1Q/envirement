@@ -1,4 +1,5 @@
 .navbar {
+  --mobile-menu-width: min(68vw, 19.5rem);
   display: flex;
   max-width: var(--shell-max-width);
   align-items: center;
@@ -21,6 +22,10 @@
   display: flex;
   flex-shrink: 0;
   text-decoration: none;
+}
+
+.logo-link--mobile-menu {
+  display: none;
 }
 
 .logo-link :deep(svg) {
@@ -207,13 +212,28 @@
 
 .burger-menu {
   display: none;
+  position: fixed;
+  top: 0.9rem;
+  left: 1rem;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem;
-  font-size: 1.6rem;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999rem;
+  background: color-mix(in srgb, var(--surface-primary) 94%, white);
+  box-shadow: 0 0.65rem 1.5rem rgba(15, 23, 42, 0.12);
+  font-size: 1.45rem;
   color: var(--text-primary);
-  z-index: 1001;
+  z-index: 3002;
+  transition: left 0.25s ease, transform 0.25s ease, background-color 0.2s ease;
+}
+
+.burger-menu--open {
+  left: calc(var(--mobile-menu-width) + 1.3rem);
 }
 
 .mobile-menu-overlay {
@@ -221,19 +241,23 @@
   inset: 0;
   background: transparent;
   height: 100vh;
-  z-index: 1000;
+  z-index: 3000;
 }
 
 .mobile-menu {
   position: fixed;
+  z-index: 1;
   top: 0;
-  right: 0;
-  width: 75vw;
-  max-width: 22rem;
+  left: 0;
+  width: var(--mobile-menu-width);
+  max-width: 19.5rem;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #fff;
-  box-shadow: -1rem 0 2rem rgba(17, 24, 39, 0.08);
-  padding: 5rem 1.5rem 2rem;
+  box-shadow: 1rem 0 2rem rgba(17, 24, 39, 0.08);
+  border-radius: 0 1.25rem 1.25rem 0;
+  padding: 1rem 1rem 1.15rem;
   overflow-y: auto;
   animation: slideIn 0.3s ease-out;
 }
@@ -241,15 +265,15 @@
 .mobile-user-card {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0 0 1.1rem;
-  margin-bottom: 0.95rem;
+  gap: 0.75rem;
+  padding: 0 0 0.8rem;
+  margin-bottom: 0.7rem;
   border-bottom: 0.0625rem solid var(--border-subtle);
 }
 
 .mobile-user-card__avatar {
-  width: 3.35rem;
-  height: 3.35rem;
+  width: 3rem;
+  height: 3rem;
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -276,8 +300,8 @@
 
 .mobile-user-card__meta strong {
   color: var(--text-primary);
-  font-size: 0.98rem;
-  line-height: 1.35;
+  font-size: 0.92rem;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -285,7 +309,7 @@
 
 .mobile-user-card__role {
   color: var(--brand-strong);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -294,7 +318,7 @@
 .mobile-menu-links,
 .mobile-account-links {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .mobile-account-links {
@@ -316,11 +340,12 @@
 .mobile-nav-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  gap: 0.7rem;
+  padding: 0.72rem 0.8rem;
   color: var(--text-primary);
   text-decoration: none;
   border-radius: 0.5rem;
+  font-size: 0.94rem;
 }
 
 .mobile-nav-link--button {
@@ -357,7 +382,7 @@
 
 .mobile-jobs-menu {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.2rem;
 }
 
 .mobile-jobs-menu__chevron {
@@ -371,8 +396,8 @@
 
 .mobile-jobs-menu__dropdown {
   display: grid;
-  gap: 0.9rem;
-  padding: 0.25rem 0.35rem 0.35rem 2.8rem;
+  gap: 0.55rem;
+  padding: 0.1rem 0.2rem 0.2rem 2.25rem;
 }
 
 .mobile-jobs-menu__section {
@@ -383,7 +408,7 @@
 .mobile-jobs-menu__title {
   margin: 0 0 0.2rem;
   color: var(--text-muted);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -392,7 +417,8 @@
 .mobile-jobs-menu__link {
   color: var(--text-primary);
   text-decoration: none;
-  padding: 0.35rem 0;
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
 }
 
 .mobile-jobs-menu__link:hover,
@@ -403,17 +429,17 @@
 .mobile-auth-buttons {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  margin-top: 1rem;
+  gap: 0.55rem;
+  padding-top: 0.7rem;
+  margin-top: 0.7rem;
   border-top: 0.0625rem solid var(--border-subtle);
 }
 
 .mobile-language-switcher {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.45rem;
   border-radius: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 0.7rem 0.85rem;
   border: 0.0625rem solid var(--border-subtle);
   background: var(--surface-primary);
 }
@@ -422,6 +448,9 @@
 .mobile-auth-buttons .btn-secondary {
   width: 100%;
   justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.92rem;
 }
 
 .user-menu-wrapper {
@@ -474,7 +503,7 @@
 
 @keyframes slideIn {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
 
   to {
@@ -489,19 +518,40 @@
 }
 
 @media (max-width: 74rem) {
+  .navbar {
+    justify-content: flex-start;
+    min-height: 5rem;
+  }
+
   .desktop-nav,
   .actions {
     display: none;
   }
 
+  .logo-link--header {
+    display: none;
+  }
+
+  .logo-link--mobile-menu {
+    display: flex;
+    align-items: center;
+    margin: 0 0 0.7rem;
+  }
+
+  .logo-link--mobile-menu :deep(svg) {
+    width: 9.5rem;
+    height: auto;
+  }
+
   .burger-menu {
-    display: block;
+    display: inline-flex;
   }
 }
 
 @media (max-width: 30rem) {
   .navbar {
     padding: 0.8rem 1rem;
+    min-height: 4.6rem;
   }
 
   .logo-link :deep(svg) {
@@ -509,6 +559,48 @@
   }
 
   .mobile-menu {
-    width: 85vw;
+    width: 80vw;
+    padding: 0.85rem 0.85rem 1rem;
+  }
+
+  .mobile-user-card {
+    gap: 0.65rem;
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .mobile-user-card__avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 0.92rem;
+  }
+
+  .mobile-user-card__meta strong {
+    font-size: 0.88rem;
+  }
+
+  .mobile-nav-link {
+    padding: 0.64rem 0.72rem;
+    gap: 0.62rem;
+    font-size: 0.9rem;
+  }
+
+  .mobile-jobs-menu__dropdown {
+    gap: 0.45rem;
+    padding-left: 2.05rem;
+  }
+
+  .mobile-auth-buttons {
+    gap: 0.5rem;
+    padding-top: 0.6rem;
+    margin-top: 0.6rem;
+  }
+
+  .mobile-language-switcher {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .burger-menu--open {
+    left: calc(80vw + 0.55rem);
   }
 }
