@@ -10,6 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
 from app.beta_router import router as beta_router
 from app.core.config import settings
+from app.db.base import Base
+from app.db.session import engine
+from app.models.user import User  # noqa: F401
 from app.services.beta_ip_security import (
     clear_failed_attempts,
     get_client_ip,
@@ -142,6 +145,11 @@ def create_app() -> FastAPI:
     sync_default_accounts()
 
     app = FastAPI(title=settings.app_name, debug=settings.app_debug)
+
+    @app.on_event("startup")
+    async def ensure_database_ready() -> None:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
 
     app.add_middleware(
         CORSMiddleware,

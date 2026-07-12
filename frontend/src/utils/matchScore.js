@@ -1,4 +1,5 @@
 ﻿import { normalizeLanguages, normalizeLicenses } from './jobRequirements'
+import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
 import { inferJobCategory } from '@/utils/jobCategories'
 
@@ -181,120 +182,7 @@ const getLanguage = () => {
   }
 }
 
-const copy = () => {
-  if (getLanguage() !== 'ru') {
-    return {
-      strongMatch: 'Excellent match',
-      goodMatch: 'Good match',
-      partialMatch: 'Potential match',
-      weakMatch: 'Weak match',
-      failMatch: 'Blocked by requirements',
-      strong: 'Excellent',
-      good: 'Good',
-      partial: 'Potential',
-      weak: 'Weak',
-      fail: 'Blocked',
-      green: 'Green light',
-      amber: 'Amber light',
-      red: 'Red light',
-      profilePhysical: 'Physical work profile',
-      profileTransport: 'Transport profile',
-      profileService: 'Service profile',
-      profileOffice: 'Office profile',
-      profileExpert: 'Expert profile',
-      experience: 'Experience',
-      language: 'Languages',
-      tags: 'Skills and signals',
-      education: 'Education',
-      prefilters: 'Prefilters',
-      gates: 'Hard requirements',
-      prefilterSalary: 'Expected salary is above the vacancy ceiling.',
-      prefilterEmployment: 'Employment type does not match the vacancy.',
-      gateLicense: 'Missing required license: {value}.',
-      gateLanguage: 'Language below required level: {value}.',
-      gateTag: 'Missing mandatory skill or keyword: {value}.',
-      gateWorkAuth: 'No work authorization for {value}.',
-      gateEducation: 'Education level is below the minimum.',
-      gateCertified: 'Required proof or certificate is missing.',
-      gateEmployment: 'Employment type does not match.',
-      gateUnknown: 'One of the mandatory requirements is not met.',
-      noRelevantExperience: 'No confirmed experience found in this job category.',
-      matchedExperience: 'Experience in matching category: {value} years.',
-      requiredExperience: 'Vacancy baseline: {value}+ years.',
-      languageMissing: 'Candidate language data is missing.',
-      noLanguageRequirements: 'The vacancy has no language requirements.',
-      requiredLanguages: 'Required: {value}.',
-      languageAverage: 'Average language coverage: {value}%.',
-      noTagRequirements: 'No extra skill tags were detected for this vacancy.',
-      matchedTags: 'Matched tags: {value}.',
-      missingTags: 'Not matched: {value}.',
-      noEducationRequirements: 'No education requirement is defined for this vacancy.',
-      educationMatched: 'Education matches the vacancy level.',
-      educationGap: 'Education is close but one step below the target.',
-      educationLow: 'Education level is below the expected baseline.',
-      pass: 'Passed',
-      blocked: 'Blocked',
-      scoreLabel: 'Match score',
-    }
-  }
-
-  return {
-    strongMatch: 'Идеальное совпадение',
-    goodMatch: 'Хорошее совпадение',
-    partialMatch: 'Потенциальное совпадение',
-    weakMatch: 'Слабое совпадение',
-    failMatch: 'Блокируется требованиями',
-    strong: 'Идеально',
-    good: 'Хорошо',
-    partial: 'Потенциал',
-    weak: 'Слабо',
-    fail: 'Блок',
-    green: 'Зелёный свет',
-    amber: 'Жёлтый свет',
-    red: 'Красный свет',
-    profilePhysical: 'Профиль физического труда',
-    profileTransport: 'Профиль транспорта',
-    profileService: 'Профиль сервиса',
-    profileOffice: 'Профиль офиса',
-    profileExpert: 'Профиль экспертной роли',
-    experience: 'Опыт',
-    language: 'Языки',
-    tags: 'Навыки и сигналы',
-    education: 'Образование',
-    prefilters: 'Предфильтры',
-    gates: 'Жёсткие требования',
-    prefilterSalary: 'Ожидаемая зарплата выше потолка вакансии.',
-    prefilterEmployment: 'Тип занятости не совпадает с вакансией.',
-    gateLicense: 'Не хватает обязательной лицензии: {value}.',
-    gateLanguage: 'Язык ниже требуемого уровня: {value}.',
-    gateTag: 'Не найден обязательный навык или тег: {value}.',
-    gateWorkAuth: 'Нет разрешения на работу для {value}.',
-    gateEducation: 'Уровень образования ниже минимального.',
-    gateCertified: 'Не найден обязательный сертификат или подтверждение.',
-    gateEmployment: 'Тип занятости не совпадает.',
-    gateUnknown: 'Одно из обязательных требований не выполнено.',
-    noRelevantExperience: 'Не найден подтверждённый опыт в нужной категории.',
-    matchedExperience: 'Опыт в совпадающей категории: {value} лет.',
-    requiredExperience: 'Базовое требование вакансии: от {value} лет.',
-    languageMissing: 'У кандидата не заполнены языки.',
-    noLanguageRequirements: 'У вакансии нет языковых требований.',
-    requiredLanguages: 'Требуются: {value}.',
-    languageAverage: 'Среднее покрытие по языкам: {value}%.',
-    noTagRequirements: 'У вакансии не найдены дополнительные теги навыков.',
-    matchedTags: 'Совпавшие теги: {value}.',
-    missingTags: 'Не совпало: {value}.',
-    noEducationRequirements: 'Для вакансии не задано требование по образованию.',
-    educationMatched: 'Образование соответствует вакансии.',
-    educationGap: 'Образование близко, но на один уровень ниже.',
-    educationLow: 'Образование заметно ниже ожидаемого уровня.',
-    pass: 'Пройдено',
-    blocked: 'Блок',
-    scoreLabel: 'Match score',
-  }
-}
-
-const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
-const text = (key, params = {}) => interpolate(copy()[key], params)
+const text = (key, params = {}) => translate(`matchScore.${key}`, params, getLanguage())
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value))
 
@@ -409,13 +297,11 @@ const getProfileLabel = (profileKey) => {
 }
 
 const getMatchMeta = (score, failedGates = []) => {
-  const localized = copy()
-
-  if (failedGates.length || score <= 0) return { ...MATCH_META.fail, label: localized.failMatch, shortLabel: localized.fail }
-  if (score >= 85) return { ...MATCH_META.strong, label: localized.strongMatch, shortLabel: localized.strong }
-  if (score >= 75) return { ...MATCH_META.good, label: localized.goodMatch, shortLabel: localized.good }
-  if (score >= 50) return { ...MATCH_META.partial, label: localized.partialMatch, shortLabel: localized.partial }
-  return { ...MATCH_META.weak, label: localized.weakMatch, shortLabel: localized.weak }
+  if (failedGates.length || score <= 0) return { ...MATCH_META.fail, label: text('failMatch'), shortLabel: text('fail') }
+  if (score >= 85) return { ...MATCH_META.strong, label: text('strongMatch'), shortLabel: text('strong') }
+  if (score >= 75) return { ...MATCH_META.good, label: text('goodMatch'), shortLabel: text('good') }
+  if (score >= 50) return { ...MATCH_META.partial, label: text('partialMatch'), shortLabel: text('partial') }
+  return { ...MATCH_META.weak, label: text('weakMatch'), shortLabel: text('weak') }
 }
 
 const getTrafficLight = ({ score = 0, failedGates = [] }) => {
@@ -514,8 +400,6 @@ const normalizeCandidate = (candidate = {}) => {
     tags: extractFreeTags(
       candidate.candidate_current_role,
       candidate.current_role,
-      candidate.candidate_summary,
-      candidate.summary,
       candidate.candidate_skills,
       candidate.skills,
       ...licenses,
@@ -545,7 +429,6 @@ const normalizeVacancy = (job = {}) => {
     ? EXPERIENCE_YEARS[explicitExperienceLevel]
     : parsedMinYears
   const title = job.job_title || job.title || ''
-  const description = job.job_description || job.description || ''
   const requirements = []
   const educationLevel = normalizeEducationLevel(job.job_education_level || job.education_level || '')
 
@@ -562,7 +445,7 @@ const normalizeVacancy = (job = {}) => {
     })
   })
 
-  extractFreeTags(title, description)
+  extractFreeTags(title, category)
     .filter((tag) => !licenses.some((license) => normalizeText(license) === normalizeText(tag)))
     .slice(0, 8)
     .forEach((tag) => {
@@ -807,4 +690,3 @@ export const analyzeCandidateMatch = (candidateRaw, vacancyRaw) => {
 }
 
 export const getMatchMetaByKey = (key) => MATCH_META[key] || MATCH_META.partial
-

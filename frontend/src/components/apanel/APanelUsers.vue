@@ -143,7 +143,11 @@ const revokeSubscription = (user) => {
             </td>
 
             <td>
-              <span class="apanel-status-pill" :title="statusLabel(user.status)">
+              <span
+                class="apanel-status-pill"
+                :class="`apanel-status-pill--${user.status || 'active'}`"
+                :title="statusLabel(user.status)"
+              >
                 {{ statusLabel(user.status) }}
               </span>
             </td>
@@ -177,6 +181,8 @@ const revokeSubscription = (user) => {
                     :options="planOptions"
                     size="sm"
                     align="right"
+                    overlay
+                    menu-class="apanel-plan-menu"
                     :show-selected-hint="false"
                     :aria-label="t('aPanelUsers.subscriptionAria')"
                   />
@@ -216,6 +222,7 @@ const revokeSubscription = (user) => {
 <style scoped>
 .apanel-card {
   position: relative;
+  z-index: 5;
   width: 100%;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 0.95rem;
@@ -223,12 +230,13 @@ const revokeSubscription = (user) => {
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 253, 251, 0.98)),
     var(--surface-primary);
   box-shadow: var(--shadow-soft);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .apanel-table-wrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .apanel-table {
@@ -259,6 +267,7 @@ const revokeSubscription = (user) => {
 .apanel-table tbody tr:last-child td {
   border-bottom: 0;
 }
+
 
 .apanel-user-row {
   display: flex;
@@ -318,16 +327,30 @@ const revokeSubscription = (user) => {
   font-weight: 800;
 }
 
+.apanel-pill,
+.apanel-status-pill,
+.apanel-beta {
+  min-width: 5.75rem;
+}
+
+.apanel-status-pill--active,
 .apanel-beta--active,
 .apanel-plan--active {
   background: color-mix(in srgb, var(--brand-soft) 72%, white);
   color: var(--brand-strong);
 }
 
+.apanel-status-pill--inactive {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
 .apanel-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  position: relative;
+  z-index: 20;
 }
 
 .apanel-icon-button {
@@ -335,16 +358,74 @@ const revokeSubscription = (user) => {
   height: 2.35rem;
   border: 0;
   border-radius: 0.72rem;
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--text-primary);
+  background: linear-gradient(180deg, #1ab16f 0%, #15955d 100%);
+  color: #fff;
+  box-shadow: 0 0.625rem 1.2rem rgba(21, 149, 93, 0.18);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.apanel-icon-button:hover {
+  transform: translateY(-0.0625rem);
+  filter: brightness(1.03);
+}
+
+.apanel-icon-button:focus-visible {
+  outline: 0.1875rem solid rgba(21, 149, 93, 0.18);
+  outline-offset: 0.125rem;
+}
+
+.apanel-icon-button:active {
+  transform: translateY(0);
 }
 
 .apanel-icon-button--danger {
-  color: #be123c;
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  box-shadow: 0 0.625rem 1.2rem rgba(220, 38, 38, 0.18);
+}
+
+.apanel-icon-button--danger:focus-visible {
+  outline-color: rgba(220, 38, 38, 0.2);
 }
 
 .apanel-plan-dropdown {
-  min-width: 8.5rem;
+  width: 9.4rem;
+  min-width: 9.4rem;
+}
+
+.apanel-plan-dropdown:deep(.dropdown__trigger) {
+  min-height: 2.35rem;
+  padding: 0.38rem 0.7rem;
+  border-radius: 0.72rem;
+  border-color: color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 72%, white);
+  color: var(--brand-strong);
+  box-shadow: inset 0 0 0 0.0625rem rgba(21, 149, 93, 0.12);
+}
+
+.apanel-plan-dropdown:deep(.dropdown__content) {
+  gap: 0;
+}
+
+.apanel-plan-dropdown:deep(.dropdown__label),
+.apanel-plan-dropdown:deep(.dropdown__option-label),
+.apanel-plan-dropdown:deep(.dropdown__chevron),
+.apanel-plan-dropdown:deep(.dropdown__option-check) {
+  color: var(--brand-strong);
+}
+
+.apanel-plan-dropdown:deep(.dropdown__label) {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.apanel-plan-dropdown:deep(.dropdown__chevron) {
+  font-size: 0.82rem;
+}
+
+:global(.apanel-plan-menu .dropdown__option-label) {
+  font-size: 0.88rem;
 }
 
 .apanel-empty {

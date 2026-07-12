@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -49,13 +49,23 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  overlay: {
+    type: Boolean,
+    default: false,
+  },
+  menuClass: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'change', 'open', 'close'])
 
 const root = ref(null)
+const menu = ref(null)
 const isOpen = ref(false)
 const highlightedIndex = ref(-1)
+const menuStyle = ref({})
 
 const normalizedOptions = computed(() => props.options.map((option) => {
   if (typeof option === 'object' && option !== null) {
@@ -99,6 +109,25 @@ const open = () => {
     0,
   )
   emit('open')
+}
+
+const updateMenuPosition = () => {
+  if (!props.overlay || !isOpen.value || !root.value) return
+
+  const rect = root.value.getBoundingClientRect()
+  const width = rect.width
+  const top = rect.bottom + 8
+  const left = props.align === 'right' ? rect.right - width : rect.left
+
+  menuStyle.value = {
+    position: 'fixed',
+    top: `${top}px`,
+    left: `${Math.max(8, left)}px`,
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    maxWidth: `${width}px`,
+    zIndex: 4000,
+  }
 }
 
 const toggle = () => {
@@ -175,17 +204,27 @@ const onKeydown = (event) => {
 }
 
 const handleOutsideClick = (event) => {
-  if (!root.value?.contains(event.target)) {
+  if (!root.value?.contains(event.target) && !menu.value?.contains(event.target)) {
     close()
   }
 }
 
 onMounted(() => {
   document.addEventListener('click', handleOutsideClick)
+  window.addEventListener('resize', updateMenuPosition)
+  window.addEventListener('scroll', updateMenuPosition, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutsideClick)
+  window.removeEventListener('resize', updateMenuPosition)
+  window.removeEventListener('scroll', updateMenuPosition, true)
+})
+
+watch(isOpen, async (value) => {
+  if (!value) return
+  await nextTick()
+  updateMenuPosition()
 })
 </script>
 
@@ -227,35 +266,45 @@ onBeforeUnmount(() => {
       </span>
     </button>
 
-    <transition name="dropdown-fade">
-      <div v-if="isOpen" class="dropdown__menu" role="listbox">
-        <button
-          v-for="(option, index) in normalizedOptions"
-          :key="`${option.value}-${index}`"
-          type="button"
-          class="dropdown__option"
-          :class="{
-            'dropdown__option--selected': option.value === modelValue,
-            'dropdown__option--highlighted': index === highlightedIndex,
-          }"
-          @click="selectOption(option)"
-          @mouseenter="highlightedIndex = index"
+    <Teleport to="body" :disabled="!overlay">
+      <transition name="dropdown-fade">
+        <div
+          v-if="isOpen"
+          ref="menu"
+          class="dropdown__menu"
+          :class="menuClass"
+          :style="overlay ? menuStyle : undefined"
+          role="listbox"
+          @mouseleave="highlightedIndex = -1"
         >
-          <span v-if="option.iconClass" class="dropdown__option-icon">
-            <i :class="option.iconClass"></i>
-          </span>
+          <button
+            v-for="(option, index) in normalizedOptions"
+            :key="`${option.value}-${index}`"
+            type="button"
+            class="dropdown__option"
+            :class="{
+              'dropdown__option--selected': option.value === modelValue,
+              'dropdown__option--highlighted': index === highlightedIndex,
+            }"
+            @click="selectOption(option)"
+            @mouseenter="highlightedIndex = index"
+          >
+            <span v-if="option.iconClass" class="dropdown__option-icon">
+              <i :class="option.iconClass"></i>
+            </span>
 
-          <span class="dropdown__option-copy">
-            <span class="dropdown__option-label">{{ option.label }}</span>
-            <span v-if="option.hint" class="dropdown__option-hint">{{ option.hint }}</span>
-          </span>
+            <span class="dropdown__option-copy">
+              <span class="dropdown__option-label">{{ option.label }}</span>
+              <span v-if="option.hint" class="dropdown__option-hint">{{ option.hint }}</span>
+            </span>
 
-          <span v-if="option.value === modelValue" class="dropdown__option-check">
-            <i class="fas fa-check"></i>
-          </span>
-        </button>
-      </div>
-    </transition>
+            <span v-if="option.value === modelValue" class="dropdown__option-check">
+              <i class="fas fa-check"></i>
+            </span>
+          </button>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -270,6 +319,7 @@ onBeforeUnmount(() => {
 }
 
 .dropdown__trigger {
+  box-sizing: border-box;
   width: 100%;
   min-height: 3.3rem;
   display: flex;
@@ -354,6 +404,7 @@ onBeforeUnmount(() => {
 }
 
 .dropdown__menu {
+  box-sizing: border-box;
   position: absolute;
   top: calc(100% + 0.5rem);
   left: 0;
@@ -370,8 +421,8 @@ onBeforeUnmount(() => {
 }
 
 .dropdown--right .dropdown__menu {
-  left: auto;
   right: 0;
+  left: auto;
 }
 
 .dropdown__option {

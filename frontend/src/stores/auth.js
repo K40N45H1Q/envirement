@@ -75,9 +75,15 @@ export const useAuth = defineStore('auth', {
           this.state.sessionExpired = false
           return this.state.user
         } catch (error) {
-          this.state.sessionExpired = error?.status === 401
-          logoutRequest()
-          this.state.user = null
+          const isUnauthorized = error?.status === 401
+
+          this.state.sessionExpired = isUnauthorized
+
+          if (isUnauthorized) {
+            logoutRequest()
+            this.state.user = null
+          }
+
           return null
         } finally {
           this.state.isLoading = false

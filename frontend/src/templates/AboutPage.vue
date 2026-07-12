@@ -99,19 +99,6 @@ const copy = computed(() => translate('aboutPage', {}, language.value))
         </div>
       </section>
 
-      <section class="founder-shell">
-        <div class="founder-badge">
-          <div class="founder-avatar">CV</div>
-          <span class="founder-role">{{ copy.founderRole }}</span>
-        </div>
-
-        <div class="founder-copy">
-          <p class="eyebrow">{{ copy.founderEyebrow }}</p>
-          <h2>{{ copy.founderTitle }}</h2>
-          <p v-for="paragraph in copy.founderBody" :key="paragraph">{{ paragraph }}</p>
-        </div>
-      </section>
-
       <section class="contact-shell">
         <div class="section-head">
           <p class="eyebrow">{{ copy.contactEyebrow }}</p>

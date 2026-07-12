@@ -258,8 +258,8 @@ const focusJob = (jobId) => {
                       {{ tag }}
                     </span>
                   </div>
-
                   <strong class="job-salary">{{ formatSalaryLabel(job.salary) }}</strong>
+
                 </div>
 
                 <div class="job-actions">

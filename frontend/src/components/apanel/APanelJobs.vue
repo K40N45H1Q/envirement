@@ -112,15 +112,17 @@ const openBannerModal = (job) => {
       <p v-else class="apanel-empty">{{ emptyText || t('aPanelJobs.emptyText') }}</p>
     </div>
 
-    <div v-if="previewJob" class="apanel-preview">
-      <div class="apanel-preview-toolbar">
-        <strong>{{ t('aPanelJobs.previewTitle') }}</strong>
-        <button type="button" class="apanel-icon-button" :title="t('aPanelJobs.close')" :aria-label="t('aPanelJobs.close')" @click="previewJob = null">
-          <i class="fas fa-xmark"></i>
-        </button>
-      </div>
+    <Teleport to="body">
+      <div v-if="previewJob" class="apanel-preview" role="dialog" aria-modal="true" @click.self="previewJob = null">
+        <div class="apanel-preview__dialog">
+          <div class="apanel-preview-toolbar">
+            <strong>{{ t('aPanelJobs.previewTitle') }}</strong>
+            <button type="button" class="apanel-icon-button apanel-icon-button--close" :title="t('aPanelJobs.close')" :aria-label="t('aPanelJobs.close')" @click="previewJob = null">
+              <i class="fas fa-xmark"></i>
+            </button>
+          </div>
 
-      <main class="job-preview-page">
+          <main class="job-preview-page">
         <section class="job-preview-hero">
           <div class="job-preview-logo">
             <img v-if="previewJob.logo" :src="previewJob.logo" :alt="previewJob.company || previewJob.title" />
@@ -130,7 +132,7 @@ const openBannerModal = (job) => {
           <div>
             <p>{{ t('aPanelJobs.vacancyLabel') }}</p>
             <h1>{{ previewJob.title }}</h1>
-            <p>{{ previewJob.company || t('aPanelJobs.companyMissing') }} · {{ previewJob.location || t('aPanelJobs.locationMissing') }}</p>
+            <p>{{ previewJob.company || t('aPanelJobs.companyMissing') }} &middot; {{ previewJob.location || t('aPanelJobs.locationMissing') }}</p>
           </div>
 
           <aside>
@@ -174,8 +176,10 @@ const openBannerModal = (job) => {
             </dl>
           </section>
         </section>
-      </main>
-    </div>
+          </main>
+        </div>
+      </div>
+    </Teleport>
 
     <div v-if="bannerModalJob" class="banner-modal" role="dialog" aria-modal="true" @click.self="bannerModalJob = null">
       <button type="button" class="banner-modal__close" :aria-label="t('aPanelJobs.close')" @click="bannerModalJob = null">
@@ -231,6 +235,14 @@ const openBannerModal = (job) => {
   border-bottom: 0;
 }
 
+.apanel-table tbody tr {
+  transition: background-color 0.18s ease;
+}
+
+.apanel-table tbody tr:hover {
+  background: color-mix(in srgb, var(--brand-soft) 18%, white);
+}
+
 .apanel-job-title {
   display: grid;
   gap: 0.2rem;
@@ -244,6 +256,8 @@ const openBannerModal = (job) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 8.75rem;
+  min-height: 2rem;
   padding: 0.38rem 0.72rem;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.08);
@@ -271,25 +285,63 @@ const openBannerModal = (job) => {
 
 .apanel-actions {
   display: flex;
+  align-items: center;
   gap: 0.45rem;
+  white-space: nowrap;
 }
 
 .apanel-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 2.35rem;
   width: 2.35rem;
   height: 2.35rem;
   border: 0;
   border-radius: 0.72rem;
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--text-primary);
+  background: linear-gradient(180deg, #64748b, #475569);
+  color: #fff;
+  box-shadow: 0 0.55rem 1rem rgba(71, 85, 105, 0.16);
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.apanel-icon-button:hover {
+  transform: translateY(-0.0625rem);
+  filter: brightness(1.06);
+}
+
+.apanel-icon-button:active {
+  transform: translateY(0);
+}
+
+.apanel-icon-button:focus-visible {
+  outline: 0.1875rem solid rgba(15, 23, 42, 0.16);
+  outline-offset: 0.125rem;
+}
+
+.apanel-icon-button--preview {
+  background: linear-gradient(180deg, #22a6f2, #1684c7);
+  box-shadow: 0 0.55rem 1rem rgba(22, 132, 199, 0.18);
 }
 
 .apanel-icon-button--approve {
-  color: var(--brand-strong);
+  background: linear-gradient(180deg, #1ab16f, #15955d);
+  box-shadow: 0 0.55rem 1rem rgba(21, 149, 93, 0.18);
 }
 
-.apanel-icon-button--reject,
+.apanel-icon-button--reject {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+  box-shadow: 0 0.55rem 1rem rgba(217, 119, 6, 0.18);
+}
+
 .apanel-icon-button--danger {
-  color: #be123c;
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  box-shadow: 0 0.55rem 1rem rgba(220, 38, 38, 0.18);
+}
+
+.apanel-icon-button--close {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  box-shadow: 0 0.55rem 1rem rgba(220, 38, 38, 0.18);
 }
 
 .apanel-empty {
@@ -299,21 +351,42 @@ const openBannerModal = (job) => {
 }
 
 .apanel-preview {
-  border-top: 0.0625rem solid var(--border-subtle);
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(0.35rem);
+}
+
+.apanel-preview__dialog {
+  width: min(76rem, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  border: 0.0625rem solid rgba(255, 255, 255, 0.45);
+  border-radius: 1.15rem;
+  background: var(--surface-primary);
+  box-shadow: 0 2rem 5rem rgba(15, 23, 42, 0.28);
 }
 
 .apanel-preview-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.1rem;
+  background: var(--surface-primary);
 }
 
 .job-preview-page {
   display: grid;
   gap: 1rem;
-  padding: 0 1.1rem 1.1rem;
+  padding: 1.1rem;
 }
 
 .job-preview-hero {
@@ -347,6 +420,40 @@ const openBannerModal = (job) => {
 .job-preview-hero p,
 .job-preview-hero span {
   color: var(--text-muted);
+}
+
+.job-preview-hero h1,
+.job-preview-hero p {
+  margin: 0;
+}
+
+.job-preview-hero > div:nth-child(2) {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.job-preview-hero aside {
+  min-width: 11rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.8rem 0.9rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+
+.job-preview-hero aside strong {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.job-preview-link {
+  margin-top: 0.25rem;
+  color: var(--brand-strong) !important;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .job-preview-grid {
@@ -428,6 +535,14 @@ const openBannerModal = (job) => {
   .job-preview-hero,
   .job-preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .apanel-preview {
+    padding: 0.75rem;
+  }
+
+  .apanel-preview__dialog {
+    max-height: calc(100vh - 1.5rem);
   }
 }
 </style>
