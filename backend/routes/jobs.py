@@ -397,35 +397,36 @@ def reject_job(
 @router.post("/apply")
 async def apply_to_job(
     request: Request,
+    job_id: Optional[int] = Form(None),
+    phone: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    username: Optional[str] = Form(None),
+    name: Optional[str] = Form(None),
+    surname: Optional[str] = Form(None),
+    nationality: Optional[str] = Form(None),
+    message: Optional[str] = Form(None),
+    resume: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
     require_account_types(current_user, "candidate")
 
     content_type = request.headers.get("content-type", "")
-    resume_upload = None
+    resume_upload = resume if getattr(resume, "filename", None) else None
 
-    if "multipart/form-data" in content_type:
-        form = await request.form()
-        request_data = dict(form)
-        resume_candidate = form.get("resume")
-        if getattr(resume_candidate, "filename", None):
-            resume_upload = resume_candidate
-    else:
+    if "multipart/form-data" not in content_type:
         request_data = await request.json()
-
-    job_id = request_data.get("job_id")
-    try:
-        job_id = int(job_id)
-    except (TypeError, ValueError):
-        job_id = None
-    phone = request_data.get("phone")
-    email = request_data.get("email")
-    username = request_data.get("username")
-    name = request_data.get("name")
-    surname = request_data.get("surname")
-    nationality = request_data.get("nationality")
-    message = request_data.get("message")
+        try:
+            job_id = int(request_data.get("job_id"))
+        except (TypeError, ValueError):
+            job_id = None
+        phone = request_data.get("phone")
+        email = request_data.get("email")
+        username = request_data.get("username")
+        name = request_data.get("name")
+        surname = request_data.get("surname")
+        nationality = request_data.get("nationality")
+        message = request_data.get("message")
 
     if not job_id or not phone or not email or not name or not surname:
         raise HTTPException(status_code=400, detail={"key": "missing_fields"})

@@ -84,7 +84,7 @@ const currentYear = new Date().getFullYear()
   width: fit-content;
 }
 
-.brand-link :deep(svg) {
+.brand-link :deep(.logo) {
   width: clamp(9rem, 15vw, 12rem);
   height: auto;
 }

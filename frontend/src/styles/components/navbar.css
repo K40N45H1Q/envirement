@@ -28,7 +28,7 @@
   display: none;
 }
 
-.logo-link :deep(svg) {
+.logo-link :deep(.logo) {
   width: 10.5rem;
   height: auto;
 }
@@ -538,7 +538,7 @@
     margin: 0 0 0.7rem;
   }
 
-  .logo-link--mobile-menu :deep(svg) {
+  .logo-link--mobile-menu :deep(.logo) {
     width: 9.5rem;
     height: auto;
   }
@@ -554,7 +554,7 @@
     min-height: 4.6rem;
   }
 
-  .logo-link :deep(svg) {
+  .logo-link :deep(.logo) {
     width: 9.5rem;
   }
 

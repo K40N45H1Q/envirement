@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
+import { resolveApiUrl } from '@/api/client'
 import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
@@ -398,6 +399,10 @@ function responseMessage(item) {
   return item.message || copy.value.noCandidateMessage
 }
 
+function responseResumeUrl(item) {
+  return resolveApiUrl(item.candidate_resume_url || '')
+}
+
 async function setSection(sectionId) {
   activeSection.value = normalizeSection(sectionId)
   await router.replace({
@@ -423,6 +428,20 @@ async function fetchDashboardData({ silent = false } = {}) {
 
     jobs.value = Array.isArray(jobsData) ? jobsData.map(normalizeJob) : []
     responses.value = Array.isArray(responsesData) ? responsesData : []
+    const loadedResponseJobIds = [...new Set(
+      responses.value
+        .map((item) => String(item.job_id || ''))
+        .filter(Boolean),
+    )]
+
+    if (!expandedResponseJobIds.value.length) {
+      expandedResponseJobIds.value = loadedResponseJobIds
+    } else {
+      expandedResponseJobIds.value = [...new Set([
+        ...expandedResponseJobIds.value,
+        ...loadedResponseJobIds,
+      ])]
+    }
   } catch {
     if (!silent) {
       error.value = copy.value.dashboardLoadError
@@ -1201,12 +1220,23 @@ onBeforeUnmount(() => {
                         <a
                           v-if="item.candidate_resume_url"
                           class="response-detail response-resume-link"
-                          :href="item.candidate_resume_url"
+                          :href="responseResumeUrl(item)"
                           target="_blank"
                           rel="noopener noreferrer"
                         >
                           <i class="fas fa-file-pdf"></i>
                           {{ copy.openResumePdf }}
+                        </a>
+                        <a
+                          v-if="item.candidate_resume_url"
+                          class="response-detail response-resume-link"
+                          :href="responseResumeUrl(item)"
+                          :download="item.candidate_resume_name || true"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <i class="fas fa-download"></i>
+                          {{ copy.downloadResumePdf }}
                         </a>
                       </div>
 

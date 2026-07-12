@@ -21,6 +21,7 @@ const brokenBanner = ref(false)
 const applyModal = ref(null)
 const bannerModal = ref(null)
 const resume = ref(null)
+const resumeInput = ref(null)
 const previousOverflow = ref('')
 const form = ref({ name: '', surname: '', phone: '', email: '', nationality: '', message: '' })
 
@@ -56,6 +57,13 @@ const openModal = (modal) => {
 const closeModal = (modal) => {
   modal?.close()
   document.body.style.overflow = previousOverflow.value
+}
+
+const resetApplicationForm = () => {
+  resume.value = null
+  if (resumeInput.value) {
+    resumeInput.value.value = ''
+  }
 }
 
 const loadJob = async () => {
@@ -96,8 +104,21 @@ const submitApplication = async () => {
     })
 
     applyStatus.value = t(result?.application_id ? 'jobDetailPage.apply.sentWithChat' : 'jobDetailPage.apply.sent')
+    resetApplicationForm()
   } catch (err) {
-    applyStatus.value = t(err?.key === 'duplicate_application' ? 'jobDetailPage.apply.duplicate' : 'jobDetailPage.apply.failed')
+    applyStatus.value = t(
+      err?.key === 'duplicate_application'
+        ? 'jobDetailPage.apply.duplicate'
+        : err?.key === 'forbidden'
+          ? 'jobDetailPage.apply.candidateOnly'
+        : err?.key === 'resume_must_be_pdf'
+          ? 'jobDetailPage.apply.resumeMustBePdf'
+          : err?.key === 'job_not_available'
+            ? 'jobDetailPage.apply.jobUnavailable'
+            : err?.key === 'missing_fields'
+              ? 'jobDetailPage.apply.fillRequiredFields'
+          : 'jobDetailPage.apply.failed',
+    )
   } finally {
     submitting.value = false
   }
@@ -264,6 +285,7 @@ watch(() => route.params.id, loadJob)
           </label>
           <label class="wide upload">
             <input
+              ref="resumeInput"
               type="file"
               accept="application/pdf,.pdf"
               @change="resume = $event.target.files?.[0] || null"

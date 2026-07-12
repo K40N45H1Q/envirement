@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { resolveApiUrl } from '@/api/client'
 import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 import { approveResponseChat, deleteResponse, getResponses } from '@/api/jobs'
@@ -17,6 +18,8 @@ const formatDate = (value) => {
   const locale = language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-GB' : 'ru-RU'
   return new Date(value).toLocaleDateString(locale)
 }
+
+const resolveResumeUrl = (value) => resolveApiUrl(value)
 
 const loadResponses = async () => {
   isLoading.value = true
@@ -77,6 +80,23 @@ onMounted(loadResponses)
             <p>{{ item.job_title }} · {{ item.job_company }}</p>
             <span>{{ item.phone }} · {{ item.email }} · {{ t('responsesPage.appliedOn', { date: formatDate(item.created_at) }) }}</span>
             <p v-if="item.message" class="message">{{ item.message }}</p>
+            <div v-if="item.candidate_resume_url" class="resume-actions">
+              <a
+                :href="resolveResumeUrl(item.candidate_resume_url)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ t('responsesPage.openResume') }}
+              </a>
+              <a
+                :href="resolveResumeUrl(item.candidate_resume_url)"
+                :download="item.candidate_resume_name || true"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ t('responsesPage.downloadResume') }}
+              </a>
+            </div>
           </div>
 
           <div class="side">
@@ -114,6 +134,8 @@ h1 { font-size: clamp(2rem, 4vw, 3rem); }
 .main, .side { display: grid; gap: 0.35rem; }
 .main p, .main span, .side span { color: var(--text-muted); }
 .message { margin-top: 0.5rem; }
+.resume-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.35rem; }
+.resume-actions a { color: var(--brand-strong); font-weight: 700; text-decoration: none; }
 .side strong { color: var(--brand-strong); font-size: 1.05rem; }
 .badge { width: fit-content; min-height: 2rem; padding: 0.35rem 0.7rem; border-radius: 999rem; font-size: 0.78rem; font-weight: 800; }
 .badge.pending { background: rgba(180, 83, 9, 0.1); color: #92400e; }

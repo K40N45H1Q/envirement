@@ -22,6 +22,15 @@ export const clearAuthToken = () => {
   localStorage.removeItem('token')
 }
 
+export const resolveApiUrl = (value = '') => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^(https?:|data:|blob:)/i.test(raw)) return raw
+
+  const base = API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+  return new URL(raw, `${base}/`).toString()
+}
+
 const getErrorKey = (payload) => {
   if (!payload) return 'unknown_error'
   if (payload.detail?.error) return payload.detail.error
