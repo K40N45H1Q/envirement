@@ -198,7 +198,7 @@
               <button
                 v-else-if="item.action === 'login'"
                 type="button"
-                class="mobile-nav-link mobile-nav-link--button"
+                class="mobile-nav-link nav-link--button"
                 @click="openLoginFromMenu"
               >
                 <i :class="item.icon"></i>
