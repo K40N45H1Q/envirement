@@ -102,7 +102,9 @@ const steps = computed(() => [
 }
 
 .section-head h2 {
-  text-wrap: nowrap;
+  max-width: 100%;
+  font-size: clamp(1.55rem, 3.3vw, 2.65rem);
+  white-space: nowrap;
 }
 
 .section-eyebrow--muted {

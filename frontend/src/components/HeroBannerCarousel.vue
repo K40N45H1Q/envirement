@@ -65,7 +65,12 @@ onBeforeUnmount(() => {
   <div class="hero-banner" @mouseenter="stopAutoplay" @mouseleave="startAutoplay">
     <transition name="hero-banner-fade" mode="out-in">
       <article :key="activeSlide.id" class="hero-banner__slide">
-        <img :src="activeSlide.image" :alt="activeSlide.title" class="hero-banner__image">
+        <img
+          :src="activeSlide.image"
+          :alt="activeSlide.title"
+          class="hero-banner__image"
+          :class="`hero-banner__image--${activeSlide.id}`"
+        >
         <div class="hero-banner__overlay"></div>
         <div class="hero-banner__content">
           <span class="hero-banner__eyebrow">{{ activeSlide.eyebrow }}</span>
@@ -112,6 +117,11 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 6%;
+}
+
+.hero-banner__image--industrial {
+  object-position: center top;
 }
 
 .hero-banner__overlay {

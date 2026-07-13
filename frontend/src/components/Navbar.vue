@@ -20,7 +20,6 @@
           >
             <i :class="item.icon"></i>
             <span>{{ item.label }}</span>
-            <i class="fas fa-chevron-down jobs-menu__chevron" :class="{ 'jobs-menu__chevron--open': isJobsMenuOpen }"></i>
           </button>
 
           <transition name="menu-fade">
@@ -172,7 +171,6 @@
                     <i :class="item.icon"></i>
                     <span>{{ item.label }}</span>
                   </span>
-                  <i class="fas fa-chevron-down mobile-jobs-menu__chevron" :class="{ 'mobile-jobs-menu__chevron--open': isMobileJobsMenuOpen }"></i>
                 </button>
 
                 <div v-if="isMobileJobsMenuOpen" class="mobile-jobs-menu__dropdown">

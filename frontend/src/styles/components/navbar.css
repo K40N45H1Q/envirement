@@ -61,11 +61,28 @@
   white-space: nowrap;
 }
 
+.nav-link {
+  height: 2.75rem;
+  line-height: 1rem;
+}
+
 .nav-link--button {
   border: none;
   background: transparent;
   font: inherit;
   cursor: pointer;
+}
+
+.desktop-nav .nav-link--button {
+  padding: 0;
+}
+
+.desktop-nav .nav-link > i,
+.desktop-nav .nav-link > span {
+  display: inline-flex;
+  height: 1rem;
+  align-items: center;
+  line-height: 1rem;
 }
 
 .nav-link::after {
@@ -103,15 +120,9 @@
 
 .jobs-menu {
   position: relative;
-}
-
-.jobs-menu__chevron {
-  font-size: 0.76rem;
-  transition: transform 0.2s ease;
-}
-
-.jobs-menu__chevron--open {
-  transform: rotate(180deg);
+  display: flex;
+  height: 2.75rem;
+  align-items: center;
 }
 
 .jobs-menu__dropdown {
@@ -435,15 +446,6 @@
 .mobile-jobs-menu {
   display: grid;
   gap: 0.2rem;
-}
-
-.mobile-jobs-menu__chevron {
-  font-size: 0.82rem;
-  transition: transform 0.2s ease;
-}
-
-.mobile-jobs-menu__chevron--open {
-  transform: rotate(180deg);
 }
 
 .mobile-jobs-menu__dropdown {
