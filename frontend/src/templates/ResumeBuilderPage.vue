@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import Logo from '@/components/Logo.vue'
+import PhoneInput from '@/components/PhoneInput.vue'
 import { getProfile, updateProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
@@ -1968,7 +1969,11 @@ onBeforeUnmount(() => {
 
               <label>
                 {{ copy.phone }}
-                <input v-model="profile.phone" placeholder="+371 2X XXX XXX" />
+                <PhoneInput
+                  v-model="profile.phone"
+                  placeholder="2X XXX XXX"
+                  :aria-label="copy.phone"
+                />
               </label>
 
               <label class="grid-span-2">

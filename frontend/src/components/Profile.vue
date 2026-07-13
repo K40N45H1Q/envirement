@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import { getProfile, updateProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
+import PhoneInput from '@/components/PhoneInput.vue'
 
 const props = defineProps({
   embedded: {
@@ -271,7 +272,7 @@ onBeforeUnmount(revokeAvatarPreview)
               <div class="field-grid">
                 <label>
                   {{ copy.phone }}
-                  <input v-model="profile.phone" type="text" :placeholder="copy.phone" class="input" />
+                  <PhoneInput v-model="profile.phone" :placeholder="copy.phone" :aria-label="copy.phone" />
                 </label>
                 <label>
                   {{ copy.currentRole }}

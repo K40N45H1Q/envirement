@@ -1083,10 +1083,7 @@ const focusJob = (jobId) => {
   }
 
   .jobs-toolbar,
-  .results-banner,
-  .job-row,
-  .job-title-line,
-  .job-actions {
+  .results-banner {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
@@ -1102,16 +1099,101 @@ const focusJob = (jobId) => {
 
   .job-row {
     display: grid;
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+    column-gap: 0.85rem;
+    row-gap: 0.45rem;
+    align-items: start;
     padding: 1rem;
   }
 
+  .company-logo {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    width: 3.75rem;
+    height: 3.75rem;
+    border-radius: 0.9rem;
+    font-size: 1rem;
+  }
+
+  .job-summary {
+    display: contents;
+  }
+
+  .job-title-line {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.55rem;
+  }
+
+  .job-title-line h2 {
+    min-width: 0;
+    padding-right: 0;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+  }
+
+  .job-time {
+    position: static;
+    align-self: start;
+    white-space: nowrap;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.7rem;
+  }
+
+  .job-company {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+  }
+
+  .job-location {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    font-size: 0.84rem;
+  }
+
+  .job-tags {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+  }
+
+  .job-tag {
+    min-height: 1.75rem;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .job-salary {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    margin-top: 0.15rem;
+    font-size: 0.92rem;
+  }
+
   .job-actions {
+    grid-column: 1 / -1;
+    grid-row: 6;
+    display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: stretch;
+    margin-top: 0.45rem;
+    padding-top: 0.85rem;
+    border-top: 0.0625rem solid var(--border-subtle);
   }
 
   .details-button {
     flex: 1;
+    min-width: 0;
   }
 
   .save-button {

@@ -2,7 +2,7 @@
   <footer class="site-footer">
     <div class="footer-shell">
       <div class="brand-block">
-        <RouterLink to="/" class="brand-link" aria-label="CVHOLD home">
+        <RouterLink to="/" class="brand-link" :aria-label="t('footer.homeLabel')">
           <Logo />
         </RouterLink>
         <p>{{ t('footer.home') }}</p>
@@ -11,21 +11,21 @@
       <nav class="footer-grid" :aria-label="t('footer.navLabel')">
         <div class="footer-column">
           <h2>{{ t('footer.platform') }}</h2>
-          <RouterLink to="/">{{ t('navbar.jobs') }}</RouterLink>
-          <RouterLink to="/createcv">{{ t('navbar.resume') }}</RouterLink>
+          <RouterLink to="/">{{ t('footer.jobs') }}</RouterLink>
+          <RouterLink to="/createcv">{{ t('footer.resume') }}</RouterLink>
           <RouterLink to="/about">{{ t('footer.aboutUs') }}</RouterLink>
         </div>
 
         <div class="footer-column">
           <h2>{{ t('footer.forEmployers') }}</h2>
           <RouterLink to="/employers">{{ t('footer.solutions') }}</RouterLink>
-          <RouterLink to="/pricing">{{ t('navbar.pricing') }}</RouterLink>
-          <RouterLink to="/dashboard">{{ t('navbar.dashboard') }}</RouterLink>
+          <RouterLink to="/pricing">{{ t('footer.pricing') }}</RouterLink>
+          <RouterLink to="/dashboard">{{ t('footer.dashboard') }}</RouterLink>
         </div>
 
         <div class="footer-column">
           <h2>{{ t('footer.support') }}</h2>
-          <RouterLink to="/faq">FAQ</RouterLink>
+          <RouterLink to="/faq">{{ t('footer.faq') }}</RouterLink>
           <RouterLink to="/contacts">{{ t('footer.contacts') }}</RouterLink>
           <RouterLink to="/terms">{{ t('footer.terms') }}</RouterLink>
         </div>
@@ -167,10 +167,57 @@ const currentYear = new Date().getFullYear()
 }
 
 @media (max-width: 40rem) {
-  .footer-grid,
+  .footer-shell {
+    gap: 1rem;
+    padding-top: 1.15rem;
+    padding-bottom: 1rem;
+  }
+
+  .brand-block {
+    gap: 0;
+  }
+
+  .brand-link :deep(.logo) {
+    width: 8.75rem;
+  }
+
+  .brand-block p {
+    display: none;
+  }
+
+  .footer-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .footer-column {
+    gap: 0.42rem;
+    min-width: 0;
+  }
+
+  .footer-column h2 {
+    margin-bottom: 0.1rem;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .footer-column a {
+    font-size: 0.76rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
   .footer-meta {
-    grid-template-columns: 1fr;
-    display: grid;
+    display: block;
+    padding-top: 0.75rem;
+    padding-bottom: 0.9rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .footer-meta span:last-child {
+    display: none;
   }
 }
 </style>

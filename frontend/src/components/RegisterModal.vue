@@ -24,7 +24,7 @@
             </div>
           </Transition>
 
-          <div v-if="selectedAccountType === 'employer'" class="steps">
+          <div class="steps">
             <div class="step" :class="{ 'step--active': currentStep === 1, 'step--done': currentStep > 1 }">
               <span>1</span>
               <strong>{{ t('register.account') }}</strong>
@@ -118,13 +118,11 @@
             </div>
 
             <div class="field">
-              <input
-                v-model.trim="phone"
-                type="tel"
+              <PhoneInput
+                v-model="phone"
                 :placeholder="t('register.phone')"
-                class="input"
-                autocomplete="tel"
-                @input="setError('')"
+                :aria-label="t('register.phone')"
+                @update:model-value="setError('')"
               />
             </div>
 
@@ -261,6 +259,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from '@/i18n'
 import { requestRegistrationCode, verifyRegistrationCode } from '@/api/auth'
 import BaseDropdown from '@/components/BaseDropdown.vue'
+import PhoneInput from '@/components/PhoneInput.vue'
 
 defineProps({
   visible: {

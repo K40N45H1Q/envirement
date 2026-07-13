@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
+import PhoneInput from '@/components/PhoneInput.vue'
 import { applyToJob, getJob } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { useI18n } from '@/i18n'
@@ -273,7 +274,12 @@ watch(() => route.params.id, loadJob)
           </label>
           <label>
             <span>{{ t('jobDetailPage.form.phone') }}</span>
-            <input v-model="form.phone" required type="tel">
+            <PhoneInput
+              v-model="form.phone"
+              required
+              :placeholder="t('jobDetailPage.form.phone')"
+              :aria-label="t('jobDetailPage.form.phone')"
+            />
           </label>
           <label>
             <span>{{ t('jobDetailExtra.email') }}</span>

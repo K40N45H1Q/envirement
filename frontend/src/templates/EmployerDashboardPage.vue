@@ -164,6 +164,7 @@ const responses = ref([])
 const isLoading = ref(false)
 const isRefreshing = ref(false)
 const isSaving = ref(false)
+const isJobModalOpen = ref(false)
 const deletingId = ref(null)
 const approvingId = ref(null)
 const editingId = ref(null)
@@ -499,6 +500,24 @@ function resetForm() {
   revokeBannerPreview()
 }
 
+function openCreateJobModal() {
+  resetForm()
+  status.value = ''
+  error.value = ''
+  isJobModalOpen.value = true
+}
+
+function closeJobModal() {
+  if (isSaving.value) return
+  isJobModalOpen.value = false
+  error.value = ''
+  resetForm()
+}
+
+function handleModalKeydown(event) {
+  if (event.key === 'Escape' && isJobModalOpen.value) closeJobModal()
+}
+
 function addLanguage() {
   if (!canAddLanguage.value) return
 
@@ -580,6 +599,7 @@ async function editJob(job) {
   status.value = ''
   error.value = ''
   await setSection('jobs')
+  isJobModalOpen.value = true
 }
 
 async function submitJob() {
@@ -631,6 +651,7 @@ async function submitJob() {
 
     await auth.loadUser({ force: true })
     resetForm()
+    isJobModalOpen.value = false
     await loadDashboard()
     await setSection('jobs')
   } catch (caughtError) {
@@ -770,6 +791,7 @@ watch(
 )
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleModalKeydown)
   if (!auth.user) {
     await auth.loadUser()
   }
@@ -780,6 +802,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleModalKeydown)
   revokeLogoPreview()
   stopDashboardRealtime()
   messaging.stopRealtime()
@@ -797,23 +820,46 @@ onBeforeUnmount(() => {
       :stats="localizedShellStats"
       @select-section="setSection"
     >
+      <template #actions>
+        <button
+          v-if="activeSection === 'jobs'"
+          type="button"
+          class="btn-primary dashboard-cta"
+          @click="openCreateJobModal"
+        >
+          <i class="fas fa-plus"></i>
+          {{ copy.createJob }}
+        </button>
+      </template>
+
       <p v-if="status" class="status success">{{ status }}</p>
       <p v-if="error" class="status danger">{{ error }}</p>
       <p v-if="isLoading" class="state">{{ copy.loadingDashboard }}</p>
 
       <template v-if="!isLoading">
-        <section
-          v-if="activeSection === 'jobs'"
-          class="jobs-grid"
-          :class="{ 'jobs-grid--single': !jobs.length }"
-        >
-          <form class="panel form-panel" @submit.prevent="submitJob">
+        <section v-if="activeSection === 'jobs'" class="jobs-grid">
+          <Teleport to="body">
+            <Transition name="job-modal-fade">
+              <div v-if="isJobModalOpen" class="job-modal" role="dialog" aria-modal="true" @click.self="closeJobModal">
+                <form class="panel form-panel job-modal__card" @submit.prevent="submitJob">
+                  <button
+                    type="button"
+                    class="job-modal__close"
+                    :aria-label="copy.closeJobModal"
+                    :disabled="isSaving"
+                    @click="closeJobModal"
+                  >
+                    <i class="fas fa-xmark"></i>
+                  </button>
+                  <div class="job-modal__scroll">
             <div class="panel-heading">
               <div>
                 <p class="eyebrow compact">{{ isEditing ? copy.editingEyebrow : copy.newJobEyebrow }}</p>
                 <h2>{{ isEditing ? copy.updateJob : copy.createJob }}</h2>
               </div>
             </div>
+
+            <p v-if="error" class="status danger">{{ error }}</p>
 
             <div class="fields-row">
               <label>
@@ -1046,7 +1092,11 @@ onBeforeUnmount(() => {
             <div class="form-actions">
               <button class="btn-primary" type="submit" :disabled="isSaving">{{ localizedSubmitLabel }}</button>
             </div>
-          </form>
+                  </div>
+                </form>
+              </div>
+            </Transition>
+          </Teleport>
 
           <section class="panel jobs-panel">
             <div class="panel-heading">
