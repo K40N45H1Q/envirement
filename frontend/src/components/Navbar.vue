@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <header class="navbar">
     <RouterLink to="/" class="logo-link logo-link--header" @click="closeMenu">
       <Logo />
@@ -118,11 +118,24 @@
     </button>
 
     <transition name="menu-fade">
-      <div v-if="isMenuOpen" class="mobile-menu-overlay">
+      <div v-if="isMenuOpen" class="mobile-menu-overlay" @click="closeMenu">
         <aside class="mobile-menu" @click.stop>
-          <RouterLink to="/" class="logo-link logo-link--mobile-menu" @click="closeMenu">
-            <Logo />
-          </RouterLink>
+          <div class="mobile-menu-header">
+            <RouterLink to="/" class="logo-link logo-link--mobile-menu" @click="closeMenu">
+              <Logo />
+            </RouterLink>
+
+            <BaseDropdown
+              v-model="currentLanguage"
+              class="mobile-menu-language"
+              :aria-label="t('common.language')"
+              :options="languageOptions"
+              size="sm"
+              align="right"
+              :show-selected-hint="false"
+              @change="changeLanguage"
+            />
+          </div>
 
           <div class="mobile-user-card">
             <div class="mobile-user-card__avatar">
@@ -187,19 +200,6 @@
           </div>
 
           <div class="mobile-auth-buttons">
-            <label class="mobile-language-switcher">
-              <span>{{ t('common.language') }}</span>
-              <BaseDropdown
-                v-model="currentLanguage"
-                :aria-label="t('common.language')"
-                :options="languageOptions"
-                full-width
-                align="right"
-                :show-selected-hint="false"
-                @change="changeLanguage"
-              />
-            </label>
-
             <template v-if="user">
               <RouterLink v-if="mobilePrimaryLink" class="btn-primary" :to="mobilePrimaryLink.to" @click="closeMenu">
                 {{ mobilePrimaryLink.label }}
@@ -272,9 +272,9 @@ export default {
       isJobsMenuOpen: false,
       isMobileJobsMenuOpen: false,
       languageOptions: [
-        { value: 'ru', label: 'RU', hint: 'Русский' },
-        { value: 'en', label: 'EN', hint: 'English' },
         { value: 'lv', label: 'LV', hint: 'Latviešu' },
+        { value: 'en', label: 'EN', hint: 'English' },
+        { value: 'ru', label: 'RU', hint: 'Русский' },
       ],
     }
   },
@@ -346,8 +346,12 @@ export default {
     },
 
     accountTypeLabel() {
-      if (this.normalizedAccountType === 'candidate') return this.t('navbar.accountCandidate')
-      if (this.normalizedAccountType === 'employer') return this.t('navbar.accountEmployer')
+      if (this.normalizedAccountType === 'candidate') {
+        return String(this.user?.full_name || '').trim() || this.t('navbar.accountCandidate')
+      }
+      if (this.normalizedAccountType === 'employer') {
+        return String(this.user?.company_registration_number || '').trim() || this.t('navbar.accountEmployer')
+      }
       if (this.normalizedAccountType === 'admin') return this.t('navbar.accountAdmin')
       return this.t('common.account')
     },

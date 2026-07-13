@@ -25,7 +25,7 @@ const handleUnauthorized = () => {
 
   auth.logout()
 
-  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'lv'
   router.replace({
     path: withLocale('/unauthorized', locale),
     query: {
@@ -36,7 +36,7 @@ const handleUnauthorized = () => {
 
 const handleBetaUnauthorized = async () => {
   const currentRoute = router.currentRoute.value
-  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+  const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'lv'
 
   await betaAccess.initialize({ force: true })
 
@@ -70,7 +70,7 @@ const redirectToBetaAccessIfNeeded = async () => {
   isBetaRedirecting = true
 
   try {
-    const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'ru'
+    const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'lv'
     await router.replace({
       path: withLocale('/beta-access', locale),
       query: {

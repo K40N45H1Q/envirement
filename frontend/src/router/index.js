@@ -83,7 +83,7 @@ const defaultRouteForAccount = (accountType) => {
   return '/'
 }
 
-const localizeRouteLocation = (target, locale = 'ru') => {
+const localizeRouteLocation = (target, locale = 'lv') => {
   if (typeof target === 'string') {
     return localizeFullPath(target, locale)
   }

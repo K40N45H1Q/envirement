@@ -1,11 +1,11 @@
 import { normalizeLanguage } from '@/i18n'
 
-export const SUPPORTED_LOCALES = ['ru', 'en', 'lv']
+export const SUPPORTED_LOCALES = ['lv', 'en', 'ru']
 const LOCALE_PREFIX_RE = /^\/(ru|en|lv)(?=\/|$)/
 
 export const getLocaleFromPath = (path = '') => {
   const match = String(path || '').match(LOCALE_PREFIX_RE)
-  return normalizeLanguage(match?.[1] || 'ru')
+  return normalizeLanguage(match?.[1] || 'lv')
 }
 
 export const stripLocaleFromPath = (path = '') => {
@@ -16,7 +16,7 @@ export const stripLocaleFromPath = (path = '') => {
 
 export const hasLocalePrefix = (path = '') => LOCALE_PREFIX_RE.test(String(path || ''))
 
-export const withLocale = (path = '/', locale = 'ru') => {
+export const withLocale = (path = '/', locale = 'lv') => {
   const normalizedLocale = normalizeLanguage(locale)
   const strippedPath = stripLocaleFromPath(path)
   return strippedPath === '/'
@@ -24,7 +24,7 @@ export const withLocale = (path = '/', locale = 'ru') => {
     : `/${normalizedLocale}${strippedPath}`
 }
 
-export const localizeFullPath = (fullPath = '/', locale = 'ru') => {
+export const localizeFullPath = (fullPath = '/', locale = 'lv') => {
   const [path, hashFragment = ''] = String(fullPath || '/').split('#')
   const [pathname, queryString = ''] = path.split('?')
   const localizedPath = withLocale(pathname || '/', locale)
@@ -34,7 +34,7 @@ export const localizeFullPath = (fullPath = '/', locale = 'ru') => {
   return `${localizedPath}${queryPart}${hashPart}`
 }
 
-export const withLocalizedRedirect = (target, locale = 'ru') => {
+export const withLocalizedRedirect = (target, locale = 'lv') => {
   if (typeof target === 'string') {
     return localizeFullPath(target, locale)
   }

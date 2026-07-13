@@ -5,10 +5,10 @@ const LANGUAGE_STORAGE_KEY = 'cvhold-language'
 
 const resolveInitialLanguage = () => {
   if (typeof window === 'undefined') {
-    return 'ru'
+    return 'lv'
   }
 
-  return normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY) || document.documentElement.lang || 'ru')
+  return normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY) || document.documentElement.lang || 'lv')
 }
 
 const applyLanguage = (language) => {
@@ -34,7 +34,7 @@ export const useUiStore = defineStore('ui', {
     },
 
     setLanguage(language) {
-      this.language = normalizeLanguage(language || 'ru')
+      this.language = normalizeLanguage(language || 'lv')
       applyLanguage(this.language)
     },
   },

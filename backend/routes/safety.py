@@ -185,7 +185,10 @@ def extract_registration_payload(data: dict) -> dict:
 
 
 def validate_registration_payload(payload: dict) -> None:
-    if not payload["full_name"] or not payload["email"] or not payload["phone"] or not payload["password"]:
+    if not payload["email"] or not payload["phone"] or not payload["password"]:
+        error("missing_fields")
+
+    if payload["account_type"] == "candidate" and not payload["full_name"]:
         error("missing_fields")
 
     if not is_password_strong(payload["password"]):
@@ -195,7 +198,12 @@ def validate_registration_payload(payload: dict) -> None:
         error("invalid_account_type")
 
     if payload["account_type"] == "employer":
-        if not payload["company_name"] or not payload["company_country"] or not payload["company_industry"]:
+        if (
+            not payload["company_name"]
+            or not payload["company_country"]
+            or not payload["company_industry"]
+            or not payload["company_registration_number"]
+        ):
             error("missing_company_fields")
 
 
@@ -282,8 +290,7 @@ def normalize_pending_payload(raw_payload: dict) -> dict:
 
 def validate_pending_payload(pending_payload: dict) -> None:
     if (
-        not pending_payload["full_name"]
-        or not pending_payload["email"]
+        not pending_payload["email"]
         or not pending_payload["phone"]
         or not pending_payload["hashed_password"]
     ):
@@ -292,11 +299,15 @@ def validate_pending_payload(pending_payload: dict) -> None:
     if pending_payload["account_type"] not in PUBLIC_ACCOUNT_TYPES:
         error("invalid_account_type")
 
+    if pending_payload["account_type"] == "candidate" and not pending_payload["full_name"]:
+        error("invalid_registration_payload")
+
     if pending_payload["account_type"] == "employer":
         if (
             not pending_payload["company_name"]
             or not pending_payload["company_country"]
             or not pending_payload["company_industry"]
+            or not pending_payload["company_registration_number"]
         ):
             error("missing_company_fields")
 

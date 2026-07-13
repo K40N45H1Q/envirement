@@ -3536,10 +3536,10 @@ messages.lv.navbar.accountLinksTitle = 'Ātrā piekļuve'
 const interpolate = (value, params = {}) => value.replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
 
 export const normalizeLanguage = (language) => (
-  language === 'en' || language === 'lv' ? language : 'ru'
+  language === 'en' || language === 'ru' ? language : 'lv'
 )
 
-export const translate = (key, params = {}, language = 'ru') => {
+export const translate = (key, params = {}, language = 'lv') => {
   const normalizedLanguage = normalizeLanguage(language)
   const segments = key.split('.')
   const read = (source) => segments.reduce((value, segment) => value?.[segment], source)

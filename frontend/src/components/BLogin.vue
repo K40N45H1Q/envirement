@@ -113,7 +113,7 @@ const submitForm = async () => {
       errorMessage.value = TEXT_CONSTANTS.invalidToken
       return
     }
-    const locale = getLocaleFromPath(route.path) || uiStore.language || 'ru'
+    const locale = getLocaleFromPath(route.path) || uiStore.language || 'lv'
     const redirect = typeof route.query.redirect === 'string' 
       ? route.query.redirect 
       : withLocale('/', locale)

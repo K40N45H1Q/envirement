@@ -153,7 +153,13 @@ async def update_profile(
     if resume_name:
         profile.resume_name = resume_name
 
+    current_user.full_name = " ".join(
+        part.strip() for part in (first_name, last_name) if part and part.strip()
+    ) or None
+    current_user.phone = phone
+
     session.add(profile)
+    session.add(current_user)
     session.commit()
     session.refresh(profile)
     return serialize_profile(profile)

@@ -30,13 +30,8 @@
               <strong>{{ t('register.account') }}</strong>
             </div>
             <div class="steps-line"></div>
-            <div class="step" :class="{ 'step--active': currentStep === 2, 'step--done': currentStep > 2 }">
+            <div class="step" :class="{ 'step--active': currentStep === 2 }">
               <span>2</span>
-              <strong>{{ t('register.company') }}</strong>
-            </div>
-            <div class="steps-line"></div>
-            <div class="step" :class="{ 'step--active': currentStep === 3 }">
-              <span>3</span>
               <strong>{{ t('register.verifyEmailShort') }}</strong>
             </div>
           </div>
@@ -65,7 +60,7 @@
           </div>
 
           <template v-if="isAccountStep">
-            <div class="field">
+            <div v-if="selectedAccountType === 'candidate'" class="field">
               <input
                 v-model.trim="fullName"
                 type="text"
@@ -75,6 +70,41 @@
                 @input="setError('')"
               />
             </div>
+
+            <template v-else>
+              <div class="field">
+                <input
+                  v-model.trim="companyName"
+                  type="text"
+                  :placeholder="t('register.companyName')"
+                  class="input"
+                  autocomplete="organization"
+                  @input="setError('')"
+                />
+              </div>
+
+              <div class="field">
+                <input
+                  v-model.trim="companyRegistrationNumber"
+                  type="text"
+                  :placeholder="t('register.registrationNumber')"
+                  class="input"
+                  autocomplete="off"
+                  @input="setError('')"
+                />
+              </div>
+
+              <div class="field field-grid">
+                <BaseDropdown
+                  v-model="companyCountry"
+                  :aria-label="t('register.companyCountry')"
+                  :options="countryDropdownOptions"
+                  :placeholder="t('register.country')"
+                  full-width
+                  :show-selected-hint="false"
+                />
+              </div>
+            </template>
 
             <div class="field">
               <input
@@ -179,57 +209,8 @@
 
             <button type="submit" class="submit-btn btn-primary" :disabled="loading">
               <span v-if="loading" class="spinner"></span>
-              <span v-else>{{ selectedAccountType === 'employer' ? t('register.continue') : t('register.registerNow') }}</span>
+              <span v-else>{{ selectedAccountType === 'employer' ? t('register.createCompany') : t('register.registerNow') }}</span>
             </button>
-          </template>
-
-          <template v-else-if="isEmployerCompanyStep">
-            <div class="field">
-              <input
-                v-model.trim="companyName"
-                type="text"
-                :placeholder="t('register.companyName')"
-                class="input"
-                autocomplete="organization"
-                @input="setError('')"
-              />
-            </div>
-
-            <div class="field field-grid">
-              <BaseDropdown
-                v-model="companyCountry"
-                :aria-label="t('register.companyCountry')"
-                :options="countryDropdownOptions"
-                :placeholder="t('register.country')"
-                full-width
-                :show-selected-hint="false"
-              />
-            </div>
-
-            <div class="field">
-              <input
-                v-model.trim="companyRegistrationNumber"
-                type="text"
-                :placeholder="t('register.registrationNumber')"
-                class="input"
-                autocomplete="off"
-                @input="setError('')"
-              />
-            </div>
-
-            <div class="hint-card">
-              {{ t('register.companyHint') }}
-            </div>
-
-            <div class="actions">
-              <button type="button" class="btn-secondary secondary-action" :disabled="loading" @click="currentStep = 1">
-                {{ t('common.back') }}
-              </button>
-              <button type="submit" class="submit-btn btn-primary" :disabled="loading">
-                <span v-if="loading" class="spinner"></span>
-                <span v-else>{{ t('register.createCompany') }}</span>
-              </button>
-            </div>
           </template>
 
           <template v-else>
@@ -327,8 +308,7 @@ const countryDropdownOptions = computed(() => [
 ])
 
 const isAccountStep = computed(() => currentStep.value === 1)
-const isEmployerCompanyStep = computed(() => selectedAccountType.value === 'employer' && currentStep.value === 2)
-const isVerificationStep = computed(() => currentStep.value === 3)
+const isVerificationStep = computed(() => currentStep.value === 2)
 const showRequirements = computed(() => isPasswordTouched.value || password.value.length > 0)
 const checks = computed(() => ({
   length: password.value.length >= 8,
@@ -403,7 +383,11 @@ function selectAccountType(type) {
 }
 
 function validateAccountStep() {
-  if (!fullName.value || !email.value || !phone.value || !password.value || !confirmPassword.value) {
+  const isIdentityMissing = selectedAccountType.value === 'employer'
+    ? !companyName.value || !companyRegistrationNumber.value || !companyCountry.value
+    : !fullName.value
+
+  if (isIdentityMissing || !email.value || !phone.value || !password.value || !confirmPassword.value) {
     setError(t('register.fillRequiredFields'))
     return false
   }
@@ -426,18 +410,9 @@ function validateAccountStep() {
   return true
 }
 
-function validateCompanyStep() {
-  if (!companyName.value || !companyCountry.value) {
-    setError(t('register.fillCompanyFields'))
-    return false
-  }
-
-  return true
-}
-
 function buildRegistrationPayload() {
   return {
-    fullName: fullName.value.trim(),
+    fullName: selectedAccountType.value === 'candidate' ? fullName.value.trim() : '',
     email: email.value.trim(),
     phone: phone.value.trim(),
     password: password.value,
@@ -472,7 +447,7 @@ function getErrorMessage(requestError) {
 
 async function sendVerificationCode() {
   await requestRegistrationCode(buildRegistrationPayload())
-  currentStep.value = 3
+  currentStep.value = 2
   verificationCode.value = ''
   setFeedback(t('register.codeSent'), 'success')
 }
@@ -491,7 +466,7 @@ async function resendCode() {
 }
 
 function goBackFromVerification() {
-  currentStep.value = selectedAccountType.value === 'employer' ? 2 : 1
+  currentStep.value = 1
   verificationCode.value = ''
   setError('')
 }
@@ -516,7 +491,7 @@ async function handleSubmit() {
       emit('registered', {
         ...payload,
         accountType: selectedAccountType.value,
-        fullName: fullName.value.trim(),
+        fullName: selectedAccountType.value === 'candidate' ? fullName.value.trim() : '',
         email: email.value.trim(),
         companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
         successMessage: selectedAccountType.value === 'employer'
@@ -536,13 +511,6 @@ async function handleSubmit() {
     isConfirmTouched.value = true
 
     if (!validateAccountStep()) return
-
-    if (selectedAccountType.value === 'employer') {
-      currentStep.value = 2
-      return
-    }
-  } else if (!validateCompanyStep()) {
-    return
   }
 
   loading.value = true

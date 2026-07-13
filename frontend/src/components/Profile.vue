@@ -13,7 +13,8 @@ const props = defineProps({
   },
 })
 
-const { state } = useAuth()
+const auth = useAuth()
+const { state } = auth
 const { language } = useI18n()
 
 const profile = ref({
@@ -173,6 +174,7 @@ async function saveProfileData() {
       avatar: avatarFile.value,
       resume: resumeFile.value,
     })
+    await auth.loadUser({ force: true })
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()

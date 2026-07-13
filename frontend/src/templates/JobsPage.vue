@@ -8,11 +8,13 @@ import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import HeroBannerCarousel from '@/components/HeroBannerCarousel.vue'
 import JobLocationsMap from '@/components/JobLocationsMap.vue'
+import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
 
 const route = useRoute()
 const router = useRouter()
 const jobsListRef = ref(null)
+const auth = useAuth()
 const jobsStore = useJobsStore()
 const { t } = useI18n()
 const draftSearchTitle = ref('')
@@ -32,6 +34,28 @@ const {
 } = storeToRefs(jobsStore)
 
 const hasQueryChanged = (left, right) => JSON.stringify(left) !== JSON.stringify(right)
+const isAuthenticated = computed(() => !!auth.user)
+
+const resetGuestFavoriteFilters = () => {
+  if (isAuthenticated.value) return false
+  if (filters.value.selectedTab !== 'favorites' && !filters.value.onlyBookmarked) return false
+
+  jobsStore.setFilter('selectedTab', 'all')
+  jobsStore.setFilter('onlyBookmarked', false)
+  return true
+}
+
+const openLogin = async () => {
+  await router.push({
+    path: route.path,
+    query: {
+      ...route.query,
+      auth: 'login',
+      redirect: route.fullPath,
+    },
+    hash: route.hash,
+  })
+}
 
 const syncSearchDrafts = () => {
   draftSearchTitle.value = filters.value.searchTitle
@@ -54,10 +78,26 @@ const selectCountry = async (value) => {
 }
 
 const selectTab = async (value) => {
+  if (value === 'favorites' && !isAuthenticated.value) {
+    await openLogin()
+    return
+  }
+
   jobsStore.setFilter('selectedTab', value)
   jobsStore.setFilter('onlyBookmarked', value === 'favorites')
   await syncRoute()
 }
+
+const toggleBookmark = async (jobId) => {
+  if (!isAuthenticated.value) {
+    await openLogin()
+    return
+  }
+
+  jobsStore.toggleBookmark(jobId)
+}
+
+const isJobBookmarked = (job) => isAuthenticated.value && job.isBookmarked
 
 const runSearch = async () => {
   jobsStore.setFilter('searchTitle', draftSearchTitle.value.trim())
@@ -75,15 +115,21 @@ const resetFilters = async () => {
 
 watch(
   () => route.query,
-  (query) => {
+  async (query) => {
     jobsStore.applyRouteQuery(query)
     syncSearchDrafts()
+    if (resetGuestFavoriteFilters()) await syncRoute()
   },
 )
+
+watch(isAuthenticated, async (value) => {
+  if (!value && resetGuestFavoriteFilters()) await syncRoute()
+})
 
 onMounted(async () => {
   await jobsStore.initialize(route.query)
   syncSearchDrafts()
+  if (resetGuestFavoriteFilters()) await syncRoute()
 })
 
 const categoryConfigs = computed(() => jobsStore.categoryConfigs)
@@ -206,6 +252,7 @@ const focusJob = (jobId) => {
                 </button>
 
                 <button
+                  v-if="isAuthenticated"
                   type="button"
                   class="tab-button"
                   :class="{ 'tab-button--active': filters.selectedTab === 'favorites' }"
@@ -235,6 +282,12 @@ const focusJob = (jobId) => {
 
             <div v-if="filteredJobs.length" class="jobs-list">
               <article :id="`job-card-${job.id}`" v-for="job in filteredJobs" :key="job.id" class="job-row">
+                <RouterLink
+                  :to="`/jobs/${job.id}`"
+                  class="job-card-link"
+                  :aria-label="`${job.title} — ${job.company}`"
+                />
+
                 <div class="company-logo" :style="{ background: job.color }">
                   <img v-if="jobsStore.hasLogo(job)" :src="job.logo" :alt="job.company" @error="jobsStore.markBrokenLogo(job.id)" />
                   <span v-else>{{ job.initials }}</span>
@@ -264,15 +317,22 @@ const focusJob = (jobId) => {
 
                 <div class="job-actions">
                   <button
+                    v-if="isAuthenticated"
                     type="button"
                     class="save-button"
-                    :class="{ 'save-button--active': job.isBookmarked }"
-                    :aria-label="job.isBookmarked ? t('jobsPage.removeBookmark') : t('jobsPage.addBookmark')"
-                    @click="jobsStore.toggleBookmark(job.id)"
+                    :class="{
+                      'save-button--active': isJobBookmarked(job),
+                      'save-button--guest': !isAuthenticated,
+                    }"
+                    :aria-pressed="isJobBookmarked(job)"
+                    :aria-label="isJobBookmarked(job) ? t('jobsPage.removeBookmark') : t('jobsPage.addBookmark')"
+                    @click.stop="toggleBookmark(job.id)"
                   >
-                    <i :class="job.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
+                    <svg class="bookmark-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7.25 3.5h9.5c.97 0 1.75.78 1.75 1.75v15.1L12 16.3l-6.5 4.05V5.25c0-.97.78-1.75 1.75-1.75Z" />
+                    </svg>
                   </button>
-                  <RouterLink :to="`/jobs/${job.id}`" class="btn-primary details-button">
+                  <RouterLink :to="`/jobs/${job.id}`" class="btn-primary details-button" @click.stop>
                     {{ t('jobsPage.details') }}
                   </RouterLink>
                 </div>
@@ -701,31 +761,66 @@ const focusJob = (jobId) => {
 
 .jobs-list {
   display: grid;
+  gap: 0.85rem;
+  padding-top: 1rem;
 }
 
 .job-row {
+  position: relative;
   display: grid;
   grid-template-columns: 5rem minmax(0, 1fr) auto;
-  gap: 1rem;
+  gap: 1.1rem;
   align-items: center;
-  padding: 1.15rem 0;
-  border-bottom: 0.0625rem solid var(--border-subtle);
+  padding: 1.15rem;
+  overflow: hidden;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), color-mix(in srgb, var(--brand-soft) 18%, white));
+  box-shadow: 0 0.45rem 1.2rem rgba(15, 23, 42, 0.045);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.job-row:last-child {
-  border-bottom: none;
+.job-row:hover,
+.job-row:focus-within {
+  border-color: color-mix(in srgb, var(--brand-base) 34%, var(--border-subtle));
+  background:
+    linear-gradient(135deg, #fff, color-mix(in srgb, var(--brand-soft) 35%, white));
+  box-shadow: 0 0.9rem 1.8rem rgba(15, 23, 42, 0.09);
+}
+
+.job-card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.job-card-link:focus-visible {
+  outline: 0.1875rem solid color-mix(in srgb, var(--brand-base) 70%, white);
+  outline-offset: -0.25rem;
+}
+
+.company-logo,
+.job-summary {
+  pointer-events: none;
 }
 
 .company-logo {
-  width: 4.6rem;
-  height: 4.6rem;
+  position: relative;
+  z-index: 2;
+  width: 4.75rem;
+  height: 4.75rem;
   display: grid;
   place-items: center;
-  border-radius: 1rem;
+  border: 0.1875rem solid rgba(255, 255, 255, 0.9);
+  border-radius: 1.1rem;
   color: #fff;
   font-size: 1.2rem;
   font-weight: 800;
   overflow: hidden;
+  box-shadow: 0 0.55rem 1.1rem rgba(15, 23, 42, 0.12);
 }
 
 .company-logo img {
@@ -736,7 +831,17 @@ const focusJob = (jobId) => {
 
 .job-summary {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.48rem;
+}
+
+.job-title-line h2 {
+  padding-right: 5.5rem;
+  font-size: 1.14rem;
+  line-height: 1.28;
+}
+
+.job-company {
+  font-weight: 750;
 }
 
 .job-title-line h2,
@@ -751,6 +856,7 @@ const focusJob = (jobId) => {
   display: inline-flex;
   gap: 0.45rem;
   align-items: center;
+  width: fit-content;
 }
 
 .job-tag,
@@ -782,7 +888,24 @@ const focusJob = (jobId) => {
 }
 
 .job-salary {
+  width: fit-content;
+  padding: 0.42rem 0.7rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--brand-soft) 65%, white);
   color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.job-time {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999rem;
+  background: var(--surface-secondary);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .save-button {
@@ -796,6 +919,31 @@ const focusJob = (jobId) => {
   background: var(--surface-secondary);
   color: var(--text-muted);
   cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.save-button:hover {
+  border-color: color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  color: var(--brand-strong);
+}
+
+.save-button--guest:hover,
+.save-button--guest:active,
+.save-button--guest:focus-visible {
+  border-color: var(--border-subtle);
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.bookmark-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  transition: fill 0.2s ease, stroke 0.2s ease, color 0.2s ease;
 }
 
 .save-button--active {
@@ -804,11 +952,26 @@ const focusJob = (jobId) => {
   background: color-mix(in srgb, var(--brand-soft) 62%, white);
 }
 
+.save-button--active .bookmark-icon {
+  fill: currentColor;
+  stroke: currentColor;
+  color: var(--brand-strong);
+}
+
 .details-button {
   min-width: 8.5rem;
   height: 2.9rem;
   padding-block: 0;
   justify-content: center;
+}
+
+.job-actions {
+  position: relative;
+  z-index: 3;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
 }
 
 .country-card,
@@ -939,11 +1102,20 @@ const focusJob = (jobId) => {
 
   .job-row {
     display: grid;
+    padding: 1rem;
   }
 
-  .details-button,
+  .job-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .details-button {
+    flex: 1;
+  }
+
   .save-button {
-    width: 100%;
+    width: 2.9rem;
   }
 }
 </style>
