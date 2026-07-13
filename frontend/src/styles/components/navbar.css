@@ -519,7 +519,7 @@
 
 @media (max-width: 74rem) {
   .navbar {
-    justify-content: flex-start;
+    justify-content: space-between;
     min-height: 5rem;
   }
 
@@ -529,7 +529,8 @@
   }
 
   .logo-link--header {
-    display: none;
+    display: flex;
+    align-items: center;
   }
 
   .logo-link--mobile-menu {
@@ -545,6 +546,13 @@
 
   .burger-menu {
     display: inline-flex;
+    position: static;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .burger-menu--open {
+    left: auto;
   }
 }
 
@@ -600,7 +608,4 @@
     padding: 0.6rem 0.75rem;
   }
 
-  .burger-menu--open {
-    left: calc(80vw + 0.55rem);
-  }
 }
