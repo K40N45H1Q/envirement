@@ -7,7 +7,9 @@ from secrets import randbelow, token_hex
 
 import jwt
 from dotenv import get_key, load_dotenv, set_key
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlmodel import select
 
 from app.core.config import settings
@@ -35,6 +37,8 @@ if not SECRET_KEY:
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+REFRESH_COOKIE_NAME = getenv("REFRESH_COOKIE_NAME", "cvhold_refresh_token")
 PUBLIC_ACCOUNT_TYPES = {"candidate", "employer"}
 VERIFICATION_CODE_LENGTH = 6
 
@@ -93,6 +97,74 @@ def hash_password(password: str) -> str:
     return sha256(password.encode()).hexdigest()
 
 
+def create_session_token(user_id: int, token_type: str, expires_delta: timedelta) -> str:
+    expire = datetime.now(timezone.utc) + expires_delta
+    return jwt.encode(
+        {
+            "user_id": user_id,
+            "type": token_type,
+            "exp": int(expire.timestamp()),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def create_access_token(user_id: int) -> str:
+    return create_session_token(
+        user_id,
+        "access",
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+def create_refresh_token(user_id: int) -> str:
+    return create_session_token(
+        user_id,
+        "refresh",
+        timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+
+
+def decode_session_token(token: str, expected_type: str) -> int:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except Exception:
+        error("invalid_token", 401)
+
+    token_type = payload.get("type", "access")
+    user_id = payload.get("user_id")
+    if token_type != expected_type or not isinstance(user_id, int):
+        error("invalid_token", 401)
+    return user_id
+
+
+def is_secure_request(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
+    return request.url.scheme == "https" or forwarded_proto == "https"
+
+
+def set_refresh_cookie(response: Response, request: Request, user_id: int) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=create_refresh_token(user_id),
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=is_secure_request(request),
+        samesite="lax",
+        path="/api",
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        path="/api",
+    )
+
+
 def normalize_email(value: str | None) -> str:
     return (value or "").strip().lower()
 
@@ -147,11 +219,7 @@ def get_current_user(
 
     token = authorization.replace("Bearer ", "", 1)
 
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-    except Exception:
-        error("invalid_token", 401)
+    user_id = decode_session_token(token, "access")
 
     user = session.exec(select(User).where(User.id == user_id)).first()
     if not user:
@@ -607,18 +675,43 @@ async def login(
     if not user or user.hashed_password != hashed:
         error("invalid_credentials")
 
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = jwt.encode(
-        {"user_id": user.id, "exp": int(expire.timestamp())},
-        SECRET_KEY,
-        algorithm=ALGORITHM,
-    )
-
-    return {
+    response = JSONResponse(jsonable_encoder({
         "status": "ok",
-        "token": token,
+        "token": create_access_token(user.id),
         "user": serialize_user(user),
-    }
+    }))
+    set_refresh_cookie(response, request, user.id)
+    return response
+
+
+@router.post("/refresh")
+def refresh_session(
+    request: Request,
+    session=Depends(get_session),
+):
+    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        error("refresh_token_missing", 401)
+
+    user_id = decode_session_token(refresh_token, "refresh")
+    user = session.exec(select(User).where(User.id == user_id)).first()
+    if not user:
+        error("user_not_found", 401)
+
+    response = JSONResponse(jsonable_encoder({
+        "status": "ok",
+        "token": create_access_token(user.id),
+        "user": serialize_user(user),
+    }))
+    set_refresh_cookie(response, request, user.id)
+    return response
+
+
+@router.post("/logout")
+def logout_session():
+    response = JSONResponse({"status": "ok"})
+    clear_refresh_cookie(response)
+    return response
 
 
 @router.get("/get_me")

@@ -312,10 +312,10 @@ const responseMatchSummary = computed(() => {
 })
 
 const localizedShellStats = computed(() => ([
-  { value: jobs.value.length, label: copy.value.stats.jobs },
-  { value: approvedCount.value, label: copy.value.stats.published },
-  { value: responses.value.length, label: copy.value.stats.responses },
-  { value: conversations.value.length, label: copy.value.stats.conversations },
+  { value: jobs.value.length, label: copy.value.stats.jobs, section: 'jobs' },
+  { value: approvedCount.value, label: copy.value.stats.published, section: 'jobs' },
+  { value: responses.value.length, label: copy.value.stats.responses, section: 'responses' },
+  { value: conversations.value.length, label: copy.value.stats.conversations, section: 'messages' },
 ]))
 const localizedActiveSectionLabel = computed(() => localizedSections.value.find((item) => item.id === activeSection.value)?.label || copy.value.fallbackSection)
 const localizedSubmitLabel = computed(() => (isSaving.value ? copy.value.saving : (isEditing.value ? copy.value.saveChanges : copy.value.saveJob)))
@@ -819,6 +819,7 @@ onBeforeUnmount(() => {
       :description="copy.shellDescription"
       :stats="localizedShellStats"
       @select-section="setSection"
+      @stat-click="setSection"
     >
       <template #actions>
         <button

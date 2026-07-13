@@ -11,8 +11,8 @@ import ResponsesPage from '@/templates/ResponsesPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
 import AboutPage from '@/templates/AboutPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
+import ContactsPage from '@/templates/ContactsPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
-import UnauthorizedPage from '@/templates/UnauthorizedPage.vue'
 import AdminPanel from '@/components/apanel/AdminPanel.vue'
 import BLogin from '@/components/BLogin.vue'
 import { normalizeLanguage } from '@/i18n'
@@ -124,7 +124,6 @@ const localizedChildren = [
   },
   { path: 'beta-access', component: BLogin, meta: { logicalPath: '/beta-access' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
-  { path: 'unauthorized', component: UnauthorizedPage, meta: { logicalPath: '/unauthorized' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
   { path: 'dashboard', component: DashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
   { path: 'admin', component: AdminPanel, meta: { logicalPath: '/admin', requiresAuth: true, accountTypes: ['admin'] } },
@@ -139,7 +138,7 @@ const localizedChildren = [
   { path: 'messages', component: MessagesPage, meta: { logicalPath: '/messages', requiresAuth: true } },
   { path: 'blog', component: InfoPage, meta: { logicalPath: '/blog', page: 'blog' } },
   { path: 'about', component: AboutPage, meta: { logicalPath: '/about' } },
-  { path: 'contacts', component: InfoPage, meta: { logicalPath: '/contacts', page: 'contacts' } },
+  { path: 'contacts', component: ContactsPage, meta: { logicalPath: '/contacts' } },
   { path: 'faq', component: InfoPage, meta: { logicalPath: '/faq', page: 'faq' } },
   { path: 'terms', component: InfoPage, meta: { logicalPath: '/terms', page: 'terms' } },
 ]
@@ -263,15 +262,6 @@ router.beforeEach(async (to) => {
     await auth.initialize()
 
     if (!auth.state.user) {
-      if (auth.state.sessionExpired) {
-        return localizeRouteLocation({
-          path: '/unauthorized',
-          query: {
-            redirect: to.fullPath,
-          },
-        }, locale)
-      }
-
       return localizeRouteLocation({
         path: '/signin',
         query: {

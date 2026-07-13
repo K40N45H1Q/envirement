@@ -94,4 +94,10 @@ export const getMe = () => apiRequest('/api/get_me', { requireAuth: true })
 
 export const logout = () => {
   clearAuthToken()
+  apiRequest('/api/logout', {
+    method: 'POST',
+    skipAuth: true,
+    retryAuth: false,
+    suppressUnauthorizedEvent: true,
+  }).catch(() => {})
 }

@@ -45,6 +45,16 @@
           </transition>
         </div>
 
+        <button
+          v-else-if="item.action === 'login'"
+          type="button"
+          class="nav-link nav-link--button"
+          @click="$emit('open-login')"
+        >
+          <i :class="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </button>
+
         <RouterLink
           v-else
           :to="item.to"
@@ -185,6 +195,16 @@
                 </div>
               </div>
 
+              <button
+                v-else-if="item.action === 'login'"
+                type="button"
+                class="mobile-nav-link mobile-nav-link--button"
+                @click="openLoginFromMenu"
+              >
+                <i :class="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </button>
+
               <RouterLink
                 v-else
                 :to="item.to"
@@ -301,10 +321,20 @@ export default {
       const items = [
         { label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
         { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
-        { label: this.t('navbar.resume'), to: '/createcv', icon: 'fas fa-file-lines' },
+      ]
+
+      if (!this.user || this.normalizedAccountType === 'candidate') {
+        items.push({
+          label: this.t('navbar.resume'),
+          ...(this.user ? { to: '/createcv' } : { action: 'login' }),
+          icon: 'fas fa-file-lines',
+        })
+      }
+
+      items.push(
         { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
         { label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' },
-      ]
+      )
 
       if (this.user) {
         items.push({

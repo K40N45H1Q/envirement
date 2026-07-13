@@ -17,9 +17,8 @@ let isBetaRedirecting = false
 
 const handleUnauthorized = () => {
   const currentRoute = router.currentRoute.value
-  const logicalPath = stripLocaleFromPath(currentRoute.path)
 
-  if (!currentRoute.meta.requiresAuth || logicalPath === '/unauthorized') {
+  if (!currentRoute.meta.requiresAuth) {
     return
   }
 
@@ -27,8 +26,9 @@ const handleUnauthorized = () => {
 
   const locale = getLocaleFromPath(currentRoute.path) || uiStore.language || 'lv'
   router.replace({
-    path: withLocale('/unauthorized', locale),
+    path: withLocale('/signin', locale),
     query: {
+      auth: 'login',
       redirect: currentRoute.fullPath,
     },
   })

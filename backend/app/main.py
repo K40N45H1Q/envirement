@@ -128,6 +128,8 @@ class BetaAccessMiddleware:
         public_paths = {
             "/api/login",
             "/api/get_me",
+            "/api/refresh",
+            "/api/logout",
         }
 
         if path in public_paths or any(path.startswith(prefix) for prefix in public_prefixes) or has_beta_access(request):

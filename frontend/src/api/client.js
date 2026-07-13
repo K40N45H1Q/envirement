@@ -1,6 +1,7 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const STARTUP_RETRY_ATTEMPTS = 6
 const STARTUP_RETRY_DELAY_MS = 250
+let refreshPromise = null
 
 export class ApiError extends Error {
   constructor(key, status, payload = null) {
@@ -51,6 +52,42 @@ const parseResponseBody = (text) => {
       detail: text,
     }
   }
+}
+
+const refreshAccessToken = async () => {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        clearAuthToken()
+        return false
+      }
+
+      const data = parseResponseBody(await response.text())
+      if (!data?.token) {
+        clearAuthToken()
+        return false
+      }
+
+      setAuthToken(data.token)
+      return true
+    } catch {
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
 const wait = (ms) => new Promise((resolve) => {
@@ -107,6 +144,30 @@ export const apiRequest = async (path, options = {}) => {
     })
   } catch {
     throw new ApiError('network_error', 0)
+  }
+
+  const canRefreshSession = (
+    response.status === 401
+    && Boolean(token)
+    && !skipAuth
+    && options.retryAuth !== false
+    && path !== '/api/login'
+    && path !== '/api/refresh'
+    && path !== '/api/logout'
+  )
+
+  if (canRefreshSession && await refreshAccessToken()) {
+    headers.set('Authorization', `Bearer ${getAuthToken()}`)
+
+    try {
+      response = await executeRequest(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers,
+        credentials: options.credentials || 'include',
+      })
+    } catch {
+      throw new ApiError('network_error', 0)
+    }
   }
 
   const text = await response.text()

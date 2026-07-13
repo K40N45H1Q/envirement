@@ -1,78 +1,78 @@
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
-import { translate, useI18n } from '@/i18n'
+import { useI18n } from '@/i18n'
 
-const route = useRoute()
-const { language } = useI18n()
+const { t } = useI18n()
 
-const pageKey = computed(() => route.meta.page || 'about')
-
-const page = computed(() => {
-  const pages = translate('infoPage', {}, language.value)
-  return pages[pageKey.value] || pages.about
-})
-
-const pageIcons = {
-  blog: 'fas fa-newspaper',
-  faq: 'fas fa-circle-question',
-  terms: 'fas fa-file-shield',
-  about: 'fas fa-circle-info',
-}
-
-const cardIcons = {
-  blog: ['fas fa-plane-departure', 'fas fa-passport', 'fas fa-chart-line'],
-  faq: ['fas fa-user-plus', 'fas fa-paper-plane', 'fas fa-briefcase'],
-  terms: ['fas fa-file-signature', 'fas fa-user-shield', 'fas fa-clipboard-check'],
-  about: ['fas fa-users', 'fas fa-paper-plane', 'fas fa-eye'],
-}
-
-const heroIcon = computed(() => pageIcons[pageKey.value] || pageIcons.about)
-const icons = computed(() => cardIcons[pageKey.value] || cardIcons.about)
-const cardDescription = computed(() => translate('infoPageCardDescription', {}, language.value))
+const contactItems = computed(() => [
+  {
+    icon: 'fas fa-envelope',
+    label: t('contactPage.emailLabel'),
+    value: 'support@cvhold.com',
+    action: t('contactPage.emailAction'),
+  },
+  {
+    icon: 'fas fa-phone',
+    label: t('contactPage.phoneLabel'),
+    value: '+37125253030',
+    action: t('contactPage.phoneAction'),
+  },
+  {
+    icon: 'fas fa-location-dot',
+    label: t('contactPage.locationLabel'),
+    value: t('contactPage.locationValue'),
+    href: null,
+    action: t('contactPage.locationAction'),
+  },
+])
 </script>
 
 <template>
   <AppLayout>
-    <main class="info-page">
-      <section class="info-hero">
-        <div class="info-hero__copy">
-          <p class="info-eyebrow">{{ page.eyebrow }}</p>
-          <h1>{{ page.title }}</h1>
-          <p class="info-lead">{{ page.text }}</p>
+    <main class="contacts-page">
+      <section class="contacts-hero">
+        <div class="contacts-hero__copy">
+          <p class="contacts-eyebrow">{{ t('contactPage.eyebrow') }}</p>
+          <h1>{{ t('contactPage.title') }}</h1>
+          <p class="contacts-lead">{{ t('contactPage.description') }}</p>
         </div>
 
-        <div class="info-hero__mark" aria-hidden="true">
-          <i :class="heroIcon"></i>
+        <div class="contacts-hero__mark" aria-hidden="true">
+          <i class="fas fa-headset"></i>
         </div>
       </section>
 
-      <section class="info-grid">
-        <article v-for="(card, index) in page.cards" :key="card" class="info-card">
-          <div class="info-card__icon" aria-hidden="true">
-            <i :class="icons[index] || 'fas fa-circle-check'"></i>
+      <section class="contacts-grid" :aria-label="t('contactPage.contactsLabel')">
+        <article v-for="item in contactItems" :key="item.label" class="contact-card">
+          <div class="contact-card__icon">
+            <i :class="item.icon"></i>
           </div>
 
-          <div class="info-card__content">
-            <span>{{ String(index + 1).padStart(2, '0') }}</span>
-            <h2>{{ card }}</h2>
+          <div class="contact-card__content">
+            <span>{{ item.label }}</span>
+            <a v-if="item.href" :href="item.href">{{ item.value }}</a>
+            <strong v-else>{{ item.value }}</strong>
+            <small>{{ item.action }}</small>
           </div>
         </article>
       </section>
 
-      <section class="info-note">
-        <div class="info-note__icon" aria-hidden="true">
+      <section class="support-note">
+        <div class="support-note__icon">
           <i class="fas fa-circle-check"></i>
         </div>
-        <p>{{ cardDescription }}</p>
+        <div>
+          <h2>{{ t('contactPage.noteTitle') }}</h2>
+          <p>{{ t('contactPage.noteText') }}</p>
+        </div>
       </section>
     </main>
   </AppLayout>
 </template>
 
 <style scoped>
-.info-page {
+.contacts-page {
   width: min(100%, var(--shell-max-width));
   margin: 0 auto;
   padding: 1.5rem var(--shell-gutter) 4rem;
@@ -80,15 +80,15 @@ const cardDescription = computed(() => translate('infoPageCardDescription', {}, 
   gap: 1.25rem;
 }
 
-.info-hero,
-.info-card,
-.info-note {
+.contacts-hero,
+.contact-card,
+.support-note {
   border: 0.0625rem solid var(--border-subtle);
   background: var(--surface-primary);
   box-shadow: var(--shadow-soft);
 }
 
-.info-hero {
+.contacts-hero {
   min-height: 17rem;
   display: flex;
   align-items: center;
@@ -103,11 +103,11 @@ const cardDescription = computed(() => translate('infoPageCardDescription', {}, 
     linear-gradient(135deg, #fff, color-mix(in srgb, var(--brand-soft) 38%, white));
 }
 
-.info-hero__copy {
+.contacts-hero__copy {
   max-width: 46rem;
 }
 
-.info-eyebrow {
+.contacts-eyebrow {
   margin: 0 0 0.75rem;
   color: var(--brand-strong);
   font-size: 0.78rem;
@@ -123,20 +123,20 @@ p {
 }
 
 h1 {
-  max-width: 18ch;
+  max-width: 15ch;
   color: var(--text-primary);
   font-size: clamp(2.2rem, 5vw, 4rem);
   line-height: 1.03;
 }
 
-.info-lead {
+.contacts-lead {
   max-width: 40rem;
   margin-top: 1rem;
   color: var(--text-muted);
   line-height: 1.7;
 }
 
-.info-hero__mark {
+.contacts-hero__mark {
   width: clamp(7rem, 14vw, 10rem);
   height: clamp(7rem, 14vw, 10rem);
   flex: 0 0 auto;
@@ -149,13 +149,13 @@ h1 {
   font-size: clamp(2.4rem, 5vw, 4rem);
 }
 
-.info-grid {
+.contacts-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.info-card {
+.contact-card {
   min-width: 0;
   display: grid;
   grid-template-columns: 3.25rem minmax(0, 1fr);
@@ -166,48 +166,62 @@ h1 {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.info-card:hover {
+.contact-card:hover {
   border-color: color-mix(in srgb, var(--brand-base) 35%, var(--border-subtle));
   background: color-mix(in srgb, var(--brand-soft) 24%, white);
   box-shadow: 0 0.9rem 1.8rem rgba(21, 149, 93, 0.1);
 }
 
-.info-card__icon,
-.info-note__icon {
+.contact-card__icon,
+.support-note__icon {
   display: grid;
   place-items: center;
   color: var(--brand-strong);
   background: color-mix(in srgb, var(--brand-soft) 72%, white);
 }
 
-.info-card__icon {
+.contact-card__icon {
   width: 3.25rem;
   height: 3.25rem;
   border-radius: 1rem;
   font-size: 1.1rem;
 }
 
-.info-card__content {
+.contact-card__content {
   min-width: 0;
   display: grid;
   gap: 0.35rem;
 }
 
-.info-card__content > span {
-  color: var(--brand-strong);
-  font-size: 0.75rem;
+.contact-card__content > span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.info-card h2 {
+.contact-card a,
+.contact-card strong {
+  min-width: 0;
   color: var(--text-primary);
   font-size: clamp(1rem, 1.5vw, 1.15rem);
-  line-height: 1.35;
+  font-weight: 800;
   overflow-wrap: anywhere;
+  text-decoration: none;
 }
 
-.info-note {
+.contact-card a:hover,
+.contact-card a:focus-visible {
+  color: var(--brand-strong);
+}
+
+.contact-card small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.support-note {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -217,46 +231,52 @@ h1 {
   background: color-mix(in srgb, var(--brand-soft) 38%, white);
 }
 
-.info-note__icon {
+.support-note__icon {
   width: 2.75rem;
   height: 2.75rem;
   flex: 0 0 2.75rem;
   border-radius: 50%;
 }
 
-.info-note p {
+.support-note h2 {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.support-note p {
+  margin-top: 0.3rem;
   color: var(--text-muted);
   line-height: 1.55;
 }
 
 @media (max-width: 58rem) {
-  .info-grid {
+  .contacts-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 40rem) {
-  .info-page {
+  .contacts-page {
     padding-top: 1rem;
     padding-bottom: 2.5rem;
   }
 
-  .info-hero {
+  .contacts-hero {
     min-height: auto;
     padding: 1.5rem;
   }
 
-  .info-hero__mark {
+  .contacts-hero__mark {
     display: none;
   }
 
-  .info-card,
-  .info-note {
+  .contact-card {
     padding: 1rem;
   }
 
-  .info-note {
+  .support-note {
     align-items: flex-start;
+    padding: 1rem;
   }
 }
 </style>

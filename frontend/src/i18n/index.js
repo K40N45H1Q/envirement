@@ -439,14 +439,6 @@ const messages = {
       featureEmployer: 'CRUD вакансий работодателя',
       featureMessages: 'Отклики и личные сообщения',
     },
-    unauthorizedPage: {
-      eyebrow: 'Unauthorized',
-      title: 'Сессия больше не действительна',
-      text: 'Для доступа к этой странице нужен активный токен авторизации. Пожалуйста, войдите заново.',
-      signIn: 'Перейти ко входу',
-      home: 'На главную',
-      hint: 'Если токен истёк или был отозван, защищённые страницы закрываются автоматически.',
-    },
     adminPanel: {
       sections: {
         users: 'Пользователи',
@@ -675,7 +667,7 @@ const messages = {
         eyebrow: 'Контакты',
         title: 'Свяжитесь с нами',
         text: 'Команда CVHOLD отвечает на вопросы кандидатов и работодателей.',
-        cards: ['support@cvhold.example', '+371 00 000 000', 'Riga, Latvia'],
+        cards: ['support@cvhold.com', '+37125253030', 'Riga, Latvia'],
       },
       faq: {
         eyebrow: 'FAQ',
@@ -689,7 +681,23 @@ const messages = {
         text: 'Основные положения для кандидатов, работодателей и обработки данных.',
         cards: ['Пользовательское соглашение', 'Политика конфиденциальности', 'Правила публикации вакансий'],
       },
-    },  },
+    },
+    contactPage: {
+      eyebrow: 'Контакты CVHOLD',
+      title: 'Мы всегда на связи',
+      description: 'Свяжитесь с командой CVHOLD по вопросам платформы, аккаунта, вакансий или сотрудничества.',
+      contactsLabel: 'Контактные данные',
+      emailLabel: 'Электронная почта',
+      emailAction: 'Напишите нам в любое время',
+      phoneLabel: 'Телефон',
+      phoneAction: 'Позвоните в рабочее время',
+      locationLabel: 'Местоположение',
+      locationValue: 'Рига, Латвия',
+      locationAction: 'Работаем с пользователями по всей Европе',
+      noteTitle: 'Мы ответим как можно скорее',
+      noteText: 'Обычно команда поддержки отвечает на обращения в течение одного рабочего дня.',
+    },
+  },
   en: {
     common: {
       choose: 'Choose',
@@ -1127,14 +1135,6 @@ const messages = {
       featureEmployer: 'Employer vacancy CRUD',
       featureMessages: 'Applications and direct messages',
     },
-    unauthorizedPage: {
-      eyebrow: 'Unauthorized',
-      title: 'Your session is no longer valid',
-      text: 'Access to this page requires an active authorization token. Please sign in again to continue.',
-      signIn: 'Go to sign in',
-      home: 'Go to home',
-      hint: 'If the token expired or was revoked, protected pages are closed automatically.',
-    },
     adminPanel: {
       sections: {
         users: 'Users',
@@ -1363,7 +1363,7 @@ const messages = {
         eyebrow: 'Contacts',
         title: 'Get in touch with us',
         text: 'The CVHOLD team answers questions from both candidates and employers.',
-        cards: ['support@cvhold.example', '+371 00 000 000', 'Riga, Latvia'],
+        cards: ['support@cvhold.com', '+37125253030', 'Riga, Latvia'],
       },
       faq: {
         eyebrow: 'FAQ',
@@ -1377,6 +1377,21 @@ const messages = {
         text: 'Core terms for candidates, employers, and data processing.',
         cards: ['User agreement', 'Privacy policy', 'Vacancy publishing rules'],
       },
+    },
+    contactPage: {
+      eyebrow: 'CVHOLD contacts',
+      title: 'We are here to help',
+      description: 'Contact the CVHOLD team with questions about the platform, your account, vacancies, or partnerships.',
+      contactsLabel: 'Contact details',
+      emailLabel: 'Email',
+      emailAction: 'Write to us at any time',
+      phoneLabel: 'Phone',
+      phoneAction: 'Call us during business hours',
+      locationLabel: 'Location',
+      locationValue: 'Riga, Latvia',
+      locationAction: 'Supporting users across Europe',
+      noteTitle: 'We will reply as soon as possible',
+      noteText: 'Our support team usually responds within one business day.',
     },
   },
 }
@@ -1791,14 +1806,6 @@ messages.lv = {
     featureEmployer: 'Darba devēja vakanču CRUD',
     featureMessages: 'Pieteikumi un privātās ziņas',
   },
-  unauthorizedPage: {
-    eyebrow: 'Unauthorized',
-    title: 'Jūsu sesija vairs nav derīga',
-    text: 'Lai piekļūtu šai lapai, ir nepieciešams aktīvs autorizācijas tokens. Lūdzu, piesakieties vēlreiz.',
-    signIn: 'Uz pieteikšanos',
-    home: 'Uz sākumlapu',
-    hint: 'Ja tokens ir beidzies vai atsaukts, aizsargātās lapas tiek aizvērtas automātiski.',
-  },
   adminPanel: {
     sections: {
       users: 'Lietotāji',
@@ -2027,7 +2034,7 @@ messages.lv = {
       eyebrow: 'Kontakti',
       title: 'Sazinieties ar mums',
       text: 'CVHOLD komanda atbild uz jautājumiem gan kandidātiem, gan darba devējiem.',
-      cards: ['support@cvhold.example', '+371 00 000 000', 'Rīga, Latvija'],
+      cards: ['support@cvhold.com', '+37125253030', 'Rīga, Latvija'],
     },
     faq: {
       eyebrow: 'FAQ',
@@ -2041,7 +2048,23 @@ messages.lv = {
       text: 'Pamatnoteikumi kandidātiem, darba devējiem un datu apstrādei.',
       cards: ['Lietotāja vienošanās', 'Privātuma politika', 'Vakanču publicēšanas noteikumi'],
     },
-  },}
+  },
+  contactPage: {
+    eyebrow: 'CVHOLD kontakti',
+    title: 'Mēs esam gatavi palīdzēt',
+    description: 'Sazinieties ar CVHOLD komandu par platformu, kontu, vakancēm vai sadarbības iespējām.',
+    contactsLabel: 'Kontaktinformācija',
+    emailLabel: 'E-pasts',
+    emailAction: 'Rakstiet mums jebkurā laikā',
+    phoneLabel: 'Tālrunis',
+    phoneAction: 'Zvaniet mums darba laikā',
+    locationLabel: 'Atrašanās vieta',
+    locationValue: 'Rīga, Latvija',
+    locationAction: 'Atbalstām lietotājus visā Eiropā',
+    noteTitle: 'Atbildēsim pēc iespējas ātrāk',
+    noteText: 'Mūsu atbalsta komanda parasti atbild vienas darba dienas laikā.',
+  },
+}
 messages.ru.aboutPage = {
   eyebrow: 'О нас',
   titleLead: 'Вы видите кто подходит',
