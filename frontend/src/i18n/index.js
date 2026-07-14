@@ -123,6 +123,10 @@ const messages = {
       removeBookmark: 'Убрать из избранного',
       addBookmark: 'Добавить в избранное',
       details: 'Подробнее',
+      pagination: 'Пагинация вакансий',
+      previousPage: 'Назад',
+      nextPage: 'Далее',
+      paginationSummary: 'Показано {start}-{end} из {total}',
     },
     jobDetailPage: {
       loading: 'Загрузка вакансии...',
@@ -835,6 +839,10 @@ const messages = {
       removeBookmark: 'Remove from saved jobs',
       addBookmark: 'Save job',
       details: 'Details',
+      pagination: 'Job pagination',
+      previousPage: 'Previous',
+      nextPage: 'Next',
+      paginationSummary: 'Showing {start}-{end} of {total}',
     },
     jobDetailPage: {
       loading: 'Loading job...',
@@ -1559,6 +1567,10 @@ messages.lv = {
     removeBookmark: 'Noņemt no saglabātajām',
     addBookmark: 'Saglabāt vakanci',
     details: 'Skatīt',
+    pagination: 'Vakanču lapošana',
+    previousPage: 'Atpakaļ',
+    nextPage: 'Tālāk',
+    paginationSummary: 'Rāda {start}-{end} no {total}',
   },
   categories: {
     ...messages.en.categories,

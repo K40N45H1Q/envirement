@@ -20,6 +20,8 @@ const { t } = useI18n()
 const draftSearchTitle = ref('')
 const draftSearchLocation = ref('')
 const draftSelectedCategory = ref('all')
+const currentPage = ref(1)
+const JOBS_PER_PAGE = 5
 
 const {
   isLoading,
@@ -35,6 +37,17 @@ const {
 
 const hasQueryChanged = (left, right) => JSON.stringify(left) !== JSON.stringify(right)
 const isAuthenticated = computed(() => !!auth.user)
+const parsePage = (value) => {
+  const parsed = Number.parseInt(String(value || '1'), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const buildPaginationItems = (page, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+  if (page <= 4) return [1, 2, 3, 4, 5, 'ellipsis-right', total]
+  if (page >= total - 3) return [1, 'ellipsis-left', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, 'ellipsis-left', page - 1, page, page + 1, 'ellipsis-right', total]
+}
 
 const resetGuestFavoriteFilters = () => {
   if (isAuthenticated.value) return false
@@ -63,8 +76,10 @@ const syncSearchDrafts = () => {
   draftSelectedCategory.value = filters.value.selectedCategory
 }
 
-const syncRoute = async () => {
-  const nextQuery = jobsStore.routeQuery
+const syncRoute = async (page = currentPage.value) => {
+  const nextQuery = { ...jobsStore.routeQuery }
+  currentPage.value = page
+  if (page > 1) nextQuery.page = String(page)
   const currentQuery = { ...route.query }
 
   if (hasQueryChanged(nextQuery, currentQuery)) {
@@ -74,7 +89,7 @@ const syncRoute = async () => {
 
 const selectCountry = async (value) => {
   jobsStore.setFilter('selectedCountry', value)
-  await syncRoute()
+  await syncRoute(1)
 }
 
 const selectTab = async (value) => {
@@ -85,7 +100,7 @@ const selectTab = async (value) => {
 
   jobsStore.setFilter('selectedTab', value)
   jobsStore.setFilter('onlyBookmarked', value === 'favorites')
-  await syncRoute()
+  await syncRoute(1)
 }
 
 const toggleBookmark = async (jobId) => {
@@ -103,33 +118,39 @@ const runSearch = async () => {
   jobsStore.setFilter('searchTitle', draftSearchTitle.value.trim())
   jobsStore.setFilter('searchLocation', draftSearchLocation.value.trim())
   jobsStore.setFilter('selectedCategory', draftSelectedCategory.value)
-  await syncRoute()
+  await syncRoute(1)
   jobsListRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const resetFilters = async () => {
   jobsStore.resetFilters()
   syncSearchDrafts()
-  await syncRoute()
+  await syncRoute(1)
+}
+
+const handleSortChange = async () => {
+  await syncRoute(1)
 }
 
 watch(
   () => route.query,
   async (query) => {
     jobsStore.applyRouteQuery(query)
+    currentPage.value = parsePage(query.page)
     syncSearchDrafts()
-    if (resetGuestFavoriteFilters()) await syncRoute()
+    if (resetGuestFavoriteFilters()) await syncRoute(1)
   },
 )
 
 watch(isAuthenticated, async (value) => {
-  if (!value && resetGuestFavoriteFilters()) await syncRoute()
+  if (!value && resetGuestFavoriteFilters()) await syncRoute(1)
 })
 
 onMounted(async () => {
   await jobsStore.initialize(route.query)
+  currentPage.value = parsePage(route.query.page)
   syncSearchDrafts()
-  if (resetGuestFavoriteFilters()) await syncRoute()
+  if (resetGuestFavoriteFilters()) await syncRoute(1)
 })
 
 const categoryConfigs = computed(() => jobsStore.categoryConfigs)
@@ -155,11 +176,31 @@ const sortOptions = computed(() => [
 ])
 
 const formatSalaryLabel = (salary) => t('jobsPage.salaryFromValue', { salary })
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / JOBS_PER_PAGE)))
+const paginatedJobs = computed(() => {
+  const start = (currentPage.value - 1) * JOBS_PER_PAGE
+  return filteredJobs.value.slice(start, start + JOBS_PER_PAGE)
+})
+const paginationItems = computed(() => buildPaginationItems(currentPage.value, totalPages.value))
+const pageStart = computed(() => (filteredJobs.value.length ? ((currentPage.value - 1) * JOBS_PER_PAGE) + 1 : 0))
+const pageEnd = computed(() => Math.min(currentPage.value * JOBS_PER_PAGE, filteredJobs.value.length))
 
 const focusJob = (jobId) => {
   const target = document.getElementById(`job-card-${jobId}`)
   target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
+
+const goToPage = async (page) => {
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return
+  await syncRoute(page)
+  jobsListRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+watch(filteredJobs, async () => {
+  if (currentPage.value > totalPages.value) {
+    await syncRoute(totalPages.value)
+  }
+})
 </script>
 
 <template>
@@ -274,14 +315,14 @@ const focusJob = (jobId) => {
                     variant="ghost"
                     class="sort-dropdown"
                     :options="sortOptions"
-                    @change="syncRoute"
+                    @change="handleSortChange"
                   />
                 </label>
               </div>
             </header>
 
             <div v-if="filteredJobs.length" class="jobs-list">
-              <article :id="`job-card-${job.id}`" v-for="job in filteredJobs" :key="job.id" class="job-row">
+              <article :id="`job-card-${job.id}`" v-for="job in paginatedJobs" :key="job.id" class="job-row">
                 <RouterLink
                   :to="`/jobs/${job.id}`"
                   class="job-card-link"
@@ -342,6 +383,49 @@ const focusJob = (jobId) => {
                 {{ t('jobsPage.noJobsFound') }}
               </div>
             </div>
+
+            <nav v-if="filteredJobs.length && totalPages > 1" class="jobs-pagination" :aria-label="t('jobsPage.pagination')">
+              <div class="jobs-pagination__summary">
+                {{ t('jobsPage.paginationSummary', { start: pageStart, end: pageEnd, total: filteredJobs.length }) }}
+              </div>
+
+              <div class="jobs-pagination__controls">
+                <button
+                  type="button"
+                  class="pagination-button pagination-button--ghost"
+                  :disabled="currentPage === 1"
+                  @click="goToPage(currentPage - 1)"
+                >
+                  <i class="fas fa-arrow-left"></i>
+                  <span>{{ t('jobsPage.previousPage') }}</span>
+                </button>
+
+                <div class="pagination-numbers">
+                  <template v-for="item in paginationItems" :key="item">
+                    <span v-if="String(item).startsWith('ellipsis')" class="pagination-ellipsis">•••</span>
+                    <button
+                      v-else
+                      type="button"
+                      class="pagination-button pagination-button--number"
+                      :class="{ 'pagination-button--active': currentPage === item }"
+                      @click="goToPage(item)"
+                    >
+                      {{ item }}
+                    </button>
+                  </template>
+                </div>
+
+                <button
+                  type="button"
+                  class="pagination-button"
+                  :disabled="currentPage === totalPages"
+                  @click="goToPage(currentPage + 1)"
+                >
+                  <span>{{ t('jobsPage.nextPage') }}</span>
+                  <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+            </nav>
           </section>
 
         </div>
@@ -387,7 +471,7 @@ const focusJob = (jobId) => {
             <div class="filter-group">
               <h4>{{ t('jobsPage.salaryFrom') }}</h4>
               <div class="input-wrap">
-                <input v-model="filters.salaryFrom" type="number" min="0" :placeholder="t('jobsPage.salaryPlaceholder')" @change="syncRoute" />
+                <input v-model="filters.salaryFrom" type="number" min="0" :placeholder="t('jobsPage.salaryPlaceholder')" @change="syncRoute(1)" />
                 <i class="fas fa-wallet"></i>
               </div>
             </div>
@@ -401,7 +485,7 @@ const focusJob = (jobId) => {
                   type="button"
                   class="filter-chip"
                   :class="{ 'filter-chip--active': filters.selectedEmployment === option.id }"
-                  @click="jobsStore.setFilter('selectedEmployment', option.id); syncRoute()"
+                  @click="jobsStore.setFilter('selectedEmployment', option.id); syncRoute(1)"
                 >
                   {{ option.label }}
                 </button>
@@ -411,15 +495,15 @@ const focusJob = (jobId) => {
             <div class="filter-group">
               <h4>{{ t('jobsPage.conditions') }}</h4>
               <label class="toggle-row">
-                <input v-model="filters.onlyWithHousing" type="checkbox" @change="syncRoute" />
+                <input v-model="filters.onlyWithHousing" type="checkbox" @change="syncRoute(1)" />
                 <span>{{ t('jobsPage.onlyHousing') }}</span>
               </label>
               <label class="toggle-row">
-                <input v-model="filters.onlyWithTransport" type="checkbox" @change="syncRoute" />
+                <input v-model="filters.onlyWithTransport" type="checkbox" @change="syncRoute(1)" />
                 <span>{{ t('jobsPage.onlyTransport') }}</span>
               </label>
               <label class="toggle-row">
-                <input v-model="filters.onlyBookmarked" type="checkbox" @change="syncRoute" />
+                <input v-model="filters.onlyBookmarked" type="checkbox" @change="syncRoute(1)" />
                 <span>{{ t('jobsPage.onlyBookmarks') }}</span>
               </label>
             </div>
@@ -763,6 +847,86 @@ const focusJob = (jobId) => {
   display: grid;
   gap: 0.85rem;
   padding-top: 1rem;
+}
+
+.jobs-pagination {
+  display: grid;
+  gap: 0.95rem;
+  margin-top: 1.2rem;
+  padding-top: 1.15rem;
+  border-top: 0.0625rem solid var(--border-subtle);
+}
+
+.jobs-pagination__summary {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.jobs-pagination__controls,
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.jobs-pagination__controls {
+  justify-content: space-between;
+}
+
+.pagination-button {
+  min-height: 2.85rem;
+  padding: 0.72rem 1rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: 999rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 249, 245, 0.98));
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  box-shadow: 0 0.55rem 1.35rem rgba(16, 24, 40, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled),
+.pagination-button:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand-base) 44%, var(--border-subtle));
+  color: var(--brand-strong);
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.8rem 1.6rem rgba(16, 24, 40, 0.1);
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pagination-button--ghost {
+  background: var(--surface-secondary);
+}
+
+.pagination-button--number {
+  min-width: 2.85rem;
+  padding-inline: 0.75rem;
+}
+
+.pagination-button--active {
+  border-color: color-mix(in srgb, var(--brand-base) 60%, white);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-base) 95%, white), color-mix(in srgb, var(--brand-strong) 90%, white));
+  color: #fff;
+  box-shadow: 0 0.9rem 1.7rem rgba(20, 184, 87, 0.22);
+}
+
+.pagination-ellipsis {
+  color: var(--text-muted);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding-inline: 0.15rem;
 }
 
 .job-row {
@@ -1198,6 +1362,23 @@ const focusJob = (jobId) => {
 
   .save-button {
     width: 2.9rem;
+  }
+
+  .jobs-pagination__controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination-numbers {
+    justify-content: center;
+  }
+
+  .pagination-button {
+    width: 100%;
+  }
+
+  .pagination-button--number {
+    width: 2.85rem;
   }
 }
 </style>
