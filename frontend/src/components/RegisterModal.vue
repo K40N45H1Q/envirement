@@ -60,13 +60,21 @@
           </div>
 
           <template v-if="isAccountStep">
-            <div v-if="selectedAccountType === 'candidate'" class="field">
+            <div v-if="selectedAccountType === 'candidate'" class="field name-fields">
               <input
-                v-model.trim="fullName"
+                v-model.trim="firstName"
                 type="text"
-                :placeholder="t('register.fullName')"
+                :placeholder="t('register.firstName')"
                 class="input"
-                autocomplete="name"
+                autocomplete="given-name"
+                @input="setError('')"
+              />
+              <input
+                v-model.trim="lastName"
+                type="text"
+                :placeholder="t('register.lastName')"
+                class="input"
+                autocomplete="family-name"
                 @input="setError('')"
               />
             </div>
@@ -257,7 +265,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from '@/i18n'
-import { requestRegistrationCode, verifyRegistrationCode } from '@/api/auth'
+import { login, requestRegistrationCode, verifyRegistrationCode } from '@/api/auth'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 
@@ -277,7 +285,8 @@ const { t } = useI18n()
 
 const selectedAccountType = ref('candidate')
 const currentStep = ref(1)
-const fullName = ref('')
+const firstName = ref('')
+const lastName = ref('')
 const email = ref('')
 const phone = ref('')
 const password = ref('')
@@ -348,7 +357,8 @@ function setFeedback(message, tone = 'error') {
 }
 
 function resetForm() {
-  fullName.value = ''
+  firstName.value = ''
+  lastName.value = ''
   email.value = ''
   phone.value = ''
   password.value = ''
@@ -384,7 +394,7 @@ function selectAccountType(type) {
 function validateAccountStep() {
   const isIdentityMissing = selectedAccountType.value === 'employer'
     ? !companyName.value || !companyRegistrationNumber.value || !companyCountry.value
-    : !fullName.value
+    : !firstName.value || !lastName.value
 
   if (isIdentityMissing || !email.value || !phone.value || !password.value || !confirmPassword.value) {
     setError(t('register.fillRequiredFields'))
@@ -411,7 +421,7 @@ function validateAccountStep() {
 
 function buildRegistrationPayload() {
   return {
-    fullName: selectedAccountType.value === 'candidate' ? fullName.value.trim() : '',
+    fullName: selectedAccountType.value === 'candidate' ? `${firstName.value.trim()} ${lastName.value.trim()}` : '',
     email: email.value.trim(),
     phone: phone.value.trim(),
     password: password.value,
@@ -486,11 +496,16 @@ async function handleSubmit() {
         email: email.value.trim(),
         code: verificationCode.value.trim(),
       })
+      const loginPayload = await login({
+        email: email.value.trim(),
+        password: password.value,
+      })
 
       emit('registered', {
         ...payload,
+        ...loginPayload,
         accountType: selectedAccountType.value,
-        fullName: selectedAccountType.value === 'candidate' ? fullName.value.trim() : '',
+        fullName: selectedAccountType.value === 'candidate' ? `${firstName.value.trim()} ${lastName.value.trim()}` : '',
         email: email.value.trim(),
         companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
         successMessage: selectedAccountType.value === 'employer'
@@ -657,6 +672,12 @@ onBeforeUnmount(() => {
 .field-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.name-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -982,6 +1003,7 @@ onBeforeUnmount(() => {
 
   .account-type,
   .field-grid,
+  .name-fields,
   .actions {
     grid-template-columns: 1fr;
   }

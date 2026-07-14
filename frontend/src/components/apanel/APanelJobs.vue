@@ -345,7 +345,7 @@ const submitRejection = () => {
 .apanel-table th,
 .apanel-table td {
   padding: 0.85rem 0.8rem;
-  border-bottom: 0.0625rem solid var(--border-subtle);
+  border-bottom: 0;
   color: var(--text-primary);
   text-align: left;
   vertical-align: middle;
@@ -360,12 +360,13 @@ const submitRejection = () => {
   text-transform: uppercase;
 }
 
-.apanel-table tbody tr:last-child td {
-  border-bottom: 0;
+.apanel-table tbody tr {
+  box-shadow: inset 0 -0.0625rem var(--border-subtle);
+  transition: background-color 0.18s ease;
 }
 
-.apanel-table tbody tr {
-  transition: background-color 0.18s ease;
+.apanel-table tbody tr:last-child {
+  box-shadow: none;
 }
 
 .apanel-table tbody tr:hover {
@@ -422,8 +423,14 @@ const submitRejection = () => {
 }
 
 .apanel-actions {
-  display: flex;
-  justify-content: flex-end;
+  width: 7rem;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.apanel-table th:last-child {
+  width: 7rem;
+  text-align: right;
 }
 
 .apanel-icon-button {

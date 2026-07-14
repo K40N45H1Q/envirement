@@ -5,9 +5,11 @@ import Navbar from '@/components/Navbar.vue'
 import LoginModal from '@/components/LoginModal.vue'
 import RegisterModal from '@/components/RegisterModal.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
+import { useAuth } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuth()
 const activeModal = ref(null)
 const authModalNotice = ref(null)
 const isAuthModalOpen = computed(() => activeModal.value !== null)
@@ -33,11 +35,8 @@ const closeAuthModal = () => {
 }
 
 const handleRegistered = (payload) => {
+  auth.setUser(payload?.user || null)
   closeAuthModal()
-  openLoginModal({
-    type: 'success',
-    message: payload?.successMessage || '',
-  })
 }
 
 watch(() => route.query.auth, (auth) => {
