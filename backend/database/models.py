@@ -21,6 +21,7 @@ class User(SQLModel, table=True):
     company_registration_number: Optional[str] = None
     subscription_plan: Optional[str] = None
     subscription_expires_at: Optional[datetime] = None
+    subscription_jobs_used: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -29,6 +30,8 @@ class Job(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     status: str = Field(default="pending")
+    rejection_reason: Optional[str] = None
+    quota_consumed: bool = Field(default=False)
     company: str
     category: Optional[str] = None
     location: str
@@ -296,6 +299,26 @@ def ensure_job_columns():
                 "ALTER TABLE job ADD COLUMN banner_url VARCHAR"
             )
 
+        if "rejection_reason" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN rejection_reason VARCHAR"
+            )
+
+        if "quota_consumed" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN quota_consumed BOOLEAN NOT NULL DEFAULT 0"
+            )
+            connection.exec_driver_sql(
+                "UPDATE user SET subscription_jobs_used = MAX("
+                "subscription_jobs_used - ("
+                "SELECT COUNT(*) FROM job WHERE job.user_id = user.id "
+                "AND job.status IN ('pending', 'rejected')"
+                "), 0) WHERE account_type = 'employer'"
+            )
+            connection.exec_driver_sql(
+                "UPDATE job SET quota_consumed = 1 WHERE status = 'approved'"
+            )
+
 
 def ensure_user_columns():
     with engine.begin() as connection:
@@ -304,6 +327,7 @@ def ensure_user_columns():
             for row in connection.exec_driver_sql("PRAGMA table_info(user)").fetchall()
         }
 
+        added_subscription_jobs_used = "subscription_jobs_used" not in columns
         additions = {
             "full_name": "ALTER TABLE user ADD COLUMN full_name VARCHAR",
             "is_default_account": "ALTER TABLE user ADD COLUMN is_default_account BOOLEAN NOT NULL DEFAULT 0",
@@ -316,15 +340,27 @@ def ensure_user_columns():
             "phone": "ALTER TABLE user ADD COLUMN phone VARCHAR",
             "subscription_plan": "ALTER TABLE user ADD COLUMN subscription_plan VARCHAR",
             "subscription_expires_at": "ALTER TABLE user ADD COLUMN subscription_expires_at DATETIME",
+            "subscription_jobs_used": "ALTER TABLE user ADD COLUMN subscription_jobs_used INTEGER NOT NULL DEFAULT 0",
         }
 
         for column, statement in additions.items():
             if column not in columns:
                 connection.exec_driver_sql(statement)
 
+        if added_subscription_jobs_used:
+            connection.exec_driver_sql(
+                """
+                UPDATE user
+                SET subscription_jobs_used = (
+                    SELECT COUNT(*) FROM job WHERE job.user_id = user.id
+                )
+                WHERE subscription_plan IS NOT NULL
+                """
+            )
 
-ensure_job_columns()
+
 ensure_user_columns()
+ensure_job_columns()
 
 
 def ensure_application_columns():

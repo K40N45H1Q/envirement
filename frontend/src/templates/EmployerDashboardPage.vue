@@ -88,11 +88,13 @@ const localizedPlans = computed(() => plans.map((plan) => ({
   features: copy.value.planMeta[plan.id]?.features || [],
 })))
 
-const localizedSections = computed(() => sections.map((section) => ({
-  ...section,
-  label: copy.value.sections[section.id] || section.label,
-  to: `${route.path}?section=${section.id}`,
-})))
+const localizedSections = computed(() => sections
+  .map((section) => ({
+    ...section,
+    label: copy.value.sections[section.id] || section.label,
+    to: `${route.path}?section=${section.id}`,
+    disabled: section.id !== 'pricing' && !hasActiveSubscription.value,
+  })))
 
 const localizedLanguageOptions = computed(() => getLanguageOptions())
 const localizedLicenseOptions = computed(() => getLicenseOptions())
@@ -180,13 +182,20 @@ const newLanguageLevel = ref(languageLevelOptions[2].value)
 const newLicense = ref(copy.value.noLicense)
 const expandedResponseJobIds = ref([])
 const brokenAvatars = ref(new Set())
+const brokenJobLogos = ref(new Set())
 const dashboardRefreshTimer = ref(null)
+const planJobLimits = {
+  basic: 1,
+  standard: 5,
+  pro: 20,
+}
 
 const conversations = computed(() => messaging.conversations)
 const isEditing = computed(() => editingId.value !== null)
 const employerCompanyName = computed(() => String(auth.user?.company_name || '').trim())
 const employerCompanyLogo = computed(() => String(auth.user?.company_logo_url || '').trim())
 const approvedCount = computed(() => jobs.value.filter((job) => job.status === 'approved').length)
+const usedJobsCount = computed(() => Math.max(Number(auth.user?.subscription_jobs_used || 0), 0))
 const subscriptionExpiresAt = computed(() => auth.user?.subscription_expires_at || '')
 const hasActiveSubscription = computed(() => {
   if (!auth.user?.subscription_plan || !subscriptionExpiresAt.value) return false
@@ -200,13 +209,40 @@ const canAddLanguage = computed(() => !form.value.languages.some((language) => (
 const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId.value) || null)
 const currentPlanName = computed(() => currentPlan.value?.name || copy.value.noActivePlan)
 const currentPlanPrice = computed(() => currentPlan.value?.price || '-')
-const currentPlanLimit = computed(() => currentPlan.value?.vacancies || '-')
+const currentPlanLimit = computed(() => {
+  if (!hasActiveSubscription.value) return '-'
+
+  const totalLimit = planJobLimits[currentPlanId.value] || 0
+  const remaining = Math.max(totalLimit - usedJobsCount.value, 0)
+
+  if (currentLanguage.value === 'en') {
+    return `${remaining} ${remaining === 1 ? 'job' : 'jobs'}`
+  }
+
+  if (currentLanguage.value === 'lv') {
+    return `${remaining} ${remaining % 10 === 1 && remaining % 100 !== 11 ? 'vakance' : 'vakances'}`
+  }
+
+  const mod10 = remaining % 10
+  const mod100 = remaining % 100
+  const noun = mod10 === 1 && mod100 !== 11
+    ? 'вакансия'
+    : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+      ? 'вакансии'
+      : 'вакансий'
+
+  return `${remaining} ${noun}`
+})
 const currentPlanExpires = computed(() => (
   hasActiveSubscription.value
     ? new Intl.DateTimeFormat(currentLanguage.value === 'lv' ? 'lv-LV' : currentLanguage.value === 'en' ? 'en-GB' : 'ru-RU').format(new Date(subscriptionExpiresAt.value))
     : '-'
 ))
 const selectedCountry = computed(() => countryByKey[form.value.country_key] || null)
+const selectedResponsesJobId = computed(() => {
+  const raw = typeof route.query.job === 'string' ? Number(route.query.job) : 0
+  return Number.isFinite(raw) && raw > 0 ? raw : null
+})
 const cityOptions = computed(() => {
   const availableCities = selectedCountry.value ? getCityOptions(selectedCountry.value.key) : []
   const currentLocation = String(form.value.location || '').trim()
@@ -219,7 +255,13 @@ const cityOptions = computed(() => {
 
   return [{ value: '', label: copy.value.chooseCity }, ...options]
 })
-const scoredResponses = computed(() => responses.value.map((item) => ({
+const filteredResponses = computed(() => (
+  selectedResponsesJobId.value === null
+    ? responses.value
+    : responses.value.filter((item) => Number(item.job_id) === selectedResponsesJobId.value)
+))
+
+const scoredResponses = computed(() => filteredResponses.value.map((item) => ({
   ...item,
   matchAnalysis: analyzeCandidateMatch(item, item),
 })))
@@ -311,12 +353,16 @@ const responseMatchSummary = computed(() => {
   ].filter((item) => item.count > 0)
 })
 
-const localizedShellStats = computed(() => ([
-  { value: jobs.value.length, label: copy.value.stats.jobs, section: 'jobs' },
-  { value: approvedCount.value, label: copy.value.stats.published, section: 'jobs' },
-  { value: responses.value.length, label: copy.value.stats.responses, section: 'responses' },
-  { value: conversations.value.length, label: copy.value.stats.conversations, section: 'messages' },
-]))
+const localizedShellStats = computed(() => {
+  if (!hasActiveSubscription.value) return []
+
+  return [
+    { value: jobs.value.length, label: copy.value.stats.jobs, section: 'jobs' },
+    { value: approvedCount.value, label: copy.value.stats.published, section: 'jobs' },
+    { value: responses.value.length, label: copy.value.stats.responses, section: 'responses' },
+    { value: conversations.value.length, label: copy.value.stats.conversations, section: 'messages' },
+  ]
+})
 const localizedActiveSectionLabel = computed(() => localizedSections.value.find((item) => item.id === activeSection.value)?.label || copy.value.fallbackSection)
 const localizedSubmitLabel = computed(() => (isSaving.value ? copy.value.saving : (isEditing.value ? copy.value.saveChanges : copy.value.saveJob)))
 const categoryRequiredError = computed(() => copy.value.categoryRequiredError)
@@ -404,7 +450,24 @@ function responseResumeUrl(item) {
   return resolveApiUrl(item.candidate_resume_url || '')
 }
 
+function jobLogoKey(job) {
+  return `${job.id || ''}:${job.logo || ''}`
+}
+
+function isJobLogoBroken(job) {
+  return brokenJobLogos.value.has(jobLogoKey(job))
+}
+
+function markJobLogoBroken(job) {
+  const next = new Set(brokenJobLogos.value)
+  next.add(jobLogoKey(job))
+  brokenJobLogos.value = next
+}
+
 async function setSection(sectionId) {
+  if (sectionId !== 'pricing' && !hasActiveSubscription.value) {
+    sectionId = 'pricing'
+  }
   activeSection.value = normalizeSection(sectionId)
   await router.replace({
     path: route.path,
@@ -424,7 +487,7 @@ async function fetchDashboardData({ silent = false } = {}) {
   try {
     const [jobsData, responsesData] = await Promise.all([
       getMyJobs(),
-      getResponses(),
+      hasActiveSubscription.value ? getResponses() : Promise.resolve([]),
     ]) 
 
     jobs.value = Array.isArray(jobsData) ? jobsData.map(normalizeJob) : []
@@ -434,8 +497,11 @@ async function fetchDashboardData({ silent = false } = {}) {
         .map((item) => String(item.job_id || ''))
         .filter(Boolean),
     )]
+    const selectedJobId = selectedResponsesJobId.value ? String(selectedResponsesJobId.value) : ''
 
-    if (!expandedResponseJobIds.value.length) {
+    if (selectedJobId) {
+      expandedResponseJobIds.value = [selectedJobId]
+    } else if (!expandedResponseJobIds.value.length) {
       expandedResponseJobIds.value = loadedResponseJobIds
     } else {
       expandedResponseJobIds.value = [...new Set([
@@ -501,6 +567,13 @@ function resetForm() {
 }
 
 function openCreateJobModal() {
+  if (!hasActiveSubscription.value) {
+    status.value = ''
+    error.value = copy.value.subscriptionRequiredError
+    setSection('pricing')
+    return
+  }
+
   resetForm()
   status.value = ''
   error.value = ''
@@ -572,6 +645,12 @@ function onBannerChange(event) {
 }
 
 async function editJob(job) {
+  if (!hasActiveSubscription.value) {
+    error.value = copy.value.subscriptionRequiredError
+    await setSection('pricing')
+    return
+  }
+
   const country = resolveCountryMeta(job)
   const salaryParts = parseSalaryParts(job.salary)
   editingId.value = job.id
@@ -674,6 +753,12 @@ async function submitJob() {
 }
 
 async function removeJob(job) {
+  if (!hasActiveSubscription.value) {
+    error.value = copy.value.subscriptionRequiredError
+    await setSection('pricing')
+    return
+  }
+
   if (!window.confirm(interpolate(copy.value.deleteConfirm, { title: job.title }))) return
 
   deletingId.value = job.id
@@ -684,9 +769,12 @@ async function removeJob(job) {
     await deleteJob(job.id)
     if (editingId.value === job.id) resetForm()
     status.value = copy.value.jobDeleted
+    await auth.loadUser({ force: true })
     await loadDashboard()
-  } catch {
-    error.value = copy.value.jobDeleteError
+  } catch (caughtError) {
+    error.value = caughtError instanceof ApiError && caughtError.key === 'subscription_required'
+      ? copy.value.subscriptionRequiredError
+      : copy.value.jobDeleteError
   } finally {
     deletingId.value = null
   }
@@ -765,7 +853,12 @@ watch(
 watch(
   () => route.query.section,
   async (section) => {
-    activeSection.value = normalizeSection(typeof section === 'string' ? section : 'jobs')
+    const requestedSection = typeof section === 'string' ? section : 'jobs'
+    if (requestedSection !== 'pricing' && !hasActiveSubscription.value) {
+      await setSection('pricing')
+      return
+    }
+    activeSection.value = normalizeSection(requestedSection)
 
     if (activeSection.value === 'responses') {
       await fetchDashboardData({ silent: true })
@@ -792,8 +885,9 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('keydown', handleModalKeydown)
-  if (!auth.user) {
-    await auth.loadUser()
+  await auth.loadUser({ force: true })
+  if (activeSection.value !== 'pricing' && !hasActiveSubscription.value) {
+    await setSection('pricing')
   }
   resetForm()
   await loadDashboard()
@@ -1111,7 +1205,12 @@ onBeforeUnmount(() => {
 
             <article v-for="job in jobs" :key="job.id" class="job-row">
               <div class="company-logo" :style="{ background: job.color }">
-                <img v-if="job.logo" :src="job.logo" :alt="job.company" />
+                <img
+                  v-if="job.logo && !isJobLogoBroken(job)"
+                  :src="job.logo"
+                  :alt="job.company"
+                  @error="markJobLogoBroken(job)"
+                />
                 <span v-else>{{ job.initials }}</span>
               </div>
 
@@ -1121,7 +1220,18 @@ onBeforeUnmount(() => {
                     <h3>{{ job.title }}</h3>
                     <div class="job-company">{{ job.company }} · {{ job.location }}</div>
                   </div>
-                  <span class="badge" :class="job.status">{{ statusLabel(job.status) }}</span>
+                  <span
+                    class="badge"
+                    :class="[
+                      job.status,
+                      {
+                        'inactive-radius': job.status === 'rejected',
+                        'warning-radius': job.status === 'pending',
+                      },
+                    ]"
+                  >
+                    {{ statusLabel(job.status) }}
+                  </span>
                 </div>
 
                 <div class="job-tags">
@@ -1137,13 +1247,34 @@ onBeforeUnmount(() => {
 
                 <p class="job-description">{{ job.description }}</p>
 
+                <p v-if="job.status === 'rejected' && job.rejection_reason" class="job-rejection-reason">
+                  <strong>{{ copy.rejectionReason }}:</strong> {{ job.rejection_reason }}
+                </p>
+
                 <div class="job-footer">
                   <strong class="job-salary">{{ job.salary }}</strong>
                   <div class="job-buttons">
                     <RouterLink v-if="job.status === 'approved'" :to="`/jobs/${job.id}`" class="text-button">{{ copy.open }}</RouterLink>
-                    <button type="button" class="text-button" @click="editJob(job)">{{ copy.edit }}</button>
-                    <button type="button" class="text-button danger" :disabled="deletingId === job.id" @click="removeJob(job)">
-                      {{ deletingId === job.id ? copy.deleting : copy.delete }}
+                    <button
+                      v-if="hasActiveSubscription"
+                      type="button"
+                      class="job-icon-button job-icon-button--edit"
+                      :title="copy.edit"
+                      :aria-label="copy.edit"
+                      @click="editJob(job)"
+                    >
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button
+                      v-if="hasActiveSubscription"
+                      type="button"
+                      class="job-icon-button job-icon-button--delete"
+                      :title="deletingId === job.id ? copy.deleting : copy.delete"
+                      :aria-label="deletingId === job.id ? copy.deleting : copy.delete"
+                      :disabled="deletingId === job.id"
+                      @click="removeJob(job)"
+                    >
+                      <i :class="deletingId === job.id ? 'fas fa-spinner fa-spin' : 'fas fa-trash'"></i>
                     </button>
                   </div>
                 </div>
@@ -1368,10 +1499,10 @@ onBeforeUnmount(() => {
                 <p class="eyebrow compact">{{ copy.currentPlan }}</p>
                 <h2>{{ currentPlanName }}</h2>
               </div>
-              <span v-if="hasActiveSubscription" class="plan-badge">{{ copy.active }}</span>
+              <span v-if="hasActiveSubscription" class="plan-badge active-radius">{{ copy.active }}</span>
             </div>
 
-            <div class="current-plan-grid">
+            <div v-if="hasActiveSubscription" class="current-plan-grid">
               <div class="current-plan-card">
                 <span>{{ copy.cost }}</span>
                 <strong>{{ currentPlanPrice }}</strong>
@@ -1403,7 +1534,7 @@ onBeforeUnmount(() => {
               </div>
 
               <strong class="plan-price">{{ plan.price }}</strong>
-              <p class="plan-limit">{{ plan.vacancies }}</p>
+              <p class="plan-limit active-radius">{{ plan.vacancies }}</p>
               <p class="pricing-copy">{{ plan.description }}</p>
 
               <ul class="plan-features">
@@ -1413,8 +1544,8 @@ onBeforeUnmount(() => {
                 </li>
               </ul>
 
-              <button type="button" :class="plan.id === currentPlanId ? 'btn-secondary' : 'btn-primary'">
-                {{ plan.id === currentPlanId ? copy.renew : copy.choosePlan }}
+              <button type="button" :class="plan.id === currentPlanId ? 'btn-secondary' : 'btn-primary'" disabled>
+                {{ plan.id === currentPlanId ? copy.current : copy.assignedByAdmin }}
               </button>
             </article>
           </section>

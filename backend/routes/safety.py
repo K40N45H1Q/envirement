@@ -87,6 +87,7 @@ def serialize_user(user: User) -> dict:
         "company_registration_number": user.company_registration_number or "",
         "subscription_plan": user.subscription_plan or "",
         "subscription_expires_at": user.subscription_expires_at,
+        "subscription_jobs_used": user.subscription_jobs_used or 0,
         "has_active_subscription": has_active_subscription,
         "created_at": user.created_at,
         "updated_at": user.updated_at,

@@ -12,6 +12,7 @@ from routes.safety import get_current_user, serialize_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 PLAN_IDS = {"basic", "standard", "pro"}
+PLAN_JOB_LIMITS = {"basic": 1, "standard": 5, "pro": 20}
 
 
 def require_admin(user: User) -> User:
@@ -60,6 +61,8 @@ def serialize_admin_job(job: Job) -> dict:
         "title": job.title,
         "company": job.company,
         "status": job.status,
+        "rejection_reason": job.rejection_reason or "",
+        "quota_consumed": job.quota_consumed,
         "location": job.location,
         "salary": job.salary or "",
         "description": job.description or "",
@@ -148,10 +151,13 @@ async def update_user_subscription(
     if not user:
         raise HTTPException(status_code=404, detail={"error": "user_not_found"})
 
+    if user.account_type != "employer":
+        raise HTTPException(status_code=400, detail={"error": "employer_account_required"})
+
     if payload.get("revoke"):
         user.subscription_plan = None
         user.subscription_expires_at = None
-        user.account_type = "candidate"
+        user.subscription_jobs_used = 0
     else:
         plan = str(payload.get("plan") or "").strip().lower()
         if plan not in PLAN_IDS:
@@ -159,7 +165,7 @@ async def update_user_subscription(
 
         user.subscription_plan = plan
         user.subscription_expires_at = subscription_expires_at()
-        user.account_type = "employer"
+        user.subscription_jobs_used = 0
 
     session.add(user)
     session.commit()
@@ -199,7 +205,29 @@ def approve_admin_job(
     job = session.exec(select(Job).where(Job.id == job_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail={"error": "job_not_found"})
+
+    employer = session.get(User, job.user_id)
+    if employer and employer.account_type == "employer" and not job.quota_consumed:
+        expires_at = employer.subscription_expires_at
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if (
+            employer.subscription_plan not in PLAN_JOB_LIMITS
+            or not expires_at
+            or expires_at <= datetime.now(timezone.utc)
+        ):
+            raise HTTPException(status_code=403, detail={"error": "subscription_required"})
+
+        used_jobs = max(int(employer.subscription_jobs_used or 0), 0)
+        if used_jobs >= PLAN_JOB_LIMITS[employer.subscription_plan]:
+            raise HTTPException(status_code=403, detail={"error": "subscription_job_limit_reached"})
+
+        employer.subscription_jobs_used = used_jobs + 1
+        job.quota_consumed = True
+        session.add(employer)
+
     job.status = "approved"
+    job.rejection_reason = None
     session.add(job)
     session.commit()
     session.refresh(job)
@@ -207,16 +235,25 @@ def approve_admin_job(
 
 
 @router.patch("/moderation/jobs/{job_id}/reject")
-def reject_admin_job(
+async def reject_admin_job(
     job_id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
     require_admin(current_user)
+    payload = await request.json()
+    reason = str(payload.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail={"error": "rejection_reason_required"})
+    if len(reason) > 500:
+        raise HTTPException(status_code=400, detail={"error": "rejection_reason_too_long"})
+
     job = session.exec(select(Job).where(Job.id == job_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail={"error": "job_not_found"})
     job.status = "rejected"
+    job.rejection_reason = reason
     session.add(job)
     session.commit()
     session.refresh(job)

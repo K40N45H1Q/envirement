@@ -38,17 +38,25 @@ defineEmits(['select-section', 'stat-click'])
   <main class="dashboard-shell">
     <aside class="dashboard-sidebar">
       <div class="dashboard-sidebar__top">
-        <p class="dashboard-sidebar__eyebrow">{{ t('dashboardShell.sectionsTitle') }}</p>
+        <p class="dashboard-sidebar__eyebrow">
+          {{ t('dashboardShell.sectionsTitle') }}
+        </p>
       </div>
+
       <component
-        :is="section.to ? RouterLink : 'button'"
+        :is="section.to && !section.disabled ? RouterLink : 'button'"
         v-for="section in sections"
         :key="section.id"
-        :to="section.to"
-        :type="section.to ? undefined : 'button'"
+        :to="section.disabled ? undefined : section.to"
+        :type="section.to && !section.disabled ? undefined : 'button'"
+        :disabled="section.disabled || undefined"
+        :aria-disabled="section.disabled ? 'true' : undefined"
         class="dashboard-sidebar__item"
-        :class="{ 'dashboard-sidebar__item--active': activeSection === section.id }"
-        @click="!section.to && $emit('select-section', section.id)"
+        :class="{
+          'dashboard-sidebar__item--active': activeSection === section.id,
+          'dashboard-sidebar__item--disabled': section.disabled,
+        }"
+        @click="!section.disabled && !section.to && $emit('select-section', section.id)"
       >
         <i :class="section.icon"></i>
         <span>{{ section.label }}</span>
@@ -58,9 +66,11 @@ defineEmits(['select-section', 'stat-click'])
     <section class="dashboard-content">
       <section class="dashboard-head">
         <div class="dashboard-head__copy">
-          <p v-if="eyebrow" class="dashboard-eyebrow">{{ eyebrow }}</p>
+          <p v-if="eyebrow" class="dashboard-eyebrow">
+            {{ eyebrow }}
+          </p>
+
           <h1>{{ title }}</h1>
-          <p v-if="description" class="dashboard-description">{{ description }}</p>
         </div>
 
         <div v-if="$slots.actions" class="dashboard-head__actions">
@@ -68,11 +78,17 @@ defineEmits(['select-section', 'stat-click'])
         </div>
       </section>
 
-      <section v-if="stats.length" class="dashboard-stats">
+      <section
+        v-if="stats.length"
+        class="dashboard-stats"
+        :class="`dashboard-stats--${Math.min(stats.length, 4)}`"
+      >
         <article
           v-for="item in stats"
           :key="item.label"
-          :class="{ 'dashboard-stats__item--clickable': item.section }"
+          :class="{
+            'dashboard-stats__item--clickable': item.section,
+          }"
           @click="item.section && $emit('stat-click', item.section)"
         >
           <strong>{{ item.value }}</strong>
@@ -88,7 +104,7 @@ defineEmits(['select-section', 'stat-click'])
 <style scoped>
 .dashboard-shell {
   width: min(100%, var(--shell-max-width));
-  margin: 0 auto;
+  margin-inline: auto;
   padding: 1.5rem var(--shell-gutter) 4rem;
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
@@ -105,14 +121,18 @@ defineEmits(['select-section', 'stat-click'])
 }
 
 .dashboard-sidebar {
+  position: sticky;
+  top: 5.5rem;
   display: grid;
   align-content: start;
   gap: 0.45rem;
   padding: 1rem;
-  position: sticky;
-  top: 5.5rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 248, 0.98)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(247, 251, 248, 0.98)
+    ),
     var(--surface-primary);
 }
 
@@ -120,8 +140,12 @@ defineEmits(['select-section', 'stat-click'])
   padding: 0.25rem 0.2rem 0.7rem;
 }
 
-.dashboard-sidebar__eyebrow {
+.dashboard-sidebar__eyebrow,
+.dashboard-eyebrow {
   margin: 0;
+}
+
+.dashboard-sidebar__eyebrow {
   color: var(--text-muted);
   font-size: 0.76rem;
   font-weight: 800;
@@ -130,26 +154,39 @@ defineEmits(['select-section', 'stat-click'])
 }
 
 .dashboard-sidebar__item {
-  display: flex;
-  gap: 0.65rem;
-  align-items: center;
+  min-width: 0;
   min-height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   padding: 0.75rem 0.9rem;
   border: 0.0625rem solid transparent;
   border-radius: 0.875rem;
   background: transparent;
   color: var(--text-primary);
+  font: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .dashboard-sidebar__item i {
   width: 1.1rem;
-  text-align: center;
+  flex: 0 0 1.1rem;
   color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+  text-align: center;
   transition: color 0.2s ease;
+}
+
+.dashboard-sidebar__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dashboard-sidebar__item:hover,
@@ -160,62 +197,98 @@ defineEmits(['select-section', 'stat-click'])
 }
 
 .dashboard-sidebar__item:hover i,
-.dashboard-sidebar__item:focus-visible i {
-  color: var(--brand-strong);
-}
-
-.dashboard-sidebar__item--active {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-base) 22%, transparent), color-mix(in srgb, var(--brand-strong) 14%, transparent));
-  border: 0.0625rem solid var(--border-strong);
-  color: var(--text-primary);
-  box-shadow: 0 0.75rem 1.5rem rgba(21, 149, 93, 0.08);
-}
-
+.dashboard-sidebar__item:focus-visible i,
 .dashboard-sidebar__item--active i {
   color: var(--brand-strong);
 }
 
-.dashboard-content {
+.dashboard-sidebar__item:focus-visible {
+  outline: 0.1875rem solid
+    color-mix(in srgb, var(--brand-base) 22%, transparent);
+  outline-offset: 0.125rem;
+}
+
+.dashboard-sidebar__item--active {
+  border-color: var(--border-strong);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-base) 22%, transparent),
+    color-mix(in srgb, var(--brand-strong) 14%, transparent)
+  );
+  color: var(--text-primary);
+  box-shadow: 0 0.75rem 1.5rem rgba(21, 149, 93, 0.08);
+}
+
+.dashboard-sidebar__item--disabled,
+.dashboard-sidebar__item--disabled:hover,
+.dashboard-sidebar__item--disabled:focus-visible {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface-muted) 78%, transparent);
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+}
+
+.dashboard-sidebar__item--disabled i,
+.dashboard-sidebar__item--disabled:hover i,
+.dashboard-sidebar__item--disabled:focus-visible i {
+  color: var(--text-muted);
+}
+
+.dashboard-content,
+.dashboard-head__copy {
+  min-width: 0;
   display: grid;
+}
+
+.dashboard-content {
   gap: 1.5rem;
+  container-type: inline-size;
 }
 
 .dashboard-head {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1.45rem 1.55rem;
+  padding: clamp(1.15rem, 2vw, 1.55rem);
   background:
-    radial-gradient(circle at top right, rgba(26, 177, 111, 0.12), transparent 28%),
-    radial-gradient(circle at left bottom, rgba(15, 118, 110, 0.05), transparent 24%),
+    radial-gradient(
+      circle at top right,
+      rgba(26, 177, 111, 0.12),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at left bottom,
+      rgba(15, 118, 110, 0.05),
+      transparent 24%
+    ),
     var(--surface-primary);
 }
 
 .dashboard-head__copy {
-  display: grid;
   gap: 0.55rem;
 }
 
+.dashboard-head__actions {
+  flex: 0 0 auto;
+}
+
 .dashboard-eyebrow {
-  margin: 0;
   color: var(--brand-strong);
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.dashboard-description {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.6;
-  max-width: 48rem;
-}
-
 h1 {
   margin: 0;
+  color: var(--text-primary);
   font-size: clamp(1.75rem, 2.6vw, 2.35rem);
   line-height: 1.06;
-  color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .dashboard-stats {
@@ -224,19 +297,60 @@ h1 {
   gap: 1rem;
 }
 
+.dashboard-stats--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .dashboard-stats article {
   position: relative;
-  overflow: hidden;
+  min-width: 0;
   min-height: 6.4rem;
+  display: grid;
+  align-content: center;
+  overflow: hidden;
   padding: 1.15rem 1.25rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 248, 0.98)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(246, 251, 248, 0.98)
+    ),
     var(--surface-primary);
+}
+
+.dashboard-stats article::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.2rem;
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.95),
+    rgba(16, 185, 129, 0)
+  );
+}
+
+.dashboard-stats strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--brand-strong);
+  font-size: clamp(1.55rem, 3vw, 1.9rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-stats span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-stats__item--clickable {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .dashboard-stats__item--clickable:hover {
@@ -245,29 +359,7 @@ h1 {
 }
 
 .dashboard-stats__item--clickable:active {
-  transform: translateY(0);
-}
-
-.dashboard-stats article::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
-  height: 0.2rem;
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.95), rgba(16, 185, 129, 0));
-}
-
-.dashboard-stats strong {
-  display: block;
-  color: var(--brand-strong);
-  font-size: 1.9rem;
-  line-height: 1;
-  margin-bottom: 0.4rem;
-}
-
-.dashboard-stats span {
-  color: var(--text-muted);
-  line-height: 1.3;
+  transform: none;
 }
 
 @media (max-width: 72rem) {
@@ -278,20 +370,95 @@ h1 {
   .dashboard-sidebar {
     display: none;
   }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 48rem) {
-  .dashboard-head,
-  .dashboard-stats {
-    grid-template-columns: 1fr;
+  .dashboard-shell {
+    padding-top: 1rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .dashboard-content {
+    gap: 1rem;
   }
 
   .dashboard-head {
     display: grid;
+    gap: 1rem;
+    border-radius: 0.9rem;
+  }
+
+  .dashboard-head__actions,
+  .dashboard-head__actions :deep(button),
+  .dashboard-head__actions :deep(a) {
+    width: 100%;
   }
 
   .dashboard-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .dashboard-stats article {
+    min-height: 5.8rem;
+    padding: 1rem;
+    border-radius: 0.9rem;
+  }
+
+  .dashboard-stats strong {
+    font-size: clamp(1.4rem, 7vw, 1.75rem);
+  }
+
+  .dashboard-stats span {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 28rem) {
+  .dashboard-shell {
+    padding-inline: max(0.75rem, var(--shell-gutter));
+  }
+
+  .dashboard-stats {
+    gap: 0.55rem;
+  }
+
+  .dashboard-stats article {
+    min-height: 5.35rem;
+    padding: 0.85rem 0.75rem;
+  }
+
+  .dashboard-stats strong {
+    font-size: 1.35rem;
+  }
+
+  .dashboard-stats span {
+    font-size: 0.76rem;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 22rem) {
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (hover: none) {
+  .dashboard-sidebar__item:hover,
+  .dashboard-stats__item--clickable:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-sidebar__item,
+  .dashboard-stats__item--clickable {
+    transition: none;
   }
 }
 </style>

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from os import path, makedirs, getenv, remove
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Path, Request, UploadFile
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
@@ -108,22 +108,35 @@ def has_active_subscription(user: User) -> bool:
     return bool(user.subscription_plan in PLAN_JOB_LIMITS and expires_at and expires_at > datetime.now(timezone.utc))
 
 
-def ensure_employer_plan_allows_job(user: User, session) -> None:
+def ensure_active_employer_subscription(user: User) -> None:
     if user.account_type == "admin":
         return
 
     if not has_active_subscription(user):
         raise HTTPException(status_code=403, detail={"key": "subscription_required"})
 
-    job_limit = PLAN_JOB_LIMITS[user.subscription_plan]
-    active_jobs_count = len(session.exec(
-        select(Job).where(
-            Job.user_id == user.id,
-            Job.status.in_(["pending", "approved"]),
-        )
-    ).all())
 
-    if active_jobs_count >= job_limit:
+def get_optional_current_user(
+    authorization: str | None = Header(None),
+    session=Depends(get_session),
+) -> User | None:
+    if not authorization:
+        return None
+    try:
+        return get_current_user(authorization=authorization, session=session)
+    except HTTPException:
+        return None
+
+
+def ensure_employer_plan_allows_job(user: User, session) -> None:
+    ensure_active_employer_subscription(user)
+    if user.account_type == "admin":
+        return
+
+    job_limit = PLAN_JOB_LIMITS[user.subscription_plan]
+    used_jobs_count = max(int(user.subscription_jobs_used or 0), 0)
+
+    if used_jobs_count >= job_limit:
         raise HTTPException(status_code=403, detail={"key": "subscription_job_limit_reached"})
 
 
@@ -200,6 +213,7 @@ async def create_job(
         has_transport=has_transport,
         user_id=current_user.id,
         status=job_status,
+        quota_consumed=current_user.account_type == "admin",
     )
     session.add(job)
     session.commit()
@@ -215,9 +229,14 @@ def get_jobs(session=Depends(get_session)):
 
 
 @router.get("/jobs/{job_id}", response_model=Job)
-def get_job(job_id: int = Path(...), session=Depends(get_session)):
+def get_job(
+    job_id: int = Path(...),
+    session=Depends(get_session),
+    current_user: User | None = Depends(get_optional_current_user),
+):
     job = session.get(Job, job_id)
-    if not job or job.status != "approved":
+    can_view_unpublished = current_user is not None and current_user.account_type == "admin"
+    if not job or (job.status != "approved" and not can_view_unpublished):
         raise HTTPException(status_code=404, detail={"key": "job_not_found"})
     return job
 
@@ -263,6 +282,7 @@ async def update_job(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
 
     company_name = (current_user.company_name or "").strip() or (company or "").strip()
     if not company_name:
@@ -335,6 +355,7 @@ async def delete_job(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
 
     job = session.get(Job, job_id)
     if not job or job.user_id != current_user.id:
@@ -478,6 +499,7 @@ def get_my_job_responses(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
 
     my_jobs = session.exec(
         select(Job).where(Job.user_id == current_user.id)
@@ -586,6 +608,7 @@ def approve_response_chat(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
 
     application = session.get(JobApplication, response_id)
     if not application:
@@ -813,6 +836,7 @@ def delete_response(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
 
     application = session.get(JobApplication, response_id)
     if not application:

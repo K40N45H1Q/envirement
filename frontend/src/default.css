@@ -52,3 +52,46 @@
     scrollbar-color: var(--brand-base) transparent;
 }
 
+.active-radius,
+.inactive-radius,
+.warning-radius {
+    box-sizing: border-box;
+    min-width: 6rem;
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999rem !important;
+    border-width: 0.15rem !important;
+    border-style: solid !important;
+    line-height: 1;
+}
+
+.active-radius {
+    background: var(--brand-soft) !important;
+    color: var(--brand-strong) !important;
+    border-color: rgba(29, 168, 108, 0.3) !important;
+}
+
+.inactive-radius {
+    background: rgba(220, 38, 38, 0.1) !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+.warning-radius {
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #b45309 !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.plan-features .svg-inline--fa.fa-check {
+  color: var(--brand-strong) !important;
+}
+
+.close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

@@ -19,10 +19,13 @@
 
 .pricing-layout {
   grid-template-columns: 1fr;
+  gap: clamp(1rem, 2vw, 1.75rem);
 }
 
 .pricing-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(1rem, 1.6vw, 1.35rem);
 }
 
 .panel,
@@ -581,6 +584,45 @@ textarea {
   flex-wrap: nowrap;
 }
 
+.job-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 2.35rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.72rem;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.job-icon-button--edit {
+  background: linear-gradient(180deg, #1ab16f, #15955d);
+  box-shadow: 0 0.55rem 1rem rgba(21, 149, 93, 0.18);
+}
+
+.job-icon-button--delete {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  box-shadow: 0 0.55rem 1rem rgba(220, 38, 38, 0.18);
+}
+
+.job-icon-button:hover:not(:disabled) {
+  transform: translateY(-0.0625rem);
+  filter: brightness(1.06);
+}
+
+.job-icon-button:focus-visible {
+  outline: 0.1875rem solid rgba(15, 23, 42, 0.16);
+  outline-offset: 0.125rem;
+}
+
+.job-icon-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .badge,
 .plan-badge {
   min-height: 2rem;
@@ -599,6 +641,17 @@ textarea {
 .badge.approved {
   background: rgba(22, 163, 74, 0.1);
   color: #15803d;
+}
+
+.job-rejection-reason {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 0.75rem;
+  background: rgba(220, 38, 38, 0.06);
+  color: #b91c1c;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .text-button {
@@ -1092,14 +1145,10 @@ textarea {
   color: var(--brand-strong);
   font: inherit;
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    opacity 0.2s ease;
 }
 
-.response-action-button:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
+.response-action-button:hover {
+  transform: none !important;
   background: color-mix(in srgb, var(--brand-soft) 86%, white);
 }
 
@@ -1140,32 +1189,134 @@ textarea {
 }
 
 .plan-card {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
   gap: 1rem;
+  padding: clamp(1.2rem, 2vw, 1.65rem);
+  overflow: hidden;
+  border-color: var(--border-subtle);
+  border-radius: 1.5rem;
+  cursor: pointer;
+}
+
+.plan-card__top > div:first-child {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.plan-card__top h2,
+.plan-card__top h3 {
+  color: var(--text-primary);
+  font-size: clamp(1.2rem, 1.4vw, 1.45rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.plan-badge {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.75rem;
+  border: 0.0625rem solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-secondary) 84%, white);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.plan-price {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+  font-size: clamp(2rem, 3.7vw, 3rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+.plan-price small,
+.plan-price span {
+  padding-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.pricing-copy {
+  min-height: 3rem;
+  line-height: 1.55;
+}
+
+.plan-limit {
+  width: fit-content;
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .plan-card--current {
-  border-color: var(--border-strong);
+  border: 0.125rem solid var(--brand-base);
+  box-shadow:
+    0 0 0 0.2rem color-mix(in srgb, var(--brand-soft) 42%, transparent),
+    0 1.4rem 3.2rem color-mix(in srgb, var(--brand-base) 12%, transparent);
+}
+
+.plan-card--current .plan-badge {
+  border-color: transparent;
+  background: var(--brand-strong);
+  color: #fff;
 }
 
 .plan-features {
   display: grid;
-  gap: 0.6rem;
+  gap: 0;
   padding: 0;
   margin: 0;
+  border-top: 0.0625rem solid var(--border-subtle);
   list-style: none;
   flex: 1;
 }
 
 .plan-features li {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.65rem;
   align-items: flex-start;
+  min-height: 2.9rem;
+  padding: 0.75rem 0;
+  border-bottom: 0.0625rem solid
+    color-mix(in srgb, var(--border-subtle) 72%, transparent);
   color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.plan-features li:last-child {
+  border-bottom: 0;
+}
+
+.plan-features i {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.35rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand-soft) 72%, white);
+  font-size: 0.7rem;
 }
 
 .plan-card button,
+.plan-card .pricing-action,
 .current-plan .pricing-action {
+  width: 100%;
+  min-height: 3.15rem;
   margin-top: auto;
+  border-radius: 1rem;
+  font-weight: 850;
 }
 
 .fields-row {
@@ -1177,6 +1328,12 @@ textarea {
 @media (max-width: 88rem) {
   .pricing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-grid > .plan-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    width: min(100%, 38rem);
+    justify-self: center;
   }
 }
 
@@ -1251,9 +1408,55 @@ textarea {
   .response-action-button {
     width: 100%;
   }
+
+  .pricing-grid > .plan-card:last-child:nth-child(odd) {
+    grid-column: auto;
+    width: 100%;
+  }
+
+  .plan-card {
+    padding: 1.2rem;
+    border-radius: 1.3rem;
+  }
+
+  .pricing-copy {
+    min-height: 0;
+  }
+
+  .current-plan-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .current-plan-card {
+    padding: 0.9rem;
+  }
 }
 
 @media (max-width: 34rem) {
+  .current-plan-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .current-plan-card {
+    padding: 0.65rem;
+    border-radius: 0.8rem;
+  }
+
+  .current-plan-card span {
+    margin-bottom: 0.15rem;
+    font-size: 0.68rem;
+    line-height: 1.15;
+  }
+
+  .current-plan-card strong {
+    font-size: 0.72rem;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+
   .job-modal {
     align-items: start;
     padding: 0.75rem;

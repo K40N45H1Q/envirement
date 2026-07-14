@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
 
 const props = defineProps({
@@ -18,9 +19,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['approve', 'reject', 'delete'])
+const router = useRouter()
 const { language, t } = useI18n()
 const previewJob = ref(null)
 const bannerModalJob = ref(null)
+const rejectionJob = ref(null)
+const rejectionReason = ref('')
+const rejectionError = ref('')
 
 const formatDate = (value) => {
   if (!value) return '-'
@@ -51,11 +56,37 @@ const previewDescription = (job) => {
   return text || t('aPanelJobs.descriptionFallback')
 }
 
-const canModerateJob = (job) => props.moderation || job?.status === 'pending'
-
 const openBannerModal = (job) => {
   if (!job?.banner_url) return
   bannerModalJob.value = job
+}
+
+const openJobPage = (job) => {
+  if (props.moderation || !job?.id) return
+  router.push(`/jobs/${job.id}`)
+}
+
+const openRejectionModal = (job) => {
+  rejectionJob.value = job
+  rejectionReason.value = ''
+  rejectionError.value = ''
+}
+
+const closeRejectionModal = () => {
+  rejectionJob.value = null
+  rejectionReason.value = ''
+  rejectionError.value = ''
+}
+
+const submitRejection = () => {
+  const reason = rejectionReason.value.trim()
+  if (!reason) {
+    rejectionError.value = t('aPanelJobs.rejectionReasonRequired')
+    return
+  }
+
+  emit('reject', { job: rejectionJob.value, reason })
+  closeRejectionModal()
 }
 </script>
 
@@ -75,7 +106,15 @@ const openBannerModal = (job) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="job in jobs" :key="job.id">
+          <tr
+            v-for="job in jobs"
+            :key="job.id"
+            :class="{ 'apanel-job-row--clickable': !moderation }"
+            :tabindex="moderation ? undefined : 0"
+            :role="moderation ? undefined : 'link'"
+            @click="openJobPage(job)"
+            @keydown.enter="openJobPage(job)"
+          >
             <td>
               <div class="apanel-job-title">
                 <span>{{ job.title }}</span>
@@ -84,7 +123,13 @@ const openBannerModal = (job) => {
             </td>
             <td>{{ job.company || '-' }}</td>
             <td>
-              <span class="apanel-pill" :class="`apanel-pill--${job.status || 'default'}`">
+              <span
+                class="apanel-pill"
+                :class="[
+                  `apanel-pill--${job.status || 'default'}`,
+                  { 'warning-radius': job.status === 'pending' },
+                ]"
+              >
                 {{ statusLabel(job.status) }}
               </span>
             </td>
@@ -92,16 +137,16 @@ const openBannerModal = (job) => {
             <td>{{ job.salary || '-' }}</td>
             <td>{{ formatDate(job.created_at) }}</td>
             <td class="apanel-actions">
-              <button type="button" class="apanel-icon-button apanel-icon-button--preview" :title="t('aPanelJobs.preview')" :aria-label="t('aPanelJobs.preview')" @click="previewJob = job">
+              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--preview" :title="t('aPanelJobs.preview')" :aria-label="t('aPanelJobs.preview')" @click.stop="previewJob = job">
                 <i class="fas fa-eye"></i>
               </button>
-              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--approve" :title="t('aPanelJobs.approve')" :aria-label="t('aPanelJobs.approve')" @click="emit('approve', job)">
+              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--approve" :title="t('aPanelJobs.approve')" :aria-label="t('aPanelJobs.approve')" @click.stop="emit('approve', job)">
                 <i class="fas fa-check"></i>
               </button>
-              <button v-if="canModerateJob(job)" type="button" class="apanel-icon-button apanel-icon-button--reject" :title="t('aPanelJobs.reject')" :aria-label="t('aPanelJobs.reject')" @click="emit('reject', job)">
+              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--reject" :title="t('aPanelJobs.reject')" :aria-label="t('aPanelJobs.reject')" @click.stop="openRejectionModal(job)">
                 <i class="fas fa-xmark"></i>
               </button>
-              <button type="button" class="apanel-icon-button apanel-icon-button--danger" :title="t('aPanelJobs.delete')" :aria-label="t('aPanelJobs.delete')" @click="emit('delete', job)">
+              <button v-if="!moderation" type="button" class="apanel-icon-button apanel-icon-button--danger" :title="t('aPanelJobs.delete')" :aria-label="t('aPanelJobs.delete')" @click.stop="emit('delete', job)">
                 <i class="fas fa-trash"></i>
               </button>
             </td>
@@ -181,6 +226,36 @@ const openBannerModal = (job) => {
       </div>
     </Teleport>
 
+    <Teleport to="body">
+      <div v-if="rejectionJob" class="rejection-modal" role="dialog" aria-modal="true" @click.self="closeRejectionModal">
+        <form class="rejection-modal__dialog" @submit.prevent="submitRejection">
+          <h2>{{ t('aPanelJobs.rejectionTitle') }}</h2>
+          <p>{{ t('aPanelJobs.rejectionDescription', { title: rejectionJob.title }) }}</p>
+
+          <label for="job-rejection-reason">{{ t('aPanelJobs.rejectionReasonLabel') }}</label>
+          <textarea
+            id="job-rejection-reason"
+            v-model="rejectionReason"
+            maxlength="500"
+            required
+            autofocus
+            :placeholder="t('aPanelJobs.rejectionReasonPlaceholder')"
+            @input="rejectionError = ''"
+          />
+          <small v-if="rejectionError" class="rejection-modal__error">{{ rejectionError }}</small>
+
+          <div class="rejection-modal__actions">
+            <button type="button" class="rejection-modal__cancel" @click="closeRejectionModal">
+              {{ t('aPanelJobs.cancel') }}
+            </button>
+            <button type="submit" class="rejection-modal__submit">
+              {{ t('aPanelJobs.confirmReject') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Teleport>
+
     <div v-if="bannerModalJob" class="banner-modal" role="dialog" aria-modal="true" @click.self="bannerModalJob = null">
       <button type="button" class="banner-modal__close" :aria-label="t('aPanelJobs.close')" @click="bannerModalJob = null">
         <i class="fas fa-xmark"></i>
@@ -241,6 +316,15 @@ const openBannerModal = (job) => {
 
 .apanel-table tbody tr:hover {
   background: color-mix(in srgb, var(--brand-soft) 18%, white);
+}
+
+.apanel-job-row--clickable {
+  cursor: pointer;
+}
+
+.apanel-job-row--clickable:focus-visible {
+  outline: 0.1875rem solid color-mix(in srgb, var(--brand-base) 24%, transparent);
+  outline-offset: -0.1875rem;
 }
 
 .apanel-job-title {
@@ -346,8 +430,10 @@ const openBannerModal = (job) => {
 
 .apanel-empty {
   margin: 0;
-  padding: 1rem 1.1rem;
+  padding: 1rem;
   color: var(--text-muted);
+  display: grid;
+  place-items: center;
 }
 
 .apanel-preview {
@@ -359,6 +445,90 @@ const openBannerModal = (job) => {
   padding: 1.5rem;
   background: rgba(15, 23, 42, 0.68);
   backdrop-filter: blur(0.35rem);
+}
+
+.rejection-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(0.2rem);
+}
+
+.rejection-modal__dialog {
+  width: min(27rem, 100%);
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.25rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-primary);
+  box-shadow: 0 1.5rem 4rem rgba(15, 23, 42, 0.24);
+}
+
+.rejection-modal__dialog h2,
+.rejection-modal__dialog p {
+  margin: 0;
+}
+
+.rejection-modal__dialog p {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.rejection-modal__dialog label {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.rejection-modal__dialog textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  padding: 0.8rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.rejection-modal__dialog textarea:focus {
+  border-color: var(--brand-base);
+  outline: 0.1875rem solid color-mix(in srgb, var(--brand-base) 18%, transparent);
+}
+
+.rejection-modal__error {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.rejection-modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.rejection-modal__actions button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rejection-modal__cancel {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.rejection-modal__submit {
+  background: #dc2626;
+  color: #fff;
 }
 
 .apanel-preview__dialog {

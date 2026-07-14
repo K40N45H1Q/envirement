@@ -37,6 +37,7 @@ export const normalizeJob = (job, index = 0) => {
 
   return {
     id: job.id ?? job.slug ?? index,
+    user_id: job.user_id ?? job.userId ?? null,
     title: job.title || t('vacancy'),
     company: job.company || t('company'),
     location: job.location || t('locationMissing'),
@@ -59,6 +60,7 @@ export const normalizeJob = (job, index = 0) => {
     has_housing: Boolean(job.has_housing),
     has_transport: Boolean(job.has_transport),
     status: job.status || 'approved',
+    rejection_reason: job.rejection_reason || '',
     created_at: job.created_at || '',
     initials: initialsFor(job.company || job.title),
     color: colors[index % colors.length],

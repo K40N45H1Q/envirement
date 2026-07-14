@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
@@ -47,10 +47,12 @@ const moderationJobs = ref([])
 const tokens = ref([])
 const betaAccessEnabled = ref(false)
 const isLoading = ref(false)
+const isRefreshing = ref(false)
 const isSaving = ref(false)
 const isSavingSettings = ref(false)
 const error = ref('')
 const createdToken = ref('')
+const adminRefreshTimer = ref(null)
 
 const stats = computed(() => [
   { label: t('adminPanel.stats.totalUsers'), value: summary.value?.total_users ?? users.value.length + employers.value.length, section: 'users' },
@@ -69,9 +71,14 @@ const setSection = async (sectionId) => {
   })
 }
 
-const loadAdminData = async () => {
-  isLoading.value = true
-  error.value = ''
+const loadAdminData = async ({ silent = false } = {}) => {
+  if (silent) {
+    if (isRefreshing.value) return
+    isRefreshing.value = true
+  } else {
+    isLoading.value = true
+    error.value = ''
+  }
 
   try {
     const [summaryData, userData, employerData, jobsData, moderationData, tokenData, betaSettingsData] = await Promise.all([
@@ -95,10 +102,30 @@ const loadAdminData = async () => {
     tokens.value = Array.isArray(tokenData) ? tokenData : []
     betaAccessEnabled.value = Boolean(betaSettingsData?.enabled)
   } catch {
-    error.value = t('adminPanel.loadError')
+    if (!silent) error.value = t('adminPanel.loadError')
   } finally {
-    isLoading.value = false
+    if (silent) {
+      isRefreshing.value = false
+    } else {
+      isLoading.value = false
+    }
   }
+}
+
+const refreshAdminDataSilently = () => {
+  if (isSaving.value || isSavingSettings.value) return
+  loadAdminData({ silent: true })
+}
+
+const startAdminRealtime = () => {
+  if (adminRefreshTimer.value) return
+  adminRefreshTimer.value = window.setInterval(refreshAdminDataSilently, 5000)
+}
+
+const stopAdminRealtime = () => {
+  if (!adminRefreshTimer.value) return
+  window.clearInterval(adminRefreshTimer.value)
+  adminRefreshTimer.value = null
 }
 
 const createToken = async ({ note }) => {
@@ -164,11 +191,11 @@ const approveJob = async (job) => {
   }
 }
 
-const rejectJob = async (job) => {
+const rejectJob = async ({ job, reason }) => {
   error.value = ''
 
   try {
-    await rejectAdminJob(job.id)
+    await rejectAdminJob(job.id, reason)
     await loadAdminData()
   } catch {
     error.value = t('adminPanel.rejectError')
@@ -193,7 +220,12 @@ watch(
   },
 )
 
-onMounted(loadAdminData)
+onMounted(async () => {
+  await loadAdminData()
+  startAdminRealtime()
+})
+
+onBeforeUnmount(stopAdminRealtime)
 </script>
 
 <template>
@@ -215,17 +247,14 @@ onMounted(loadAdminData)
         <APanelUsers
           v-if="activeSection === 'users'"
           :users="users"
-          manage-subscriptions
-          subscription-mode="assign"
           :empty-text="t('adminPanel.emptyUsers')"
-          @update-subscription="updateUserSubscription"
         />
 
         <APanelUsers
           v-else-if="activeSection === 'employers'"
           :users="employers"
           manage-subscriptions
-          subscription-mode="revoke"
+          subscription-mode="manage"
           :empty-text="t('adminPanel.emptyEmployers')"
           @update-subscription="updateUserSubscription"
         />

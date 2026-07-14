@@ -558,7 +558,7 @@ h2 {
   .candidate-dashboard-shell :deep(.dashboard-shell-stats),
   .candidate-dashboard-shell :deep(.dashboard-shell__stats),
   .candidate-dashboard-shell :deep(.stats-grid) {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 </style>

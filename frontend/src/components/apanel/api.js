@@ -38,9 +38,10 @@ export const approveAdminJob = (jobId) => apiRequest(`/api/admin/moderation/jobs
   requireAuth: true,
 })
 
-export const rejectAdminJob = (jobId) => apiRequest(`/api/admin/moderation/jobs/${jobId}/reject`, {
+export const rejectAdminJob = (jobId, reason) => apiRequest(`/api/admin/moderation/jobs/${jobId}/reject`, {
   method: 'PATCH',
   requireAuth: true,
+  body: JSON.stringify({ reason }),
 })
 
 export const deleteAdminJob = (jobId) => apiRequest(`/api/admin/jobs/${jobId}`, {

@@ -1,20 +1,22 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
-import { applyToJob, getJob } from '@/api/jobs'
+import { applyToJob, getJob, getResponses } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { normalizeJob } from '@/utils/jobs'
 
 const route = useRoute()
+const router = useRouter()
 const { state } = useAuth()
 const { language, t } = useI18n()
 const job = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
+const responses = ref([])
 const error = ref('')
 const applyStatus = ref('')
 const brokenLogo = ref(false)
@@ -28,9 +30,19 @@ const form = ref({ name: '', surname: '', phone: '', email: '', nationality: '',
 
 const user = computed(() => state.user)
 const isEmployer = computed(() => String(user.value?.account_type || user.value?.accountType || '').toLowerCase() === 'employer')
+const isJobOwner = computed(() => isEmployer.value && Number(user.value?.id || 0) === Number(job.value?.user_id || 0))
+const hasActiveSubscription = computed(() => {
+  if (!user.value?.subscription_plan || !user.value?.subscription_expires_at) return false
+  const expiresAt = new Date(user.value.subscription_expires_at)
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt > new Date()
+})
+const canViewEmployerResponses = computed(() => isJobOwner.value && hasActiveSubscription.value)
 const hasLogo = computed(() => !!job.value?.logo && !brokenLogo.value)
 const hasBanner = computed(() => !!job.value?.banner_url && !brokenBanner.value)
 const licenses = computed(() => job.value?.licenses?.filter(Boolean) || [])
+const jobResponses = computed(() => responses.value.filter((item) => Number(item.job_id) === Number(job.value?.id || 0)))
+const approvedResponsesCount = computed(() => jobResponses.value.filter((item) => item.chat_approved).length)
+const pendingResponsesCount = computed(() => Math.max(jobResponses.value.length - approvedResponsesCount.value, 0))
 
 const localizeLanguage = (value = '') => {
   const name = String(value).trim().toLowerCase()
@@ -67,6 +79,10 @@ const resetApplicationForm = () => {
   }
 }
 
+const openResponses = () => {
+  router.push(`/dashboard?section=responses&job=${job.value?.id || ''}`)
+}
+
 const loadJob = async () => {
   loading.value = true
   error.value = ''
@@ -80,6 +96,20 @@ const loadJob = async () => {
     error.value = t('jobDetailPage.errors.notFound')
   } finally {
     loading.value = false
+  }
+}
+
+const loadEmployerResponses = async () => {
+  if (!canViewEmployerResponses.value) {
+    responses.value = []
+    return
+  }
+
+  try {
+    const data = await getResponses()
+    responses.value = Array.isArray(data) ? data : []
+  } catch {
+    responses.value = []
   }
 }
 
@@ -141,14 +171,18 @@ onMounted(async () => {
     }
   }
 
-  loadJob()
+  await loadJob()
+  await loadEmployerResponses()
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = previousOverflow.value
 })
 
-watch(() => route.params.id, loadJob)
+watch(() => route.params.id, async () => {
+  await loadJob()
+  await loadEmployerResponses()
+})
 </script>
 
 <template>
@@ -227,6 +261,33 @@ watch(() => route.params.id, loadJob)
                   <dd>{{ licenseList }}</dd>
                 </div>
               </dl>
+            </section>
+
+            <section v-if="canViewEmployerResponses" class="side-section employer-responses">
+              <div class="employer-responses__head">
+                <div>
+                  <p class="brand">{{ t('jobDetailPage.employerResponses.eyebrow') }}</p>
+                </div>
+
+                <button class="primary ghost" type="button" @click="openResponses">
+                  {{ t('jobDetailPage.employerResponses.viewButton') }}
+                </button>
+              </div>
+
+              <div class="employer-responses__stats">
+                <article class="response-stat-card">
+                  <span>{{ t('jobDetailPage.employerResponses.total') }}</span>
+                  <strong>{{ jobResponses.length }}</strong>
+                </article>
+                <article class="response-stat-card">
+                  <span>{{ t('jobDetailPage.employerResponses.pending') }}</span>
+                  <strong>{{ pendingResponsesCount }}</strong>
+                </article>
+                <article class="response-stat-card">
+                  <span>{{ t('jobDetailPage.employerResponses.approved') }}</span>
+                  <strong>{{ approvedResponsesCount }}</strong>
+                </article>
+              </div>
             </section>
 
             <section v-if="!isEmployer" class="side-section apply">
@@ -488,6 +549,49 @@ a {
   margin-top: auto;
 }
 
+.employer-responses {
+  display: grid;
+  gap: 1rem;
+  background: color-mix(in srgb, var(--surface-secondary) 55%, var(--surface-primary));
+}
+
+.employer-responses__head {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.employer-responses__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.response-stat-card {
+  display: grid;
+  grid-template-rows: minmax(2.1rem, auto) auto;
+  align-content: space-between;
+  gap: 0.25rem;
+  min-height: 5.75rem;
+  padding: 0.8rem 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.9rem;
+  background: var(--surface-primary);
+}
+
+.response-stat-card span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.response-stat-card strong {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
 .details {
   flex: 1;
   background: color-mix(in srgb, var(--surface-secondary) 55%, var(--surface-primary));
@@ -533,6 +637,10 @@ a {
 
 .primary:disabled {
   opacity: 0.6;
+}
+
+.ghost {
+  width: 100%;
 }
 
 .notice {
@@ -718,6 +826,10 @@ a {
 
   .sidebar {
     min-height: auto;
+  }
+
+  .employer-responses__stats {
+    grid-template-columns: 1fr;
   }
 }
 

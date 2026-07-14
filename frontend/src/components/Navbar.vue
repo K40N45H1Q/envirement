@@ -91,14 +91,6 @@
             <RouterLink class="dropdown-item" :to="dashboardRoute" @click="isUserMenuOpen = false">
               {{ t('navbar.dashboard') }}
             </RouterLink>
-            <RouterLink
-              v-if="normalizedAccountType === 'admin'"
-              class="dropdown-item"
-              to="/profile"
-              @click="isUserMenuOpen = false"
-            >
-              {{ t('navbar.profile') }}
-            </RouterLink>
             <button class="dropdown-item dropdown-item--danger" type="button" @click="logout">
               {{ t('common.logout') }}
             </button>

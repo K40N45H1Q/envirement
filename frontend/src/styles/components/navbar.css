@@ -23,7 +23,6 @@
   flex-shrink: 0;
   width: 10.5rem;
   height: 2.55rem;
-  text-decoration: none;
 }
 
 .logo-link--mobile-menu {
@@ -209,6 +208,7 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
+  text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

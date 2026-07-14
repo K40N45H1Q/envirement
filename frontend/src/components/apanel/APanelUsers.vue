@@ -25,6 +25,7 @@ const props = defineProps({
 const emit = defineEmits(['update-subscription'])
 const { t } = useI18n()
 const subscriptionDrafts = ref({})
+const brokenMedia = ref(new Set())
 
 const planOptions = [
   { value: 'basic', label: 'Basic' },
@@ -51,8 +52,18 @@ const daysLeft = (value) => {
 
 const roleLabel = (value) => t(`aPanelUsers.roles.${value || 'candidate'}`)
 const statusLabel = (value) => t(`aPanelUsers.statuses.${value || 'active'}`)
+const subscriptionLabel = (user, activeValue) => (
+  user.has_active_subscription ? activeValue : t('aPanelUsers.expired')
+)
 
 const mediaUrl = (user) => user.company_logo_url || user.avatar_url || ''
+const mediaKey = (user) => `${user.id || ''}:${mediaUrl(user)}`
+const hasMedia = (user) => Boolean(mediaUrl(user)) && !brokenMedia.value.has(mediaKey(user))
+const markMediaBroken = (user) => {
+  const next = new Set(brokenMedia.value)
+  next.add(mediaKey(user))
+  brokenMedia.value = next
+}
 
 const mediaInitial = (user) => {
   const source = user.company_name || user.full_name || user.email || '?'
@@ -79,7 +90,7 @@ const revokeSubscription = (user) => {
         :class="{
           'apanel-table--basic': !manageSubscriptions,
           'apanel-table--assign': manageSubscriptions && subscriptionMode === 'assign',
-          'apanel-table--revoke': manageSubscriptions && subscriptionMode === 'revoke',
+          'apanel-table--revoke': manageSubscriptions && subscriptionMode !== 'assign',
         }"
       >
         <colgroup>
@@ -87,9 +98,8 @@ const revokeSubscription = (user) => {
           <col class="apanel-col-email" />
           <col class="apanel-col-role" />
           <col class="apanel-col-status" />
-          <col class="apanel-col-beta" />
-          <col v-if="manageSubscriptions && subscriptionMode === 'revoke'" class="apanel-col-plan" />
-          <col v-if="manageSubscriptions && subscriptionMode === 'revoke'" class="apanel-col-left" />
+          <col v-if="manageSubscriptions && subscriptionMode !== 'assign'" class="apanel-col-plan" />
+          <col v-if="manageSubscriptions && subscriptionMode !== 'assign'" class="apanel-col-left" />
           <col class="apanel-col-phone" />
           <col v-if="manageSubscriptions" class="apanel-col-actions" />
         </colgroup>
@@ -100,9 +110,8 @@ const revokeSubscription = (user) => {
             <th class="apanel-heading-email">{{ t('aPanelUsers.emailColumn') }}</th>
             <th>{{ t('aPanelUsers.roleColumn') }}</th>
             <th>{{ t('aPanelUsers.statusColumn') }}</th>
-            <th>{{ t('aPanelUsers.betaColumn') }}</th>
-            <th v-if="manageSubscriptions && subscriptionMode === 'revoke'">{{ t('aPanelUsers.planColumn') }}</th>
-            <th v-if="manageSubscriptions && subscriptionMode === 'revoke'">{{ t('aPanelUsers.leftColumn') }}</th>
+            <th v-if="manageSubscriptions && subscriptionMode !== 'assign'">{{ t('aPanelUsers.planColumn') }}</th>
+            <th v-if="manageSubscriptions && subscriptionMode !== 'assign'">{{ t('aPanelUsers.leftColumn') }}</th>
             <th>{{ t('aPanelUsers.phoneColumn') }}</th>
             <th v-if="manageSubscriptions" class="apanel-actions-heading">{{ t('aPanelUsers.actionsColumn') }}</th>
           </tr>
@@ -110,13 +119,14 @@ const revokeSubscription = (user) => {
 
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td class="apanel-profile-cell">
+            <td class="apanel-profile-cell" :data-label="t('aPanelUsers.profileColumn')">
               <div class="apanel-user-row">
                 <div class="apanel-avatar">
                   <img
-                    v-if="mediaUrl(user)"
+                    v-if="hasMedia(user)"
                     :src="mediaUrl(user)"
                     :alt="user.company_name || user.full_name || user.email"
+                    @error="markMediaBroken(user)"
                   />
                   <span v-else>{{ mediaInitial(user) }}</span>
                 </div>
@@ -132,49 +142,58 @@ const revokeSubscription = (user) => {
               </div>
             </td>
 
-            <td class="apanel-email-cell">
+            <td class="apanel-email-cell" :data-label="t('aPanelUsers.emailColumn')">
               <span class="apanel-email" :title="user.email || '-'">{{ user.email || '-' }}</span>
             </td>
 
-            <td>
+            <td :data-label="t('aPanelUsers.roleColumn')">
               <span class="apanel-pill" :title="roleLabel(user.account_type)">
                 {{ roleLabel(user.account_type) }}
               </span>
             </td>
 
-            <td>
+            <td :data-label="t('aPanelUsers.statusColumn')">
               <span
                 class="apanel-status-pill"
-                :class="`apanel-status-pill--${user.status || 'active'}`"
+                :class="[
+                  `apanel-status-pill--${user.status || 'active'}`,
+                  user.status === 'active' || !user.status ? 'active-radius' : 'inactive-radius',
+                ]"
                 :title="statusLabel(user.status)"
               >
                 {{ statusLabel(user.status) }}
               </span>
             </td>
 
-            <td>
-              <span class="apanel-beta" :class="{ 'apanel-beta--active': user.has_beta_access }">
-                {{ user.has_beta_access ? t('aPanelUsers.betaYes') : t('aPanelUsers.betaNo') }}
+            <td v-if="manageSubscriptions && subscriptionMode !== 'assign'" :data-label="t('aPanelUsers.planColumn')">
+              <span
+                class="apanel-plan"
+                :class="{
+                  'apanel-plan--active active-radius': user.has_active_subscription,
+                  'apanel-subscription--expired inactive-radius': !user.has_active_subscription,
+                }"
+                :title="subscriptionLabel(user, planLabel(user.subscription_plan))"
+              >
+                {{ subscriptionLabel(user, planLabel(user.subscription_plan)) }}
               </span>
             </td>
 
-            <td v-if="manageSubscriptions && subscriptionMode === 'revoke'">
-              <span class="apanel-plan" :class="{ 'apanel-plan--active': user.has_active_subscription }" :title="planLabel(user.subscription_plan)">
-                {{ planLabel(user.subscription_plan) }}
+            <td v-if="manageSubscriptions && subscriptionMode !== 'assign'" :data-label="t('aPanelUsers.leftColumn')">
+              <span
+                class="apanel-cell-text"
+                :class="{ 'apanel-days-zero': !user.has_active_subscription }"
+              >
+                {{ user.has_active_subscription ? daysLeft(user.subscription_expires_at) : t('aPanelUsers.zeroDays') }}
               </span>
             </td>
 
-            <td v-if="manageSubscriptions && subscriptionMode === 'revoke'">
-              <span class="apanel-cell-text">{{ daysLeft(user.subscription_expires_at) }}</span>
-            </td>
-
-            <td>
+            <td :data-label="t('aPanelUsers.phoneColumn')">
               <span class="apanel-cell-text apanel-phone" :title="user.phone || '-'">{{ user.phone || '-' }}</span>
             </td>
 
-            <td v-if="manageSubscriptions" class="apanel-actions-cell">
+            <td v-if="manageSubscriptions" class="apanel-actions-cell" :data-label="t('aPanelUsers.actionsColumn')">
               <div class="apanel-actions">
-                <template v-if="subscriptionMode === 'assign'">
+                <template v-if="subscriptionMode === 'assign' || (subscriptionMode === 'manage' && !user.has_active_subscription)">
                   <BaseDropdown
                     v-model="subscriptionDraft(user).plan"
                     class="apanel-plan-dropdown"
@@ -206,7 +225,7 @@ const revokeSubscription = (user) => {
                   :aria-label="t('aPanelUsers.revokeAria')"
                   @click="revokeSubscription(user)"
                 >
-                  <i class="fas fa-ban" aria-hidden="true" />
+                  <i class="fas fa-undo" aria-hidden="true" />
                 </button>
               </div>
             </td>
@@ -224,6 +243,8 @@ const revokeSubscription = (user) => {
   position: relative;
   z-index: 5;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 0.95rem;
   background:
@@ -235,7 +256,8 @@ const revokeSubscription = (user) => {
 
 .apanel-table-wrap {
   width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: hidden;
   overflow-y: visible;
 }
 
@@ -314,7 +336,6 @@ const revokeSubscription = (user) => {
 
 .apanel-pill,
 .apanel-status-pill,
-.apanel-beta,
 .apanel-plan {
   display: inline-flex;
   align-items: center;
@@ -328,16 +349,24 @@ const revokeSubscription = (user) => {
 }
 
 .apanel-pill,
-.apanel-status-pill,
-.apanel-beta {
+.apanel-status-pill {
   min-width: 5.75rem;
 }
 
 .apanel-status-pill--active,
-.apanel-beta--active,
 .apanel-plan--active {
   background: color-mix(in srgb, var(--brand-soft) 72%, white);
   color: var(--brand-strong);
+}
+
+.apanel-subscription--expired {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.apanel-cell-text.apanel-days-zero {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .apanel-status-pill--inactive {
@@ -351,6 +380,7 @@ const revokeSubscription = (user) => {
   gap: 0.5rem;
   position: relative;
   z-index: 20;
+  justify-content: center;
 }
 
 .apanel-icon-button {
@@ -434,9 +464,10 @@ const revokeSubscription = (user) => {
   color: var(--text-muted);
 }
 
-@media (max-width: 80rem) {
-  .apanel-table {
-    min-width: 60rem;
+@container (max-width: 67.999rem) {
+  .apanel-card {
+    display: none;
   }
 }
+
 </style>
