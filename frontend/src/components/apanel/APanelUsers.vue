@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from '@/i18n'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 
@@ -26,6 +26,33 @@ const emit = defineEmits(['update-subscription'])
 const { t } = useI18n()
 const subscriptionDrafts = ref({})
 const brokenMedia = ref(new Set())
+const currentPage = ref(1)
+const ITEMS_PER_PAGE = 5
+
+const buildPaginationItems = (page, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+  if (page <= 4) return [1, 2, 3, 4, 5, 'ellipsis-right', total]
+  if (page >= total - 3) return [1, 'ellipsis-left', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, 'ellipsis-left', page - 1, page, page + 1, 'ellipsis-right', total]
+}
+
+const totalPages = computed(() => Math.max(1, Math.ceil(props.users.length / ITEMS_PER_PAGE)))
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * ITEMS_PER_PAGE
+  return props.users.slice(start, start + ITEMS_PER_PAGE)
+})
+const pageStart = computed(() => (props.users.length ? ((currentPage.value - 1) * ITEMS_PER_PAGE) + 1 : 0))
+const pageEnd = computed(() => Math.min(currentPage.value * ITEMS_PER_PAGE, props.users.length))
+const paginationItems = computed(() => buildPaginationItems(currentPage.value, totalPages.value))
+
+const goToPage = (page) => {
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return
+  currentPage.value = page
+}
+
+watch(() => props.users, () => {
+  if (currentPage.value > totalPages.value) currentPage.value = totalPages.value
+})
 
 const planOptions = [
   { value: 'basic', label: 'Basic' },
@@ -118,7 +145,7 @@ const revokeSubscription = (user) => {
         </thead>
 
         <tbody>
-          <tr v-for="user in users" :key="user.id">
+          <tr v-for="user in paginatedUsers" :key="user.id">
             <td class="apanel-profile-cell" :data-label="t('aPanelUsers.profileColumn')">
               <div class="apanel-user-row">
                 <div class="apanel-avatar">
@@ -235,6 +262,30 @@ const revokeSubscription = (user) => {
 
       <p v-else class="apanel-empty">{{ emptyText || t('aPanelUsers.emptyText') }}</p>
     </div>
+
+    <nav v-if="users.length" class="jobs-pagination" :aria-label="t('jobsPage.pagination')">
+      <div class="jobs-pagination__summary">
+        {{ t('jobsPage.paginationSummary', { start: pageStart, end: pageEnd, total: users.length }) }}
+      </div>
+      <div class="jobs-pagination__controls">
+        <button type="button" class="pagination-button pagination-button--ghost" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
+          <i class="fas fa-arrow-left"></i>
+          <span>{{ t('jobsPage.previousPage') }}</span>
+        </button>
+        <div class="pagination-numbers">
+          <template v-for="item in paginationItems" :key="item">
+            <span v-if="String(item).startsWith('ellipsis')" class="pagination-ellipsis">•••</span>
+            <button v-else type="button" class="pagination-button pagination-button--number" :class="{ 'pagination-button--active': currentPage === item }" @click="goToPage(item)">
+              {{ item }}
+            </button>
+          </template>
+        </div>
+        <button type="button" class="pagination-button" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
+          <span>{{ t('jobsPage.nextPage') }}</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </nav>
   </section>
 </template>
 
@@ -462,6 +513,72 @@ const revokeSubscription = (user) => {
   margin: 0;
   padding: 1rem 1.1rem;
   color: var(--text-muted);
+}
+
+.jobs-pagination {
+  display: grid;
+  gap: 0.95rem;
+  padding: 1rem;
+  border-top: 0.0625rem solid var(--border-subtle);
+}
+
+.jobs-pagination__summary {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.jobs-pagination__controls,
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.jobs-pagination__controls {
+  justify-content: space-between;
+}
+
+.pagination-button {
+  min-height: 2.85rem;
+  padding: 0.72rem 1rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: 999rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 249, 245, 0.98));
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-button--ghost {
+  background: var(--surface-secondary);
+}
+
+.pagination-button--number {
+  min-width: 2.85rem;
+  padding-inline: 0.75rem;
+}
+
+.pagination-button--active {
+  border-color: color-mix(in srgb, var(--brand-base) 60%, white);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-base) 95%, white), color-mix(in srgb, var(--brand-strong) 90%, white));
+  color: #fff;
+}
+
+.pagination-ellipsis {
+  color: var(--text-muted);
+  font-weight: 800;
+  letter-spacing: 0.12em;
 }
 
 @container (max-width: 67.999rem) {
