@@ -21,7 +21,7 @@ const draftSearchTitle = ref('')
 const draftSearchLocation = ref('')
 const draftSelectedCategory = ref('all')
 const currentPage = ref(1)
-const JOBS_PER_PAGE = 5
+const JOBS_PER_PAGE = 4
 
 const {
   isLoading,
@@ -392,7 +392,7 @@ watch(filteredJobs, async () => {
               <div class="jobs-pagination__controls">
                 <button
                   type="button"
-                  class="pagination-button pagination-button--ghost"
+                  class="pagination-button pagination-button--ghost pagination-button--prev"
                   :disabled="currentPage === 1"
                   @click="goToPage(currentPage - 1)"
                 >
@@ -417,7 +417,7 @@ watch(filteredJobs, async () => {
 
                 <button
                   type="button"
-                  class="pagination-button"
+                  class="pagination-button pagination-button--next"
                   :disabled="currentPage === totalPages"
                   @click="goToPage(currentPage + 1)"
                 >
@@ -874,8 +874,8 @@ watch(filteredJobs, async () => {
   justify-content: space-between;
 }
 
-.pagination-button {
-  min-height: 2.85rem;
+  .pagination-button {
+    min-height: 2.85rem;
   padding: 0.72rem 1rem;
   border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
   border-radius: 999rem;
@@ -910,10 +910,15 @@ watch(filteredJobs, async () => {
   background: var(--surface-secondary);
 }
 
-.pagination-button--number {
-  min-width: 2.85rem;
-  padding-inline: 0.75rem;
-}
+  .pagination-button--number {
+    min-width: 2.85rem;
+    padding-inline: 0.75rem;
+  }
+
+  .pagination-button--prev,
+  .pagination-button--next {
+    min-width: 9.5rem;
+  }
 
 .pagination-button--active {
   border-color: color-mix(in srgb, var(--brand-base) 60%, white);
@@ -1364,21 +1369,69 @@ watch(filteredJobs, async () => {
     width: 2.9rem;
   }
 
+  .jobs-pagination {
+    gap: 0.75rem;
+  }
+
+  .jobs-pagination__summary {
+    text-align: center;
+    font-size: 0.84rem;
+  }
+
   .jobs-pagination__controls {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
   }
 
   .pagination-numbers {
+    grid-column: 2;
     justify-content: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    gap: 0.45rem;
   }
 
   .pagination-button {
-    width: 100%;
+    min-height: 2.6rem;
+    font-size: 0.84rem;
+  }
+
+  .pagination-button--prev,
+  .pagination-button--next {
+    width: 2.6rem;
+    min-width: 2.6rem;
+    height: 2.6rem;
+    padding: 0;
+    border-radius: 999rem;
+    justify-content: center;
+    gap: 0;
+    box-shadow: 0 0.45rem 1rem rgba(16, 24, 40, 0.08);
   }
 
   .pagination-button--number {
-    width: 2.85rem;
+    min-width: 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding-inline: 0;
+  }
+
+  .pagination-button--prev span,
+  .pagination-button--next span {
+    display: none;
+  }
+
+  .pagination-ellipsis {
+    font-size: 0.8rem;
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 25rem) {
+  .jobs-pagination__controls {
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 }
 </style>
