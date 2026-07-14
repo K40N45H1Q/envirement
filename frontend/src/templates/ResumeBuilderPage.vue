@@ -226,11 +226,31 @@ const displayAvailability = (value) => {
 
 const copy = computed(() => translate('resumeBuilderPage', {}, language.value))
 
+const cvLanguageOptions = computed(() => [
+  { value: 'lv', label: 'Latviešu' },
+  { value: 'en', label: 'English' },
+  { value: 'ru', label: 'Русский' },
+])
+const genderOptions = computed(() => [
+  { value: '', label: copy.value.choose },
+  { value: 'female', label: copy.value.female },
+  { value: 'male', label: copy.value.male },
+  { value: 'other', label: copy.value.otherGender },
+])
+const countryOptions = computed(() => [
+  { value: 'Latvia', label: copy.value.latvia },
+  { value: 'Lithuania', label: copy.value.lithuania },
+  { value: 'Estonia', label: copy.value.estonia },
+  { value: 'Other', label: copy.value.otherCountry },
+])
+
 const { state } = useAuth()
 const jobsStore = useJobsStore()
 const { categoryCounts } = storeToRefs(jobsStore)
 
 const step = ref(1)
+const expandedWorkIndex = ref(0)
+const expandedEducationIndex = ref(0)
 const isLoaded = ref(false)
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -255,6 +275,49 @@ let shouldSaveAgain = false
 let isApplyingServerProfile = false
 let printFrame = null
 
+const createEmptyWorkExperience = () => ({
+  position: '',
+  job_category: '',
+  company_name: '',
+  start_date: '',
+  end_date: '',
+  current: false,
+  country: 'Latvia',
+  experience_years: '',
+  description: '',
+})
+
+const createEmptyEducation = () => ({
+  level: '',
+  institution: '',
+  speciality: '',
+  second_speciality: '',
+  country: 'Latvia',
+  start_date: '',
+  end_date: '',
+  current: false,
+  unfinished: false,
+  additional_information: '',
+})
+
+const createEmptyResumeData = () => ({
+  cv_language: 'lv',
+  birth_date: '',
+  birth_month: '',
+  birth_day: '',
+  birth_year: '',
+  hide_birth_date: false,
+  gender: '',
+  hide_gender: false,
+  communication_language: 'lv',
+  additional_emails: [],
+  additional_phones: [],
+  no_work_experience: false,
+  total_experience_years: '',
+  work_experiences: [createEmptyWorkExperience()],
+  educations: [createEmptyEducation()],
+})
+
 const createEmptyProfile = () => ({
   email: '',
   first_name: '',
@@ -276,6 +339,7 @@ const createEmptyProfile = () => ({
   resume_name: '',
   resume_url: '',
   avatar_url: '',
+  resume_data: createEmptyResumeData(),
 })
 
 const profile = ref(createEmptyProfile())
@@ -584,6 +648,71 @@ const normalizeLicenses = (value) => toArray(value)
   .map((license) => toText(license).trim())
   .filter(Boolean)
 
+const normalizeResumeData = (value, source = {}) => {
+  const defaults = createEmptyResumeData()
+  const resumeData = value && typeof value === 'object' ? value : {}
+  const legacyWorkExperience = resumeData.work_experience && typeof resumeData.work_experience === 'object'
+    ? resumeData.work_experience
+    : null
+  const legacyEducation = resumeData.education && typeof resumeData.education === 'object'
+    ? resumeData.education
+    : null
+  const rawWorkExperiences = Array.isArray(resumeData.work_experiences)
+    ? resumeData.work_experiences
+    : (legacyWorkExperience ? [legacyWorkExperience] : [])
+  const rawEducations = Array.isArray(resumeData.educations)
+    ? resumeData.educations
+    : (legacyEducation ? [legacyEducation] : [])
+  const workExperiences = rawWorkExperiences.map((entry, index) => ({
+    ...createEmptyWorkExperience(),
+    position: toText(entry?.position || (index === 0 ? source.current_role : '')),
+    job_category: toText(entry?.job_category),
+    company_name: toText(entry?.company_name),
+    start_date: toText(entry?.start_date),
+    end_date: toText(entry?.end_date),
+    current: Boolean(entry?.current),
+    country: toText(entry?.country || 'Latvia'),
+    experience_years: toText(entry?.experience_years || (index === 0 ? resumeData.total_experience_years || legacyWorkExperience?.total_years : '')),
+    description: toText(entry?.description || (index === 0 ? source.summary : '')),
+  }))
+  const educations = rawEducations.map((entry, index) => ({
+    ...createEmptyEducation(),
+    level: toText(entry?.level || (index === 0 ? source.education_level : '')),
+    institution: toText(entry?.institution),
+    speciality: toText(entry?.speciality),
+    second_speciality: toText(entry?.second_speciality),
+    country: toText(entry?.country || 'Latvia'),
+    start_date: toText(entry?.start_date),
+    end_date: toText(entry?.end_date),
+    current: Boolean(entry?.current),
+    unfinished: Boolean(entry?.unfinished),
+    additional_information: toText(entry?.additional_information),
+  }))
+
+  return {
+    ...defaults,
+    cv_language: toText(resumeData.cv_language || defaults.cv_language),
+    birth_date: toText(resumeData.birth_date || (
+      resumeData.birth_year && resumeData.birth_month && resumeData.birth_day
+        ? `${resumeData.birth_year}-${String(resumeData.birth_month).padStart(2, '0')}-${String(resumeData.birth_day).padStart(2, '0')}`
+        : ''
+    )),
+    birth_month: toText(resumeData.birth_month),
+    birth_day: toText(resumeData.birth_day),
+    birth_year: toText(resumeData.birth_year),
+    hide_birth_date: Boolean(resumeData.hide_birth_date),
+    gender: toText(resumeData.gender),
+    hide_gender: Boolean(resumeData.hide_gender),
+    communication_language: toText(resumeData.communication_language || defaults.communication_language),
+    additional_emails: toArray(resumeData.additional_emails).map((item) => toText(item).trim()).filter(Boolean),
+    additional_phones: toArray(resumeData.additional_phones).map((item) => toText(item)).filter(Boolean),
+    no_work_experience: Boolean(resumeData.no_work_experience ?? legacyWorkExperience?.no_experience),
+    total_experience_years: toText(resumeData.total_experience_years || legacyWorkExperience?.total_years),
+    work_experiences: workExperiences.length ? workExperiences : [createEmptyWorkExperience()],
+    educations: educations.length ? educations : [createEmptyEducation()],
+  }
+}
+
 const normalizeProfile = (value = {}) => {
   const source = value || {}
 
@@ -610,6 +739,14 @@ const normalizeProfile = (value = {}) => {
     resume_name: toText(source.resume_name),
     resume_url: toText(source.resume_url),
     avatar_url: toText(source.avatar_url),
+    resume_data: normalizeResumeData(
+      typeof source.resume_data_json === 'string'
+        ? (() => {
+          try { return JSON.parse(source.resume_data_json) } catch { return {} }
+        })()
+        : (source.resume_data || source.resume_data_json),
+      source,
+    ),
   }
 }
 
@@ -644,6 +781,7 @@ const snapshotProfile = () => JSON.stringify({
   resume_name: profile.value.resume_name,
   resume_url: profile.value.resume_url,
   avatar_url: profile.value.avatar_url,
+  resume_data: profile.value.resume_data,
   avatarFile: fileSignature(avatarFile.value),
   resumeFile: fileSignature(resumeFile.value),
 })
@@ -651,21 +789,18 @@ const snapshotProfile = () => JSON.stringify({
 const hasUnsavedChanges = computed(() => isLoaded.value && snapshotProfile() !== savedSnapshot.value)
 
 const progressChecks = computed(() => [
+  profile.value.resume_data.cv_language,
   profileEmail.value,
   profile.value.first_name,
   profile.value.last_name,
   profile.value.phone,
-  profile.value.current_role,
-  profile.value.summary,
-  profile.value.skills,
-  profile.value.sectors.length,
-  profile.value.languages.length,
-  profile.value.work_permit,
-  profile.value.availability,
-  profile.value.salary_expectation,
-  profile.value.preferred_employment_type,
-  profile.value.education_level,
-  avatarPreview.value,
+  profile.value.resume_data.birth_date,
+  profile.value.resume_data.gender,
+  profile.value.resume_data.communication_language,
+  profile.value.resume_data.work_experiences[0]?.position,
+  profile.value.resume_data.work_experiences[0]?.company_name,
+  profile.value.resume_data.educations[0]?.level,
+  profile.value.resume_data.educations[0]?.institution,
 ])
 
 const filledFields = computed(() => progressChecks.value.filter(Boolean).length)
@@ -739,14 +874,14 @@ const legacyCvSummaryParagraphs = computed(() => {
 })
 
 const cvContactItems = computed(() => [
-  {
+  ...[profileEmail.value, ...profile.value.resume_data.additional_emails].filter(Boolean).map((value) => ({
     icon: 'far fa-envelope',
-    value: profileEmail.value,
-  },
-  {
+    value,
+  })),
+  ...[profile.value.phone, ...profile.value.resume_data.additional_phones].filter(Boolean).map((value) => ({
     icon: 'fas fa-phone',
-    value: profile.value.phone,
-  },
+    value,
+  })),
   {
     icon: 'fas fa-globe',
     value: cvPublicUrl.value,
@@ -775,7 +910,9 @@ const statusMessage = computed(() => {
 })
 
 const displayCvName = computed(() => fullName.value || copy.value.candidateName)
-const displayCvRole = computed(() => profile.value.current_role.trim() || copy.value.candidateRole)
+const primaryWorkExperience = computed(() => profile.value.resume_data.work_experiences[0] || createEmptyWorkExperience())
+const primaryEducation = computed(() => profile.value.resume_data.educations[0] || createEmptyEducation())
+const displayCvRole = computed(() => primaryWorkExperience.value.position.trim() || copy.value.candidateRole)
 
 const cvSectors = computed(() => profile.value.sectors
   .map((sector) => {
@@ -790,7 +927,7 @@ const cvSectors = computed(() => profile.value.sectors
   .filter(Boolean))
 
 const cvSummaryParagraphs = computed(() => {
-  const summary = profile.value.summary.trim()
+  const summary = primaryWorkExperience.value.description.trim()
 
   if (summary) {
     return summary
@@ -801,54 +938,119 @@ const cvSummaryParagraphs = computed(() => {
   }
 
   const fallbackParts = [
-    profile.value.current_role ? `${copy.value.summaryRole}: ${profile.value.current_role}.` : '',
-    cvSectors.value.length ? `${copy.value.summarySectors}: ${cvSectors.value.map((sector) => `${sector.label} (${sector.experience})`).join(', ')}.` : '',
-    cvSkills.value.length ? `${copy.value.summarySkills}: ${cvSkills.value.slice(0, 8).join(', ')}.` : '',
+    primaryWorkExperience.value.position ? `${copy.value.summaryRole}: ${primaryWorkExperience.value.position}.` : '',
   ].filter(Boolean)
 
   return [limitText(fallbackParts.join(' ') || copy.value.summaryFallback, 520)]
 })
 
 const cvAdditionalItems = computed(() => [
-  {
-    icon: 'far fa-calendar-check',
-    label: copy.value.readyToStart,
-    value: availabilityLabel.value || copy.value.notSpecified,
+  !profile.value.resume_data.hide_birth_date && {
+    icon: 'far fa-calendar',
+    label: copy.value.birthDate,
+    value: formatDate(profile.value.resume_data.birth_date),
+  },
+  !profile.value.resume_data.hide_gender && {
+    icon: 'fas fa-user',
+    label: copy.value.gender,
+    value: genderOptions.value.find((option) => option.value === profile.value.resume_data.gender)?.label || copy.value.notSpecified,
   },
   {
-    icon: 'far fa-id-card',
-    label: copy.value.workPermit,
-    value: displayPermit(profile.value.work_permit) || copy.value.notSpecified,
+    icon: 'fas fa-globe',
+    label: copy.value.communicationLanguage,
+    value: cvLanguageOptions.value.find((option) => option.value === profile.value.resume_data.communication_language)?.label || copy.value.notSpecified,
+  },
+  {
+    icon: 'fas fa-location-dot',
+    label: copy.value.country,
+    value: primaryWorkExperience.value.country || copy.value.notSpecified,
   },
   {
     icon: 'fas fa-user-graduate',
     label: copy.value.education,
-    value: displayEducation(profile.value.education_level) || copy.value.notSpecified,
+    value: displayEducation(primaryEducation.value.level) || copy.value.notSpecified,
   },
-  {
-    icon: 'fas fa-wallet',
-    label: copy.value.salaryExpectation,
-    value: profile.value.salary_expectation.trim() || copy.value.notSpecified,
-  },
-  {
-    icon: 'fas fa-briefcase',
-    label: copy.value.preferredEmployment,
-    value: displayPreferredEmployment(profile.value.preferred_employment_type) || copy.value.notSpecified,
-  },
-  {
-    icon: 'fas fa-laptop-house',
-    label: copy.value.remoteWork,
-    value: profile.value.remote_ready ? copy.value.ready : copy.value.no,
-  },
-])
+].filter(Boolean))
+
+const cvWorkExperiences = computed(() => profile.value.resume_data.work_experiences.filter((entry) => (
+  entry.position || entry.company_name || entry.description
+)))
+const cvEducations = computed(() => profile.value.resume_data.educations.filter((entry) => (
+  entry.level || entry.institution || entry.speciality
+)))
+const categoryLabel = (value) => jobCategoryOptions.value.find((option) => option.value === value)?.label || value
+const formatDate = (value) => {
+  if (!value) return ''
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return value
+  return new Intl.DateTimeFormat(language.value).format(new Date(year, month - 1, day))
+}
 
 const currentStepHeading = computed(() => {
   if (step.value === 1) return copy.value.step1Heading
   if (step.value === 2) return copy.value.step2Heading
-  return copy.value.step3Heading
+  if (step.value === 3) return copy.value.step3Heading
+  return copy.value.step4Heading
 })
 
+const currentStepDescription = computed(() => copy.value.stepDescriptions?.[step.value - 1] || '')
+const currentStepIcon = computed(() => ['fa-user', 'fa-briefcase', 'fa-graduation-cap', 'fa-file-pdf'][step.value - 1])
+const stepProgress = computed(() => Math.round((step.value / steps.value.length) * 100))
+
 const formatMore = (key, count) => translate(`resumeBuilderPage.${key}`, { count }, language.value)
+
+const addEmail = () => profile.value.resume_data.additional_emails.push('')
+const removeEmail = (index) => profile.value.resume_data.additional_emails.splice(index, 1)
+const addPhone = () => profile.value.resume_data.additional_phones.push('')
+const removePhone = (index) => profile.value.resume_data.additional_phones.splice(index, 1)
+
+const addWorkExperience = () => {
+  profile.value.resume_data.work_experiences.push(createEmptyWorkExperience())
+  expandedWorkIndex.value = profile.value.resume_data.work_experiences.length - 1
+}
+
+const removeWorkExperience = (index) => {
+  if (profile.value.resume_data.work_experiences.length === 1) {
+    profile.value.resume_data.work_experiences[0] = createEmptyWorkExperience()
+    expandedWorkIndex.value = 0
+    return
+  }
+  profile.value.resume_data.work_experiences.splice(index, 1)
+  expandedWorkIndex.value = Math.min(index, profile.value.resume_data.work_experiences.length - 1)
+}
+
+const addEducation = () => {
+  profile.value.resume_data.educations.push(createEmptyEducation())
+  expandedEducationIndex.value = profile.value.resume_data.educations.length - 1
+}
+
+const removeEducation = (index) => {
+  if (profile.value.resume_data.educations.length === 1) {
+    profile.value.resume_data.educations[0] = createEmptyEducation()
+    expandedEducationIndex.value = 0
+    return
+  }
+  profile.value.resume_data.educations.splice(index, 1)
+  expandedEducationIndex.value = Math.min(index, profile.value.resume_data.educations.length - 1)
+}
+
+const toggleCurrentWork = (work) => {
+  if (work.current) work.end_date = ''
+}
+
+const toggleCurrentEducation = (education) => {
+  if (education.current) education.end_date = ''
+}
+
+const workEntryMeta = (work) => [
+  work.company_name,
+  work.start_date && `${formatDate(work.start_date)} — ${work.current ? copy.value.present : (formatDate(work.end_date) || '…')}`,
+].filter(Boolean).join(' · ')
+
+const educationEntryMeta = (education) => [
+  education.institution,
+  education.start_date && `${formatDate(education.start_date)} — ${education.current ? copy.value.present : (formatDate(education.end_date) || '…')}`,
+].filter(Boolean).join(' · ')
 
 const cvQrCells = computed(() => Array.from({ length: 121 }, (_, index) => {
   const row = Math.floor(index / 11)
@@ -923,19 +1125,22 @@ const saveGuestDraft = () => {
     resume_name: profile.value.resume_name,
   }
 
-  window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-  window.sessionStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
+  window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
+  window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
 }
 
 const loadGuestDraft = () => {
   if (typeof window === 'undefined') return null
 
-  window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-  const rawDraft = window.sessionStorage.getItem(GUEST_RESUME_DRAFT_KEY)
+  const rawDraft = window.localStorage.getItem(GUEST_RESUME_DRAFT_KEY)
+    || window.sessionStorage.getItem(GUEST_RESUME_DRAFT_KEY)
   if (!rawDraft) return null
 
   try {
-    return JSON.parse(rawDraft)
+    const draft = JSON.parse(rawDraft)
+    window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, rawDraft)
+    window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
+    return draft
   } catch {
     return null
   }
@@ -969,7 +1174,9 @@ const loadProfile = async () => {
 
   try {
     const loadedProfile = await getProfile()
-    applyServerProfile(loadedProfile)
+    const localDraft = loadGuestDraft()
+    applyServerProfile(localDraft || loadedProfile)
+    if (localDraft) status.value = copy.value.guestDraftLoaded
   } catch (error) {
     profile.value = createEmptyProfile()
     savedSnapshot.value = snapshotProfile()
@@ -996,8 +1203,8 @@ const buildPayload = () => ({
   first_name: profile.value.first_name.trim(),
   last_name: profile.value.last_name.trim(),
   phone: profile.value.phone.trim(),
-  summary: profile.value.summary.trim(),
-  current_role: profile.value.current_role.trim(),
+  summary: primaryWorkExperience.value.description.trim(),
+  current_role: primaryWorkExperience.value.position.trim(),
   skills: profile.value.skills.trim(),
   sectors_json: profile.value.sectors
     .map((sector) => {
@@ -1020,10 +1227,11 @@ const buildPayload = () => ({
   availability: profile.value.availability.trim(),
   salary_expectation: profile.value.salary_expectation.trim(),
   preferred_employment_type: profile.value.preferred_employment_type,
-  education_level: profile.value.education_level,
+  education_level: primaryEducation.value.level,
   remote_ready: profile.value.remote_ready,
   avatar: avatarFile.value,
   resume: resumeFile.value,
+  resume_data_json: profile.value.resume_data,
 })
 
 const performSave = async ({ silent = false, force = false } = {}) => {
@@ -1114,7 +1322,12 @@ const scheduleAutosave = () => {
 
   clearAutosaveTimer()
   autosaveTimer = window.setTimeout(() => {
-    saveProfile({ silent: true })
+    try {
+      saveGuestDraft()
+      savedSnapshot.value = snapshotProfile()
+    } catch (error) {
+      status.value = getErrorMessage(error, copy.value.saveDraftError)
+    }
   }, AUTOSAVE_DELAY)
 }
 
@@ -1137,11 +1350,33 @@ const validateStep = (stepId) => {
       delete nextErrors.last_name
     }
 
-    if (!profile.value.current_role.trim()) {
-      nextErrors.current_role = copy.value.roleRequired
+    if (!profileEmail.value.trim()) {
+      nextErrors.email = copy.value.emailRequired
       isValid = false
     } else {
-      delete nextErrors.current_role
+      delete nextErrors.email
+    }
+
+    if (!profile.value.phone.trim()) {
+      nextErrors.phone = copy.value.phoneRequired
+      isValid = false
+    } else {
+      delete nextErrors.phone
+    }
+
+    const resumeData = profile.value.resume_data
+    if (!resumeData.birth_date) {
+      nextErrors.birth_date = copy.value.birthDateRequired
+      isValid = false
+    } else {
+      delete nextErrors.birth_date
+    }
+
+    if (!resumeData.gender) {
+      nextErrors.gender = copy.value.genderRequired
+      isValid = false
+    } else {
+      delete nextErrors.gender
     }
   }
 
@@ -1266,16 +1501,10 @@ const onAvatarChange = async (event) => {
   }
 
   try {
-    if (!isAuthenticated.value) {
-      const avatarDataUrl = await readFileAsDataUrl(file)
-      avatarFile.value = null
-      revokeAvatarPreview()
-      profile.value.avatar_url = avatarDataUrl
-    } else {
-      avatarFile.value = file
-      revokeAvatarPreview()
-      avatarObjectUrl.value = URL.createObjectURL(file)
-    }
+    const avatarDataUrl = await readFileAsDataUrl(file)
+    avatarFile.value = isAuthenticated.value ? file : null
+    revokeAvatarPreview()
+    profile.value.avatar_url = avatarDataUrl
 
     clearError('avatar')
     scheduleAutosave()
@@ -1312,7 +1541,14 @@ const saveCurrentStep = async () => {
     return false
   }
 
-  return saveProfile({ silent: false })
+  try {
+    saveGuestDraft()
+    savedSnapshot.value = snapshotProfile()
+    return true
+  } catch (error) {
+    status.value = getErrorMessage(error, copy.value.saveDraftError)
+    return false
+  }
 }
 
 const goToStep = async (targetStep) => {
@@ -1340,7 +1576,11 @@ const goPrev = () => {
 
 const handleFinalSave = async () => {
   if (!validateBeforeFinalSave()) return
-  await saveProfile({ silent: false, force: true })
+  const saved = await saveProfile({ silent: false, force: true })
+  if (saved && isAuthenticated.value) {
+    window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
+    window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
+  }
 }
 
 const getPrintableStyles = () => `
@@ -1840,8 +2080,13 @@ const buildPrintableDocument = () => {
 const printCv = async () => {
   if (!validateBeforeFinalSave()) return
 
-  const saved = await saveProfile({ silent: false, force: true })
-  if (!saved) return
+  try {
+    saveGuestDraft()
+    savedSnapshot.value = snapshotProfile()
+  } catch (error) {
+    status.value = getErrorMessage(error, copy.value.saveDraftError)
+    return
+  }
 
   await nextTick()
 
@@ -1907,13 +2152,13 @@ onBeforeUnmount(() => {
     <main class="page">
       <section class="hero no-print">
         <div class="hero-copy">
+          <span class="builder-kicker"><i class="fas fa-wand-magic-sparkles"></i>{{ copy.builderKicker }}</span>
           <div class="title-row">
             <h1>{{ copy.pageTitle }}</h1>
+            <span class="hero-progress">{{ stepProgress }}%</span>
           </div>
 
-          <p>
-            {{ copy.pageDescription }}
-          </p>
+          <p>{{ copy.pageDescription }}</p>
         </div>
 
         <div class="steps">
@@ -1938,248 +2183,205 @@ onBeforeUnmount(() => {
       <section class="builder">
         <div class="main-card">
           <div class="card-head no-print">
-            <h2>{{ currentStepHeading }}</h2>
-            <p v-if="statusMessage" class="hint">{{ statusMessage }}</p>
+            <span class="card-head__icon"><i class="fas" :class="currentStepIcon"></i></span>
+            <div class="card-head__copy">
+              <span class="card-head__step">{{ copy.stepLabel }} {{ step }} / {{ steps.length }}</span>
+              <h2>{{ currentStepHeading }}</h2>
+              <p v-if="currentStepDescription">{{ currentStepDescription }}</p>
+              <p v-if="statusMessage" class="hint"><i class="fas fa-cloud-arrow-up"></i>{{ statusMessage }}</p>
+            </div>
           </div>
 
           <template v-if="step === 1">
-            <div class="grid-two">
-              <label>
-                {{ copy.firstName }}
-                <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" @input="clearError('first_name')" />
-                <span v-if="errors.first_name" class="field-error">{{ errors.first_name }}</span>
-              </label>
+            <div class="form-stack">
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-address-card"></i></span>
+                  <div><h3>{{ copy.identitySection }}</h3><p>{{ copy.identitySectionHint }}</p></div>
+                </div>
 
-              <label>
-                {{ copy.lastName }}
-                <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
-                <span v-if="errors.last_name" class="field-error">{{ errors.last_name }}</span>
-              </label>
+                <div class="form-grid">
+                  <label>
+                    <span class="field-label">{{ copy.firstName }} <b>*</b></span>
+                    <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" @input="clearError('first_name')" />
+                    <span v-if="errors.first_name" class="field-error">{{ errors.first_name }}</span>
+                  </label>
 
-              <label>
-                Email
-                <input
-                  v-if="!isAuthenticated"
-                  v-model="profile.email"
-                  type="email"
-                  placeholder="email@example.com"
-                />
-                <input v-else :value="profileEmail" disabled />
-              </label>
+                  <label>
+                    <span class="field-label">{{ copy.lastName }} <b>*</b></span>
+                    <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
+                    <span v-if="errors.last_name" class="field-error">{{ errors.last_name }}</span>
+                  </label>
 
-              <label>
-                {{ copy.phone }}
-                <PhoneInput
-                  v-model="profile.phone"
-                  placeholder="2X XXX XXX"
-                  :aria-label="copy.phone"
-                />
-              </label>
+                  <div class="contact-group">
+                    <span class="field-label">Email <b>*</b></span>
+                    <label class="contact-row">
+                      <input v-if="!isAuthenticated" v-model="profile.email" type="email" placeholder="email@example.com" />
+                      <input v-else :value="profileEmail" disabled />
+                    </label>
+                    <label v-for="(_, index) in profile.resume_data.additional_emails" :key="`email-${index}`" class="contact-row">
+                      <input v-model="profile.resume_data.additional_emails[index]" type="email" :placeholder="`email${index + 2}@example.com`" />
+                      <button type="button" class="contact-remove" :aria-label="copy.removeEntry" @click="removeEmail(index)"><i class="far fa-trash-can"></i></button>
+                    </label>
+                    <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
+                    <button type="button" class="contact-add" @click="addEmail"><i class="fas fa-plus"></i>{{ copy.addEmail }}</button>
+                  </div>
 
-              <label class="grid-span-2">
-                {{ copy.desiredRole }}
-                <input
-                  v-model="profile.current_role"
-                  :placeholder="copy.desiredRolePlaceholder"
-                  @input="clearError('current_role')"
-                />
-                <span v-if="errors.current_role" class="field-error">{{ errors.current_role }}</span>
-              </label>
+                  <div class="contact-group">
+                    <span class="field-label">{{ copy.phone }} <b>*</b></span>
+                    <label class="contact-row"><PhoneInput v-model="profile.phone" placeholder="2X XXX XXX" :aria-label="copy.phone" /></label>
+                    <label v-for="(_, index) in profile.resume_data.additional_phones" :key="`phone-${index}`" class="contact-row">
+                      <PhoneInput v-model="profile.resume_data.additional_phones[index]" placeholder="2X XXX XXX" :aria-label="`${copy.phone} ${index + 2}`" />
+                      <button type="button" class="contact-remove" :aria-label="copy.removeEntry" @click="removePhone(index)"><i class="far fa-trash-can"></i></button>
+                    </label>
+                    <span v-if="errors.phone" class="field-error">{{ errors.phone }}</span>
+                    <button type="button" class="contact-add" @click="addPhone"><i class="fas fa-plus"></i>{{ copy.addPhone }}</button>
+                  </div>
+                </div>
+              </section>
 
-              <label class="grid-span-2">
-                {{ copy.keySkills }}
-                <input v-model="profile.skills" :placeholder="copy.keySkillsPlaceholder" />
-              </label>
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-user-shield"></i></span>
+                  <div><h3>{{ copy.personalSection }}</h3><p>{{ copy.personalSectionHint }}</p></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="field-cluster">
+                    <label>
+                      <span class="field-label">{{ copy.birthDate }} <b>*</b></span>
+                      <input v-model="profile.resume_data.birth_date" type="date" @input="clearError('birth_date')" />
+                      <span v-if="errors.birth_date" class="field-error">{{ errors.birth_date }}</span>
+                    </label>
+                    <label class="checkbox-field"><input v-model="profile.resume_data.hide_birth_date" type="checkbox" /><span>{{ copy.hideInCv }}</span></label>
+                  </div>
+
+                  <div class="field-cluster">
+                    <label>
+                      <span class="field-label">{{ copy.gender }} <b>*</b></span>
+                      <BaseDropdown v-model="profile.resume_data.gender" full-width overlay :options="genderOptions" @change="clearError('gender')" />
+                      <span v-if="errors.gender" class="field-error">{{ errors.gender }}</span>
+                    </label>
+                    <label class="checkbox-field"><input v-model="profile.resume_data.hide_gender" type="checkbox" /><span>{{ copy.hideInCv }}</span></label>
+                  </div>
+                </div>
+              </section>
+
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-language"></i></span>
+                  <div><h3>{{ copy.languageSection }}</h3><p>{{ copy.languageSectionHint }}</p></div>
+                </div>
+                <div class="form-grid">
+                  <label><span class="field-label">{{ copy.cvLanguage }} <b>*</b></span><BaseDropdown v-model="profile.resume_data.cv_language" full-width overlay :options="cvLanguageOptions" /></label>
+                  <label><span class="field-label">{{ copy.communicationLanguage }} <b>*</b></span><BaseDropdown v-model="profile.resume_data.communication_language" full-width overlay :options="cvLanguageOptions" /></label>
+                </div>
+              </section>
             </div>
-
-            <label>
-              {{ copy.aboutMe }}
-              <textarea
-                v-model="profile.summary"
-                rows="6"
-                :placeholder="copy.aboutMePlaceholder"
-              ></textarea>
-            </label>
           </template>
 
           <template v-else-if="step === 2">
-            <div class="section">
-              <label class="section-label">{{ copy.workAreas }}</label>
+            <div class="form-stack">
+              <label class="checkbox-field choice-card">
+                <input v-model="profile.resume_data.no_work_experience" type="checkbox" />
+                <span><strong>{{ copy.noWorkExperience }}</strong><small>{{ copy.noWorkExperienceHint }}</small></span>
+              </label>
 
-              <div class="chips sector-chips">
-                <span
-                  v-for="(sector, index) in profile.sectors"
-                  :key="`${sector.id || sector.name}-${index}`"
-                  class="chip sector-chip"
+              <template v-if="!profile.resume_data.no_work_experience">
+                <section
+                  v-for="(work, index) in profile.resume_data.work_experiences"
+                  :key="`work-${index}`"
+                  class="entry-card"
+                  :class="{ 'entry-card--collapsed': expandedWorkIndex !== index }"
                 >
-                  <span class="sector-chip__icon">
-                    <i :class="getSectorOption(sector)?.iconClass"></i>
-                  </span>
-                  <span class="sector-chip__copy">
-                    <strong>{{ getSectorOption(sector)?.label }}</strong>
-                    <small>{{ displaySectorExperience(sector.experience || DEFAULT_SECTOR_EXPERIENCE) }}</small>
-                  </span>
-                  <button type="button" @click="removeSector(index)">×</button>
-                </span>
-              </div>
+                  <div class="entry-card__head">
+                    <button
+                      type="button"
+                      class="entry-card__toggle"
+                      :aria-expanded="expandedWorkIndex === index"
+                      :aria-label="expandedWorkIndex === index ? copy.collapseEntry : copy.expandEntry"
+                      @click="expandedWorkIndex = expandedWorkIndex === index ? -1 : index"
+                    >
+                      <span class="entry-index">{{ index + 1 }}</span>
+                      <span class="entry-card__title">
+                        <strong>{{ work.position || `${copy.workPlace} ${index + 1}` }}</strong>
+                        <small>{{ workEntryMeta(work) || copy.emptyEntryHint }}</small>
+                      </span>
+                      <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <button type="button" class="entry-remove" @click="removeWorkExperience(index)"><i class="far fa-trash-can"></i>{{ copy.removeEntry }}</button>
+                  </div>
 
-              <div class="inline-add sector-add">
-                <BaseDropdown
-                  v-model="selectedSector"
-                  :aria-label="copy.workAreaAria"
-                  class="sector-dropdown"
-                  :options="sectorDropdownOptions"
-                  full-width
-                  :show-selected-hint="false"
-                  @change="clearError('sectors')"
-                />
+                  <div v-show="expandedWorkIndex === index" class="entry-card__body">
+                    <label>{{ copy.position }}<input v-model="work.position" /></label>
+                    <label>{{ copy.jobCategory }}<BaseDropdown v-model="work.job_category" full-width overlay :options="sectorDropdownOptions" /></label>
+                    <label>{{ copy.companyName }}<input v-model="work.company_name" /></label>
+                    <label>{{ copy.country }}<BaseDropdown v-model="work.country" full-width overlay :options="countryOptions" /></label>
+                    <label>{{ copy.totalExperience }}<input v-model="work.experience_years" type="number" min="0" :placeholder="copy.yearsPlaceholder" /></label>
 
-                <BaseDropdown
-                  v-model="selectedSectorExperience"
-                  :aria-label="copy.workAreaExperienceAria"
-                  class="sector-dropdown sector-dropdown--experience"
-                  :options="sectorExperienceOptions"
-                  full-width
-                />
+                    <div class="grid-two entry-wide">
+                      <label>{{ copy.start }}<input v-model="work.start_date" type="date" /></label>
+                      <label>{{ copy.end }}<input v-model="work.end_date" type="date" :disabled="work.current" /></label>
+                    </div>
 
-                <button type="button" class="ghost-button" :disabled="!canAddSector" @click="addSector">
-                  {{ copy.add }}
-                </button>
-              </div>
+                    <label class="checkbox-field current-field entry-wide"><input v-model="work.current" type="checkbox" @change="toggleCurrentWork(work)" /><span>{{ copy.currentlyWorking }}</span></label>
+                    <label class="entry-wide">{{ copy.workDescription }}<textarea v-model="work.description" rows="5" :placeholder="copy.workDescriptionPlaceholder"></textarea></label>
+                  </div>
+                </section>
 
-              <span v-if="errors.sectors" class="field-error">{{ errors.sectors }}</span>
+                <button type="button" class="btn-light entry-add" @click="addWorkExperience"><i class="fas fa-plus"></i>{{ copy.addWorkExperience }}</button>
+              </template>
             </div>
+          </template>
 
-            <div class="section">
-              <label class="section-label">{{ copy.languages }}</label>
-
-              <div class="chips">
-                <span
-                  v-for="(language, index) in profile.languages"
-                  :key="`${language.name}-${language.level}-${index}`"
-                  class="chip"
-                >
-                  <span>{{ displayLanguageName(language.name) }}</span>
-                  <b>{{ language.level }}</b>
-                  <button type="button" @click="removeLanguage(index)">×</button>
-                </span>
-              </div>
-
-              <div class="grid-two">
-                <BaseDropdown
-                  v-model="newLanguage"
-                  :aria-label="copy.languageAria"
-                  full-width
-                  :options="languageOptions"
-                />
-
-                <BaseDropdown
-                  v-model="newLanguageLevel"
-                  :aria-label="copy.languageLevelAria"
-                  full-width
-                  :options="languageLevelOptions"
-                />
-              </div>
-
-              <button
-                type="button"
-                class="ghost-button ghost-button--small"
-                :disabled="!canAddLanguage"
-                @click="addLanguage"
+          <template v-else-if="step === 3">
+            <div class="form-stack">
+              <section
+                v-for="(education, index) in profile.resume_data.educations"
+                :key="`education-${index}`"
+                class="entry-card"
+                :class="{ 'entry-card--collapsed': expandedEducationIndex !== index }"
               >
-                {{ copy.addLanguage }}
-              </button>
-            </div>
+                <div class="entry-card__head">
+                  <button
+                    type="button"
+                    class="entry-card__toggle"
+                    :aria-expanded="expandedEducationIndex === index"
+                    :aria-label="expandedEducationIndex === index ? copy.collapseEntry : copy.expandEntry"
+                    @click="expandedEducationIndex = expandedEducationIndex === index ? -1 : index"
+                  >
+                    <span class="entry-index">{{ index + 1 }}</span>
+                    <span class="entry-card__title">
+                      <strong>{{ education.institution || `${copy.educationPlace} ${index + 1}` }}</strong>
+                      <small>{{ educationEntryMeta(education) || copy.emptyEntryHint }}</small>
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                  <button type="button" class="entry-remove" @click="removeEducation(index)"><i class="far fa-trash-can"></i>{{ copy.removeEntry }}</button>
+                </div>
 
-            <div class="grid-two">
-              <label>
-                {{ copy.workPermit }}
-                <BaseDropdown
-                  v-model="profile.work_permit"
-                  :aria-label="copy.workPermit"
-                  full-width
-                  :options="permitOptions"
-                />
-              </label>
+                <div v-show="expandedEducationIndex === index" class="entry-card__body">
+                  <label>{{ copy.educationLevel }}<BaseDropdown v-model="education.level" full-width overlay :options="educationOptions" /></label>
+                  <label>{{ copy.institution }}<input v-model="education.institution" /></label>
+                  <label>{{ copy.speciality }}<input v-model="education.speciality" /></label>
+                  <label>{{ copy.secondSpeciality }}<input v-model="education.second_speciality" /></label>
+                  <label>{{ copy.country }}<BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" /></label>
 
-              <label>
-                {{ copy.availability }}
-                <BaseDropdown
-                  v-model="profile.availability"
-                  :aria-label="copy.availability"
-                  full-width
-                  :options="availabilityDropdownOptions"
-                  @change="clearError('availability')"
-                />
-                <span v-if="errors.availability" class="field-error">{{ errors.availability }}</span>
-              </label>
-            </div>
+                  <div class="grid-two entry-wide">
+                    <label>{{ copy.start }}<input v-model="education.start_date" type="date" /></label>
+                    <label>{{ copy.end }}<input v-model="education.end_date" type="date" :disabled="education.current" /></label>
+                  </div>
 
-            <div class="grid-two">
-              <label>
-                {{ copy.education }}
-                <BaseDropdown
-                  v-model="profile.education_level"
-                  :aria-label="copy.education"
-                  full-width
-                  :options="educationOptions"
-                />
-              </label>
+                  <div class="grid-two entry-wide option-row">
+                    <label class="checkbox-field current-field"><input v-model="education.current" type="checkbox" @change="toggleCurrentEducation(education)" /><span>{{ copy.currentlyStudying }}</span></label>
+                    <label class="checkbox-field"><input v-model="education.unfinished" type="checkbox" /><span>{{ copy.unfinished }}</span></label>
+                  </div>
 
-              <label>
-                {{ copy.preferredEmploymentType }}
-                <BaseDropdown
-                  v-model="profile.preferred_employment_type"
-                  :aria-label="copy.preferredEmploymentType"
-                  full-width
-                  :options="preferredEmploymentOptions"
-                />
-              </label>
-            </div>
+                  <label class="entry-wide">{{ copy.additionalInformation }}<textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
+                </div>
+              </section>
 
-            <div class="grid-two">
-              <label>
-                {{ copy.salaryExpectation }}
-                <input
-                  v-model="profile.salary_expectation"
-                  type="text"
-                  :placeholder="copy.salaryExpectationPlaceholder"
-                />
-              </label>
-
-              <label class="toggle-field toggle-switch">
-                <span>{{ copy.remoteReady }}</span>
-                <span class="toggle-switch__control">
-                  <input v-model="profile.remote_ready" type="checkbox" />
-                  <span class="toggle-switch__track" aria-hidden="true">
-                    <span class="toggle-switch__thumb"></span>
-                  </span>
-                </span>
-              </label>
-            </div>
-
-            <div class="section">
-              <label class="section-label">{{ copy.licensesAndCertificates }}</label>
-
-              <div class="chips">
-                <span v-for="(license, index) in profile.licenses" :key="`${license}-${index}`" class="chip">
-                  <span>{{ license }}</span>
-                  <button type="button" @click="removeLicense(index)">×</button>
-                </span>
-              </div>
-
-              <div class="inline-add inline-add--dropdown">
-                <BaseDropdown
-                  v-model="newLicense"
-                  :aria-label="copy.licenseAria"
-                  full-width
-                  :options="licenseOptions"
-                  @change="clearError('licenses')"
-                />
-                <button type="button" class="ghost-button" @click="addLicense">{{ copy.add }}</button>
-              </div>
-
-              <span v-if="errors.licenses" class="field-error">{{ errors.licenses }}</span>
+              <button type="button" class="btn-light entry-add" @click="addEducation"><i class="fas fa-plus"></i>{{ copy.addEducation }}</button>
             </div>
           </template>
 
@@ -2193,10 +2395,10 @@ onBeforeUnmount(() => {
 
                 <div class="review-actions">
                   <button v-if="isAuthenticated" type="button" class="btn-light" :disabled="isSaving" @click="handleFinalSave">
-                    {{ isSaving ? copy.saving : copy.save }}
+                    <i class="far fa-floppy-disk"></i>{{ isSaving ? copy.saving : copy.save }}
                   </button>
                   <button type="button" class="btn-primary" :disabled="isSaving" @click="printCv">
-                    {{ copy.downloadPdf }}
+                    <i class="fas fa-file-arrow-down"></i>{{ copy.downloadPdf }}
                   </button>
                 </div>
               </div>
@@ -2222,7 +2424,7 @@ onBeforeUnmount(() => {
                       <p>{{ displayCvRole }}</p>
 
                       <ul class="cv-contact-list">
-                        <li v-for="item in cvContactItems" :key="item.value">
+                        <li v-for="(item, index) in cvContactItems" :key="`${item.icon}-${index}`">
                           <i :class="item.icon"></i>
                           <span>{{ item.value }}</span>
                         </li>
@@ -2257,6 +2459,40 @@ onBeforeUnmount(() => {
                       >
                         {{ paragraph }}
                       </p>
+                    </section>
+
+                    <section v-if="!profile.resume_data.no_work_experience && cvWorkExperiences.length" class="cv-section">
+                      <h2>{{ copy.workExperience }}</h2>
+                      <div v-for="(work, index) in cvWorkExperiences" :key="`cv-work-${index}`" class="cv-entry">
+                        <p class="cv-summary-text">
+                          <strong>{{ work.position }}</strong>
+                          <span v-if="work.company_name"> · {{ work.company_name }}</span>
+                        </p>
+                        <p class="cv-summary-text">
+                          {{ formatDate(work.start_date) }}
+                          —
+                          {{ work.current ? copy.present : formatDate(work.end_date) }}
+                          <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
+                          <span v-if="work.country"> · {{ work.country }}</span>
+                          <span v-if="work.experience_years"> · {{ copy.totalExperience }}: {{ work.experience_years }}</span>
+                        </p>
+                        <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
+                      </div>
+                    </section>
+
+                    <section v-if="cvEducations.length" class="cv-section">
+                      <h2>{{ copy.education }}</h2>
+                      <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
+                        <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
+                        <p class="cv-summary-text">
+                          {{ displayEducation(education.level) }}
+                          <span v-if="education.speciality"> · {{ education.speciality }}</span>
+                          <span v-if="education.second_speciality"> · {{ education.second_speciality }}</span>
+                          <span v-if="education.country"> · {{ education.country }}</span>
+                          <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? copy.present : formatDate(education.end_date) }}</span>
+                        </p>
+                        <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
+                      </div>
                     </section>
 
                     <section v-if="cvVisibleSectors.length" class="cv-section">
@@ -2335,11 +2571,13 @@ onBeforeUnmount(() => {
 
           <div class="footer-actions no-print">
             <button type="button" class="btn-light" :disabled="step === 1 || isSaving" @click="goPrev">
-              {{ copy.back }}
+              <i class="fas fa-arrow-left"></i>{{ copy.back }}
             </button>
 
-            <button v-if="step < 3" type="button" class="btn-primary" :disabled="isSaving" @click="goNext">
-              {{ isSaving ? copy.saving : copy.next }}
+            <span class="footer-step">{{ step }} / {{ steps.length }}</span>
+
+            <button v-if="step < 4" type="button" class="btn-primary" :disabled="isSaving" @click="goNext">
+              {{ isSaving ? copy.saving : copy.next }}<i class="fas fa-arrow-right"></i>
             </button>
           </div>
         </div>
@@ -2354,20 +2592,20 @@ onBeforeUnmount(() => {
               @change="onAvatarChange"
             />
             <div class="profile-card__top">
-              <button type="button" class="profile-avatar profile-avatar--button">
+              <button type="button" class="profile-avatar profile-avatar--button" :aria-label="copy.uploadAvatar" @click="openAvatarPicker">
                 <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="copy.avatar" />
                 <span v-else>{{ avatarInitials }}</span>
               </button>
 
               <div>
                 <strong>{{ fullName || copy.yourName }}</strong>
-                <p>{{ profile.current_role || copy.profession }}</p>
+                <p>{{ primaryWorkExperience.position || copy.profession }}</p>
               </div>
             </div>
 
             <div class="profile-meta">
-              <span>{{ profileEmail || 'email@example.com' }}</span>
-              <span>{{ profile.phone || '+000 00 000 000' }}</span>
+              <span><i class="far fa-envelope"></i>{{ profileEmail || 'email@example.com' }}</span>
+              <span><i class="fas fa-phone"></i>{{ profile.phone || '+000 00 000 000' }}</span>
               <button type="button" class="text-link-button" @click="openAvatarPicker">
                 {{ avatarPreview ? copy.changeAvatar : copy.uploadAvatar }}
               </button>
@@ -2383,7 +2621,7 @@ onBeforeUnmount(() => {
 
             <div class="progress-value">{{ progress }}%</div>
 
-            <div class="progress-track">
+            <div class="progress-track" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100">
               <span class="progress-bar" :style="{ width: `${progress}%` }"></span>
             </div>
 
@@ -2426,6 +2664,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .page {
   width: min(100%, var(--shell-max-width));
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 2rem var(--shell-gutter) 4rem;
   display: grid;
@@ -2483,7 +2722,7 @@ onBeforeUnmount(() => {
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
@@ -2562,6 +2801,7 @@ onBeforeUnmount(() => {
 }
 
 .main-card {
+  min-width: 0;
   gap: 1.35rem;
   height: 100%;
 }
@@ -2569,6 +2809,201 @@ onBeforeUnmount(() => {
 .card-head {
   display: grid;
   gap: 0.4rem;
+}
+
+.form-stack,
+.form-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-panel,
+.entry-card {
+  min-width: 0;
+  padding: 1.1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-secondary);
+}
+
+.form-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.form-panel__head > span,
+.entry-index {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  flex: 0 0 2.25rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  border: 0.0625rem solid var(--border-subtle);
+  color: var(--brand-strong);
+  font-weight: 800;
+}
+
+.form-panel__head h3,
+.form-panel__head p {
+  margin: 0;
+}
+
+.form-panel__head p,
+.entry-card__title small {
+  color: var(--text-muted);
+}
+
+.form-grid,
+.entry-card__body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.entry-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.entry-card--collapsed {
+  gap: 0;
+}
+
+.entry-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.entry-card__toggle {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entry-card__title {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.entry-card__title strong,
+.entry-card__title small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-card__toggle > i {
+  transition: transform 0.2s ease;
+}
+
+.entry-card__toggle[aria-expanded='true'] > i {
+  transform: rotate(180deg);
+}
+
+.entry-remove {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entry-wide {
+  grid-column: 1 / -1;
+}
+
+.entry-add {
+  justify-self: start;
+}
+
+.checkbox-field,
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.checkbox-field input[type='checkbox'],
+.choice-card input[type='checkbox'] {
+  width: 1.15rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  min-height: 1.15rem;
+  margin: 0;
+  flex: 0 0 1.15rem;
+}
+
+.choice-card > span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.choice-card small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.contact-group {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+}
+
+.contact-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contact-row > :first-child {
+  min-width: 0;
+}
+
+.contact-remove,
+.contact-add {
+  border: 0;
+  background: transparent;
+  color: var(--brand-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contact-remove {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 0.65rem;
+  color: var(--text-muted);
+}
+
+.contact-add {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
 }
 
 .grid-two,
@@ -3467,7 +3902,7 @@ button:disabled {
 
 @media (max-width: 72rem) {
   .builder {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
@@ -3485,12 +3920,33 @@ button:disabled {
 }
 
 @media (max-width: 56rem) {
-  .steps,
   .grid-two,
   .inline-add,
   .upload-grid,
   .sector-add {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid,
+  .entry-card__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .steps {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .steps::-webkit-scrollbar {
+    display: none;
+  }
+
+  .step {
+    min-width: 12.5rem;
+    scroll-snap-align: start;
   }
 
   .footer-actions,

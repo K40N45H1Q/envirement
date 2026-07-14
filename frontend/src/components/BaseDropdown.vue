@@ -115,17 +115,32 @@ const updateMenuPosition = () => {
   if (!props.overlay || !isOpen.value || !root.value) return
 
   const rect = root.value.getBoundingClientRect()
-  const width = rect.width
-  const top = rect.bottom + 8
-  const left = props.align === 'right' ? rect.right - width : rect.left
+  const viewportPadding = 8
+  const gap = 8
+  const width = Math.min(rect.width, window.innerWidth - (viewportPadding * 2))
+  const desiredHeight = Math.min(menu.value?.scrollHeight || 320, 320)
+  const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap
+  const spaceAbove = rect.top - viewportPadding - gap
+  const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow
+  const availableHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow)
+  const top = openAbove
+    ? Math.max(viewportPadding, rect.top - Math.min(desiredHeight, availableHeight) - gap)
+    : rect.bottom + gap
+  const preferredLeft = props.align === 'right' ? rect.right - width : rect.left
+  const left = Math.min(
+    Math.max(viewportPadding, preferredLeft),
+    window.innerWidth - width - viewportPadding,
+  )
 
   menuStyle.value = {
     position: 'fixed',
     top: `${top}px`,
-    left: `${Math.max(8, left)}px`,
+    left: `${left}px`,
     width: `${width}px`,
     minWidth: `${width}px`,
     maxWidth: `${width}px`,
+    maxHeight: `${availableHeight}px`,
+    overflowY: 'auto',
     zIndex: 4000,
   }
 }

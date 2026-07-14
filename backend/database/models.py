@@ -105,6 +105,7 @@ class CandidateProfile(SQLModel, table=True):
     resume_name: Optional[str] = None
     resume_url: Optional[str] = None
     avatar_url: Optional[str] = None
+    resume_data_json: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -401,6 +402,7 @@ def ensure_candidate_profile_columns():
             "preferred_employment_type": "ALTER TABLE candidateprofile ADD COLUMN preferred_employment_type VARCHAR",
             "education_level": "ALTER TABLE candidateprofile ADD COLUMN education_level VARCHAR",
             "remote_ready": "ALTER TABLE candidateprofile ADD COLUMN remote_ready BOOLEAN NOT NULL DEFAULT 0",
+            "resume_data_json": "ALTER TABLE candidateprofile ADD COLUMN resume_data_json VARCHAR",
         }
 
         for column, statement in additions.items():

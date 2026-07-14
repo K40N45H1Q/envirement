@@ -61,6 +61,7 @@ def serialize_profile(profile: Optional[CandidateProfile]):
             "resume_name": "",
             "resume_url": "",
             "avatar_url": "",
+            "resume_data": {},
         }
 
     return {
@@ -84,6 +85,7 @@ def serialize_profile(profile: Optional[CandidateProfile]):
         "resume_name": profile.resume_name or "",
         "resume_url": profile.resume_url or "",
         "avatar_url": profile.avatar_url or "",
+        "resume_data": parse_json_field(profile.resume_data_json, {}),
     }
 
 
@@ -114,6 +116,7 @@ async def update_profile(
     remote_ready: bool = Form(False),
     work_permit: Optional[str] = Form(None),
     availability: Optional[str] = Form(None),
+    resume_data_json: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
     resume: Optional[UploadFile] = File(None),
     current_user=Depends(get_current_user),
@@ -145,6 +148,7 @@ async def update_profile(
     profile.remote_ready = remote_ready
     profile.work_permit = work_permit
     profile.availability = availability
+    profile.resume_data_json = resume_data_json
 
     if avatar_url:
         profile.avatar_url = avatar_url

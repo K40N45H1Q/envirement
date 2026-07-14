@@ -298,6 +298,12 @@ export default {
           to: this.dashboardRoute,
           icon: 'fas fa-table-columns',
         })
+
+        const index = items.findIndex(item => item.to === '/employers')
+
+        if (index !== -1) {
+          items.splice(index, 1)
+        }
       }
 
       return items

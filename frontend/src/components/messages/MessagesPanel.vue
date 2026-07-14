@@ -60,12 +60,6 @@ const send = async () => {
   await messaging.sendCurrentMessage()
 }
 
-const deleteConversation = async () => {
-  const confirmed = window.confirm(copy.value.deleteConfirm)
-  if (!confirmed) return
-  await messaging.deleteActiveConversation()
-}
-
 </script>
 
 <template>
@@ -107,17 +101,6 @@ const deleteConversation = async () => {
         <div class="chat-head__copy">
           <strong>{{ activeTitle }}</strong>
         </div>
-
-        <button
-          v-if="activeApplicationId"
-          type="button"
-          class="delete-button"
-          :disabled="isDeleting"
-          @click="deleteConversation"
-        >
-          <i class="fas fa-trash-can"></i>
-          <span>{{ isDeleting ? copy.deleting : copy.deleteConversation }}</span>
-        </button>
       </header>
 
       <div class="thread">
