@@ -384,7 +384,7 @@ watch(filteredJobs, async () => {
               </div>
             </div>
 
-            <nav v-if="filteredJobs.length && totalPages > 1" class="jobs-pagination" :aria-label="t('jobsPage.pagination')">
+            <nav v-if="filteredJobs.length" class="jobs-pagination" :aria-label="t('jobsPage.pagination')">
               <div class="jobs-pagination__summary">
                 {{ t('jobsPage.paginationSummary', { start: pageStart, end: pageEnd, total: filteredJobs.length }) }}
               </div>
