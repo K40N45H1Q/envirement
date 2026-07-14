@@ -151,42 +151,9 @@
           </div>
 
           <div class="mobile-menu-links">
-            <template v-for="item in navItems" :key="item.label">
-              <div v-if="item.menu === 'jobs'" class="mobile-jobs-menu">
-                <button
-                  type="button"
-                  class="mobile-nav-link mobile-nav-link--button"
-                  :class="{ 'mobile-nav-link--active': isNavItemActive(item) || isMobileJobsMenuOpen }"
-                  @click="isMobileJobsMenuOpen = !isMobileJobsMenuOpen"
-                >
-                  <span class="mobile-nav-link__main">
-                    <i :class="item.icon"></i>
-                    <span>{{ item.label }}</span>
-                  </span>
-                </button>
-
-                <div v-if="isMobileJobsMenuOpen" class="mobile-jobs-menu__dropdown">
-                  <div
-                    v-for="section in jobsMenuSections"
-                    :key="section.title"
-                    class="mobile-jobs-menu__section"
-                  >
-                    <p class="mobile-jobs-menu__title">{{ section.title }}</p>
-                    <RouterLink
-                      v-for="entry in section.items"
-                      :key="entry.label"
-                      :to="entry.to"
-                      class="mobile-jobs-menu__link"
-                      @click="closeMenu"
-                    >
-                      {{ entry.label }}
-                    </RouterLink>
-                  </div>
-                </div>
-              </div>
-
+            <template v-for="item in mobileNavItems" :key="item.label">
               <button
-                v-else-if="item.action === 'login'"
+                v-if="item.action === 'login'"
                 type="button"
                 class="mobile-nav-link nav-link--button"
                 @click="openLoginFromMenu"
@@ -280,7 +247,6 @@ export default {
       isUserMenuOpen: false,
       isMenuOpen: false,
       isJobsMenuOpen: false,
-      isMobileJobsMenuOpen: false,
       languageOptions: [
         { value: 'lv', label: 'LV', hint: 'Latviešu' },
         { value: 'en', label: 'EN', hint: 'English' },
@@ -337,6 +303,17 @@ export default {
       return items
     },
 
+    mobileNavItems() {
+      return this.navItems.map((item) => {
+        if (item.menu !== 'jobs') return item
+
+        return {
+          ...item,
+          to: '/jobs',
+        }
+      })
+    },
+
     jobsMenuSections() {
       return [
         {
@@ -376,33 +353,8 @@ export default {
       return this.t('common.account')
     },
 
-    mobileAccountLinks() {
-      if (!this.user) return []
-
-      if (this.normalizedAccountType === 'candidate') {
-        return [
-          { label: this.t('navbar.profile'), to: '/profile', primary: true, icon: 'fas fa-user' },
-          { label: this.t('navbar.dashboard'), to: '/dashboard', icon: 'fas fa-table-columns' },
-        ]
-      }
-
-      if (this.normalizedAccountType === 'admin') {
-        return [
-          { label: this.t('navbar.dashboard'), to: '/dashboard?section=users', primary: true, icon: 'fas fa-table-columns' },
-        ]
-      }
-
-      return [
-        { label: this.t('navbar.dashboard'), to: '/dashboard?section=jobs', primary: true, icon: 'fas fa-table-columns' },
-        { label: this.t('navbar.myJobs'), to: '/dashboard?section=jobs', icon: 'fas fa-briefcase' },
-        { label: this.t('navbar.responses'), to: '/dashboard?section=responses', icon: 'fas fa-inbox' },
-        { label: this.t('navbar.messages'), to: '/dashboard?section=messages', icon: 'fas fa-message' },
-        { label: this.t('navbar.plans'), to: '/dashboard?section=pricing', icon: 'fas fa-credit-card' },
-      ]
-    },
-
     mobilePrimaryLink() {
-      return this.mobileAccountLinks.find((item) => item.primary) || this.mobileAccountLinks[0] || null
+      return this.mobileNavItems.find((item) => item.to === this.dashboardRoute) || null
     },
 
     mobileUserAvatar() {
@@ -515,7 +467,6 @@ export default {
 
     closeMenu() {
       this.isMenuOpen = false
-      this.isMobileJobsMenuOpen = false
       document.body.style.overflow = ''
     },
 
@@ -578,7 +529,6 @@ export default {
     $route() {
       this.isJobsMenuOpen = false
       this.isUserMenuOpen = false
-      this.isMobileJobsMenuOpen = false
     },
   },
 }
