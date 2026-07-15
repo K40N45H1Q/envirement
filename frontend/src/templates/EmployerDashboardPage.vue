@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { translate, useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
+import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { resolveApiUrl } from '@/api/client'
@@ -33,8 +34,11 @@ import {
   salaryCurrencyOptions,
 } from '@/utils/countries'
 import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
-import { analyzeCandidateMatch } from '@/utils/matchScore'
+import { presentMatchAnalysis } from '@/utils/matchPresentation'
 import { normalizeJob } from '@/utils/jobs'
+import { findOccupationSuggestions } from '@/utils/occupations'
+import { findSkillSuggestions, localizeSkill } from '@/utils/skills'
+import { formatDateInput, isValidDateValue, normalizeDateInput } from '@/utils/cvBuilderHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -104,7 +108,7 @@ const localizedCategoryOptions = computed(() => ([
     label: copy.value.chooseCategory,
     iconClass: 'fas fa-list',
   },
-  ...localizeCategoryConfigs((key) => t(key))
+  ...localizeCategoryConfigs((key) => t(key), currentLanguage.value)
     .filter((category) => category.id !== 'all')
     .map((category) => ({
       value: category.id,
@@ -142,22 +146,24 @@ const normalizeSection = (section) => (validSectionIds.includes(section) ? secti
 
 const blankForm = () => ({
   title: '',
+  occupation_id: '',
   company: '',
   salary: '',
   salary_currency: 'EUR',
   category: '',
   employment_type: 'full-time',
   experience_level: 'no_experience',
+  required_from: '',
   education_level: '',
   country_key: '',
   location: '',
   description: '',
   languages: [],
   licenses: [],
+  skills: [],
   has_housing: false,
   has_transport: false,
   logo: null,
-  banner: null,
 })
 
 const activeSection = ref(normalizeSection(typeof route.query.section === 'string' ? route.query.section : 'jobs'))
@@ -174,12 +180,11 @@ const form = ref(blankForm())
 const status = ref('')
 const error = ref('')
 const logoPreview = ref('')
-const bannerPreview = ref('')
 const objectUrl = ref('')
-const bannerObjectUrl = ref('')
 const newLanguage = ref(localizedLanguageOptions.value[0]?.value || 'English')
 const newLanguageLevel = ref(languageLevelOptions[2].value)
 const newLicense = ref(copy.value.noLicense)
+const newSkillQuery = ref('')
 const expandedResponseJobIds = ref([])
 const brokenAvatars = ref(new Set())
 const brokenJobLogos = ref(new Set())
@@ -204,8 +209,14 @@ const hasActiveSubscription = computed(() => {
 })
 const currentPlanId = computed(() => (hasActiveSubscription.value ? auth.user?.subscription_plan || '' : ''))
 const canAddLanguage = computed(() => !form.value.languages.some((language) => (
-  language.name === newLanguage.value && language.level === newLanguageLevel.value
+  language.name === newLanguage.value
 )))
+const titleSuggestions = computed(() => findOccupationSuggestions(form.value.title, currentLanguage.value).map((item) => ({
+  id: item.id,
+  value: item.label,
+  label: item.label,
+})))
+const skillSuggestions = computed(() => findSkillSuggestions(newSkillQuery.value, currentLanguage.value, form.value.skills))
 const currentPlan = computed(() => localizedPlans.value.find((plan) => plan.id === currentPlanId.value) || null)
 const currentPlanName = computed(() => currentPlan.value?.name || copy.value.noActivePlan)
 const currentPlanPrice = computed(() => currentPlan.value?.price || '-')
@@ -263,7 +274,7 @@ const filteredResponses = computed(() => (
 
 const scoredResponses = computed(() => filteredResponses.value.map((item) => ({
   ...item,
-  matchAnalysis: analyzeCandidateMatch(item, item),
+  matchAnalysis: presentMatchAnalysis(item.match_analysis, currentLanguage.value),
 })))
 
 function parseSalaryParts(value = '') {
@@ -381,13 +392,6 @@ function revokeLogoPreview() {
   if (objectUrl.value) {
     URL.revokeObjectURL(objectUrl.value)
     objectUrl.value = ''
-  }
-}
-
-function revokeBannerPreview() {
-  if (bannerObjectUrl.value) {
-    URL.revokeObjectURL(bannerObjectUrl.value)
-    bannerObjectUrl.value = ''
   }
 }
 
@@ -561,9 +565,7 @@ function resetForm() {
     company: employerCompanyName.value,
   }
   logoPreview.value = employerCompanyLogo.value
-  bannerPreview.value = ''
   revokeLogoPreview()
-  revokeBannerPreview()
 }
 
 function openCreateJobModal() {
@@ -595,8 +597,10 @@ function addLanguage() {
   if (!canAddLanguage.value) return
 
   form.value.languages.push({
+    id: newLanguage.value,
     name: newLanguage.value,
     level: newLanguageLevel.value,
+    mandatory: false,
   })
 }
 
@@ -608,12 +612,31 @@ function addLicense() {
   const value = String(newLicense.value || '').trim()
   if (!value) return
   if (!normalizeLicenses([value]).length) return
-  if (form.value.licenses.some((license) => license.toLowerCase() === value.toLowerCase())) return
-  form.value.licenses.push(value)
+  if (form.value.licenses.some((license) => String(license?.id || license).toLowerCase() === value.toLowerCase())) return
+  form.value.licenses.push({ id: value, label: value, mandatory: false })
 }
 
 function removeLicense(index) {
   form.value.licenses.splice(index, 1)
+}
+
+function selectOccupation(option) {
+  form.value.occupation_id = option?.id || ''
+}
+
+function handleTitleInput() {
+  form.value.occupation_id = ''
+}
+
+function addSkill(option) {
+  const id = String(option?.id || option?.value || '').trim()
+  if (!id || form.value.skills.some((skill) => String(skill?.id || skill) === id)) return
+  form.value.skills.push({ id, label: option.label, mandatory: false })
+  newSkillQuery.value = ''
+}
+
+function removeSkill(index) {
+  form.value.skills.splice(index, 1)
 }
 
 function onLogoChange(event) {
@@ -630,20 +653,6 @@ function onLogoChange(event) {
   logoPreview.value = objectUrl.value
 }
 
-function onBannerChange(event) {
-  const file = event.target.files?.[0] || null
-  form.value.banner = file
-  revokeBannerPreview()
-
-  if (!file) {
-    bannerPreview.value = ''
-    return
-  }
-
-  bannerObjectUrl.value = URL.createObjectURL(file)
-  bannerPreview.value = bannerObjectUrl.value
-}
-
 async function editJob(job) {
   if (!hasActiveSubscription.value) {
     error.value = copy.value.subscriptionRequiredError
@@ -656,25 +665,32 @@ async function editJob(job) {
   editingId.value = job.id
   form.value = {
     title: job.title,
+    occupation_id: job.occupation_id || '',
     company: employerCompanyName.value || job.company,
     salary: salaryParts.amount,
     salary_currency: salaryParts.currency,
     category: job.category || inferJobCategory(job),
     employment_type: job.employment_type || job.employmentType || 'full-time',
     experience_level: job.experience_level || 'no_experience',
+    required_from: job.required_from || '',
     education_level: job.education_level || '',
     country_key: country.countryKey || '',
     location: job.location,
     description: job.description,
-    languages: normalizeLanguages(job.languages ?? job.languages_json),
-    licenses: normalizeLicenses(job.licenses ?? job.licenses_json),
+    languages: (Array.isArray(job.languages) ? job.languages : normalizeLanguages(job.languages_json)).map((item) => ({
+      ...item,
+      id: item.id || item.name,
+      mandatory: Boolean(item.mandatory),
+    })),
+    licenses: (Array.isArray(job.licenses) ? job.licenses : normalizeLicenses(job.licenses_json)).map((item) => (
+      typeof item === 'string' ? { id: item, label: item, mandatory: false } : item
+    )),
+    skills: (job.skills || []).map((item) => typeof item === 'string' ? { id: item, label: item, mandatory: false } : item),
     has_housing: Boolean(job.has_housing),
     has_transport: Boolean(job.has_transport),
     logo: null,
-    banner: null,
   }
   logoPreview.value = job.logo || employerCompanyLogo.value
-  bannerPreview.value = job.banner_url || ''
   status.value = ''
   error.value = ''
   await setSection('jobs')
@@ -690,11 +706,20 @@ async function submitJob() {
     const {
       languages,
       licenses,
+      skills,
       salary_currency: _salaryCurrency,
       ...formPayload
     } = form.value
     if (!selectedCountry.value) {
       error.value = copy.value.chooseCountryError
+      return
+    }
+    if (!form.value.occupation_id) {
+      error.value = copy.value.occupationRequiredError
+      return
+    }
+    if (form.value.required_from && !isValidDateValue(form.value.required_from)) {
+      error.value = copy.value.invalidRequiredFrom
       return
     }
     if (!form.value.category) {
@@ -715,7 +740,8 @@ async function submitJob() {
       country_label: selectedCountry.value.label,
       country_flag_code: selectedCountry.value.flagCode,
       languages_json: JSON.stringify(languages),
-      licenses_json: JSON.stringify(normalizeLicenses(licenses)),
+      licenses_json: JSON.stringify(licenses),
+      skills_json: JSON.stringify(skills),
     }
 
     if (isEditing.value) {
@@ -741,6 +767,10 @@ async function submitJob() {
         error.value = copy.value.subscriptionRequiredError
       } else if (caughtError.key === 'subscription_job_limit_reached') {
         error.value = copy.value.subscriptionJobLimitReachedError
+      } else if (caughtError.key === 'occupation_required') {
+        error.value = copy.value.occupationRequiredError
+      } else if (caughtError.key === 'invalid_required_from') {
+        error.value = copy.value.invalidRequiredFrom
       } else {
         error.value = copy.value.jobSaveError
       }
@@ -959,7 +989,14 @@ onBeforeUnmount(() => {
             <div class="fields-row">
               <label>
                 {{ copy.title }}
-                <input v-model="form.title" required :placeholder="copy.titlePlaceholder" />
+                <AutocompleteInput
+                  v-model="form.title"
+                  :suggestions="titleSuggestions"
+                  :placeholder="copy.titlePlaceholder"
+                  :aria-label="copy.title"
+                  @update:model-value="handleTitleInput"
+                  @select="selectOccupation"
+                />
               </label>
               <label>
                 {{ copy.company }}
@@ -1058,6 +1095,7 @@ onBeforeUnmount(() => {
                 >
                   <span>{{ language.name }}</span>
                   <b>{{ language.level }}</b>
+                  <label class="requirement-toggle"><input v-model="language.mandatory" type="checkbox" />{{ copy.mandatory }}</label>
                   <button type="button" @click="removeLanguage(index)">×</button>
                 </span>
               </div>
@@ -1081,23 +1119,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="upload-grid">
-              <label class="upload-card">
-                <span class="upload-title">{{ copy.vacancyBanner }}</span>
-                <span class="upload-copy">{{ copy.vacancyBannerHint }}</span>
-                <span class="upload-button">{{ copy.chooseFile }}</span>
-                <span class="upload-filename">{{ form.banner?.name || copy.noFileSelected }}</span>
-                <input type="file" accept="image/*" @change="onBannerChange" />
-              </label>
-
-              <div class="preview-card preview-card--banner">
-                <img v-if="bannerPreview" :src="bannerPreview" :alt="copy.vacancyBannerPreview" />
-                <div v-else class="preview-placeholder">
-                  <i class="fas fa-panorama"></i>
-                  <span>{{ copy.vacancyBannerPreview }}</span>
-                </div>
-              </div>
-            </div>
             <div class="attribute-grid">
               <label class="attribute-card" :class="{ 'attribute-card--active': form.has_housing }">
                 <input v-model="form.has_housing" type="checkbox" />
@@ -1118,11 +1139,30 @@ onBeforeUnmount(() => {
               </label>
             </div>
             <div class="section">
+              <label class="section-label">{{ copy.skills }}</label>
+              <AutocompleteInput
+                v-model="newSkillQuery"
+                :suggestions="skillSuggestions"
+                :placeholder="copy.skillsPlaceholder"
+                :aria-label="copy.skills"
+                @select="addSkill"
+              />
+              <div class="chips">
+                <span v-for="(skill, index) in form.skills" :key="`${skill.id}-${index}`" class="chip">
+                  <span>{{ localizeSkill(skill, currentLanguage) }}</span>
+                  <label class="requirement-toggle"><input v-model="skill.mandatory" type="checkbox" />{{ copy.mandatory }}</label>
+                  <button type="button" @click="removeSkill(index)">×</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="section">
               <label class="section-label">{{ copy.licenses }}</label>
 
               <div class="chips">
-                <span v-for="(license, index) in form.licenses" :key="`${license}-${index}`" class="chip">
-                  <span>{{ license }}</span>
+                <span v-for="(license, index) in form.licenses" :key="`${license.id || license}-${index}`" class="chip">
+                  <span>{{ license.label || license.id || license }}</span>
+                  <label class="requirement-toggle"><input v-model="license.mandatory" type="checkbox" />{{ copy.mandatory }}</label>
                   <button type="button" @click="removeLicense(index)">×</button>
                 </span>
               </div>
@@ -1176,6 +1216,18 @@ onBeforeUnmount(() => {
                 />
               </label>
             </div>
+
+            <label>
+              {{ copy.requiredFrom }}
+              <input
+                :value="formatDateInput(form.required_from)"
+                type="text"
+                inputmode="numeric"
+                maxlength="10"
+                placeholder="DD.MM.YYYY"
+                @input="form.required_from = normalizeDateInput($event.target.value)"
+              />
+            </label>
 
             <label>
               {{ copy.description }}

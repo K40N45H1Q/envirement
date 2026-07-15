@@ -29,6 +29,7 @@ class User(SQLModel, table=True):
 class Job(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
+    occupation_id: Optional[str] = None
     status: str = Field(default="pending")
     rejection_reason: Optional[str] = None
     quota_consumed: bool = Field(default=False)
@@ -49,6 +50,7 @@ class Job(SQLModel, table=True):
     banner_url: Optional[str] = None
     languages_json: Optional[str] = None
     licenses_json: Optional[str] = None
+    skills_json: Optional[str] = None
     has_housing: bool = Field(default=False)
     has_transport: bool = Field(default=False)
     user_id: int = Field(foreign_key="user.id")
@@ -70,6 +72,11 @@ class JobApplication(SQLModel, table=True):
     resume_name: Optional[str] = None
     resume_url: Optional[str] = None
     chat_approved: bool = Field(default=False)
+    match_score: Optional[int] = None
+    match_label: Optional[str] = None
+    match_algorithm_version: Optional[str] = None
+    match_json: Optional[str] = None
+    matched_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -90,7 +97,10 @@ class CandidateProfile(SQLModel, table=True):
     phone: Optional[str] = None
     summary: Optional[str] = None
     current_role: Optional[str] = None
+    desired_occupation_id: Optional[str] = None
+    desired_occupation_label: Optional[str] = None
     skills: Optional[str] = None
+    skill_ids_json: Optional[str] = None
     sectors_json: Optional[str] = None
     languages_json: Optional[str] = None
     licenses_json: Optional[str] = None
@@ -245,6 +255,20 @@ def ensure_job_columns():
                 "ALTER TABLE job ADD COLUMN languages_json VARCHAR"
             )
 
+        if "occupation_id" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN occupation_id VARCHAR"
+            )
+
+        if "skills_json" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE job ADD COLUMN skills_json VARCHAR"
+            )
+
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_job_occupation_id ON job (occupation_id)"
+        )
+
         if "licenses_json" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE job ADD COLUMN licenses_json VARCHAR"
@@ -386,6 +410,18 @@ def ensure_application_columns():
                 "ALTER TABLE jobapplication ADD COLUMN resume_url VARCHAR"
             )
 
+        additions = {
+            "match_score": "ALTER TABLE jobapplication ADD COLUMN match_score INTEGER",
+            "match_label": "ALTER TABLE jobapplication ADD COLUMN match_label VARCHAR",
+            "match_algorithm_version": "ALTER TABLE jobapplication ADD COLUMN match_algorithm_version VARCHAR",
+            "match_json": "ALTER TABLE jobapplication ADD COLUMN match_json VARCHAR",
+            "matched_at": "ALTER TABLE jobapplication ADD COLUMN matched_at DATETIME",
+        }
+
+        for column, statement in additions.items():
+            if column not in columns:
+                connection.exec_driver_sql(statement)
+
 
 ensure_application_columns()
 
@@ -403,11 +439,19 @@ def ensure_candidate_profile_columns():
             "education_level": "ALTER TABLE candidateprofile ADD COLUMN education_level VARCHAR",
             "remote_ready": "ALTER TABLE candidateprofile ADD COLUMN remote_ready BOOLEAN NOT NULL DEFAULT 0",
             "resume_data_json": "ALTER TABLE candidateprofile ADD COLUMN resume_data_json VARCHAR",
+            "desired_occupation_id": "ALTER TABLE candidateprofile ADD COLUMN desired_occupation_id VARCHAR",
+            "desired_occupation_label": "ALTER TABLE candidateprofile ADD COLUMN desired_occupation_label VARCHAR",
+            "skill_ids_json": "ALTER TABLE candidateprofile ADD COLUMN skill_ids_json VARCHAR",
         }
 
         for column, statement in additions.items():
             if column not in columns:
                 connection.exec_driver_sql(statement)
+
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_candidateprofile_desired_occupation_id "
+            "ON candidateprofile (desired_occupation_id)"
+        )
 
 
 ensure_candidate_profile_columns()

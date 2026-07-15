@@ -106,12 +106,12 @@ const languageNames = {
   french: { ru: 'Французский', en: 'French', lv: 'Franču' },
 }
 const educationNames = {
-  primary: { ru: 'Начальное', en: 'Primary', lv: 'Pamatizglītība' },
+  primary: { ru: 'Основное', en: 'Primary', lv: 'Pamatizglītība' },
   secondary: { ru: 'Среднее', en: 'Secondary', lv: 'Vidējā izglītība' },
   vocational: { ru: 'Профессиональное', en: 'Vocational', lv: 'Profesionālā izglītība' },
   bachelor: { ru: 'Бакалавр', en: 'Bachelor', lv: 'Bakalaurs' },
   master: { ru: 'Магистр', en: 'Master', lv: 'Maģistrs' },
-  phd: { ru: 'PhD', en: 'PhD', lv: 'PhD' },
+  phd: { ru: 'Доктор наук', en: 'PhD', lv: 'PhD' },
 }
 const genderNames = {
   female: { ru: 'Женщина', en: 'Female', lv: 'Sieviete' },
@@ -197,7 +197,6 @@ const cvAdditionalItems = computed(() => additionalDetails.value.map((item, inde
 })))
 const displayLanguageName = (value) => localeValue(languageNames, value)
 const displayEducation = (value) => localeValue(educationNames, value)
-const displaySectorExperience = formatExperience
 const categoryLabel = (value) => value
 const cvId = computed(() => {
   const source = `${fullName.value}|${profile.value.email || user.value?.email || ''}`
@@ -378,7 +377,6 @@ onMounted(loadProfile)
                   {{ formatDate(work.start_date) }} — {{ work.current ? cvCopy.present : formatDate(work.end_date) }}
                   <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
                   <span v-if="work.country"> · {{ work.country }}</span>
-                  <span v-if="work.experience_years"> · {{ cvCopy.totalExperience }}: {{ displaySectorExperience(work.experience_years) }}</span>
                 </p>
                 <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
               </div>

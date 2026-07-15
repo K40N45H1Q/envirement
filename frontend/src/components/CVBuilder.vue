@@ -2,12 +2,57 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import { getProfile, updateProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
+import { countryDropdownOptions, countryMeta, getLocalizedCountryLabel } from '@/utils/countries'
+import {
+  createEmptyEducation,
+  createEmptyProfile,
+  createEmptyResumeData,
+  createEmptyWorkExperience,
+  formatDateInput,
+  formatDateTypingValue,
+  formatDateValue,
+  getPhoneDigits,
+  isValidDateValue,
+  isValidEmail,
+  isValidPhone,
+  limitText,
+  normalizeDateInput,
+  parseBirthDate,
+  splitTextList,
+  toArray,
+  toText,
+} from '@/utils/cvBuilderHelpers'
+import {
+  availabilityCatalog,
+  DEFAULT_SECTOR_EXPERIENCE,
+  displayEducation as displayEducationLabel,
+  displayLanguageName as displayLanguageLabel,
+  displayPermit as displayPermitLabel,
+  displayPreferredEmployment as displayPreferredEmploymentLabel,
+  displaySectorExperience as displaySectorExperienceLabel,
+  drivingLicenseValues,
+  educationCatalog,
+  getCatalogEntryLabel,
+  languageCatalog,
+  languageLevels,
+  licenseValues,
+  mapCatalogToOptions,
+  normalizeLanguageName,
+  normalizePermit,
+  normalizeSectorExperience,
+  permitCatalog,
+  preferredEmploymentCatalog,
+  sectorExperienceCatalog,
+} from '@/utils/cvBuilderOptions'
+import { findOccupationSuggestions, resolveOccupation } from '@/utils/occupations'
+import { findSkillSuggestions, localizeSkill } from '@/utils/skills'
 
 const emit = defineEmits(['step-change', 'close'])
 
@@ -25,155 +70,16 @@ const MAX_PRINT_SKILLS = 10
 const MAX_PRINT_LANGUAGES = 5
 const MAX_PRINT_LICENSES = 5
 
-const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
 
 const { language } = useI18n()
 const router = useRouter()
-const isEnglish = computed(() => language.value === 'en')
-const isLatvian = computed(() => language.value === 'lv')
-
-const labelByLocale = (entry) => {
-  if (isLatvian.value) return entry.lv ?? entry.en ?? entry.ru
-  if (isEnglish.value) return entry.en
-  return entry.ru
-}
-
-const sectorExperienceCatalog = [
-  { value: '1_year', ru: '1+ год', en: '1+ year', lv: '1+ gads' },
-  { value: '2_years', ru: '2+ года', en: '2+ years', lv: '2+ gadi' },
-  { value: '3_years', ru: '3+ года', en: '3+ years', lv: '3+ gadi' },
-  { value: '4_years', ru: '4+ года', en: '4+ years', lv: '4+ gadi' },
-  { value: '5_years', ru: '5+ лет', en: '5+ years', lv: '5+ gadi' },
-  { value: '7_years', ru: '7+ лет', en: '7+ years', lv: '7+ gadi' },
-  { value: '10_years', ru: '10+ лет', en: '10+ years', lv: '10+ gadi' },
-]
-
-const languageCatalog = [
-  { value: 'english', ru: 'Английский', en: 'English', lv: 'Angļu' },
-  { value: 'russian', ru: 'Русский', en: 'Russian', lv: 'Krievu' },
-  { value: 'german', ru: 'Немецкий', en: 'German', lv: 'Vācu' },
-  { value: 'polish', ru: 'Польский', en: 'Polish', lv: 'Poļu' },
-  { value: 'latvian', ru: 'Латышский', en: 'Latvian', lv: 'Latviešu' },
-  { value: 'lithuanian', ru: 'Литовский', en: 'Lithuanian', lv: 'Lietuviešu' },
-  { value: 'estonian', ru: 'Эстонский', en: 'Estonian', lv: 'Igauņu' },
-  { value: 'french', ru: 'Французский', en: 'French', lv: 'Franču' },
-]
-
-const licenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE', 'Код 95', 'ADR', 'Forklift', 'VCA']
-const drivingLicenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE']
-
-const permitCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
-  { value: 'eu_citizen', ru: 'гражданин ЕС', en: 'EU citizen', lv: 'ES pilsonis' },
-  { value: 'has_visa', ru: 'Есть виза', en: 'Visa available', lv: 'Ir vīza' },
-]
-
-const availabilityCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
-  { value: 'Immediate', ru: 'Немедленно', en: 'Immediate', lv: 'Nekavējoties' },
-  { value: '1 week notice', ru: 'Через 1 неделю', en: 'In 1 week', lv: 'Pēc 1 nedēļas' },
-  { value: '2 weeks notice', ru: 'Через 2 недели', en: 'In 2 weeks', lv: 'Pēc 2 nedēļām' },
-  { value: '1 month notice', ru: 'Через 1 месяц', en: 'In 1 month', lv: 'Pēc 1 mēneša' },
-  { value: 'By agreement', ru: 'По договорённости', en: 'By agreement', lv: 'Pēc vienošanās' },
-]
-
-const educationCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
-  { value: 'primary', ru: 'Начальное', en: 'Primary', lv: 'Pamatizglītība' },
-  { value: 'secondary', ru: 'Среднее', en: 'Secondary', lv: 'Vidējā izglītība' },
-  { value: 'vocational', ru: 'Профессиональное', en: 'Vocational', lv: 'Profesionālā izglītība' },
-  { value: 'bachelor', ru: 'Бакалавр', en: 'Bachelor', lv: 'Bakalaurs' },
-  { value: 'master', ru: 'Магистр', en: 'Master', lv: 'Maģistrs' },
-  { value: 'phd', ru: 'PhD', en: 'PhD', lv: 'PhD' },
-]
-
-const preferredEmploymentCatalog = [
-  { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
-  { value: 'full-time', ru: 'Полная занятость', en: 'Full-time', lv: 'Pilna slodze' },
-  { value: 'part-time', ru: 'Частичная занятость', en: 'Part-time', lv: 'Nepilna slodze' },
-  { value: 'contract', ru: 'Проект / контракт', en: 'Project / contract', lv: 'Projekts / līgums' },
-]
-
-const DEFAULT_SECTOR_EXPERIENCE = sectorExperienceCatalog[0].value
-
-const sectorExperienceValues = new Set(sectorExperienceCatalog.map((entry) => entry.value))
-
-const sectorExperienceAliases = {
-  '1+ год': '1_year',
-  '1+ year': '1_year',
-  '2+ года': '2_years',
-  '2+ years': '2_years',
-  '3+ года': '3_years',
-  '3+ years': '3_years',
-  '4+ года': '4_years',
-  '4+ years': '4_years',
-  '5+ лет': '5_years',
-  '5+ years': '5_years',
-  '7+ лет': '7_years',
-  '7+ years': '7_years',
-  '10+ лет': '10_years',
-  '10+ years': '10_years',
-}
-
-const languageAliases = {
-  english: 'english',
-  'Английский': 'english',
-  English: 'english',
-  russian: 'russian',
-  'Русский': 'russian',
-  Russian: 'russian',
-  german: 'german',
-  'Немецкий': 'german',
-  German: 'german',
-  polish: 'polish',
-  'Польский': 'polish',
-  Polish: 'polish',
-  latvian: 'latvian',
-  'Латышский': 'latvian',
-  Latvian: 'latvian',
-  lithuanian: 'lithuanian',
-  'Литовский': 'lithuanian',
-  Lithuanian: 'lithuanian',
-  estonian: 'estonian',
-  'Эстонский': 'estonian',
-  Estonian: 'estonian',
-  french: 'french',
-  'Французский': 'french',
-  French: 'french',
-}
-
-const permitAliases = {
-  eu_citizen: 'eu_citizen',
-  'гражданин ЕС': 'eu_citizen',
-  'EU гражданин': 'eu_citizen',
-  'EU citizen': 'eu_citizen',
-  has_visa: 'has_visa',
-  'Есть виза': 'has_visa',
-  'Visa available': 'has_visa',
-}
-
-const removedPermitValues = new Set([
-  'needs_sponsorship',
-  'Нужен sponsorship',
-  'Needs sponsorship',
-])
-
-const getLocalizedLabel = (catalog, value, fallback = '') => {
-  const option = catalog.find((entry) => entry.value === value)
-  return option ? labelByLocale(option) : fallback || value
-}
-
 const sectorExperienceOptions = computed(() => sectorExperienceCatalog.map((entry) => ({
   value: entry.value,
-  label: labelByLocale(entry),
+  label: getCatalogEntryLabel(entry, language.value),
 })))
 
-const languageOptions = computed(() => languageCatalog.map((entry) => ({
-  value: entry.value,
-  label: labelByLocale(entry),
-})))
+const languageOptions = computed(() => mapCatalogToOptions(languageCatalog, language.value))
 
 const licenseOptions = computed(() => {
   const noLicenseLabel = copy.value.noLicense
@@ -182,39 +88,16 @@ const licenseOptions = computed(() => {
     ...licenseValues.map((label) => ({ value: label, label })),
   ]
 })
-const permitOptions = computed(() => permitCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
-const baseAvailabilityOptions = computed(() => availabilityCatalog.map((entry) => ({ value: entry.value, label: labelByLocale(entry) })))
-const educationOptions = computed(() => educationCatalog.map((entry) => ({
-  value: entry.value,
-  label: labelByLocale(entry),
-})))
-const preferredEmploymentOptions = computed(() => preferredEmploymentCatalog.map((entry) => ({
-  value: entry.value,
-  label: labelByLocale(entry),
-})))
-
-const normalizeSectorExperience = (value) => {
-  const normalized = toText(value).trim()
-  if (sectorExperienceValues.has(normalized)) return normalized
-  return sectorExperienceAliases[normalized] || DEFAULT_SECTOR_EXPERIENCE
-}
-const normalizeLanguageName = (value) => languageAliases[toText(value).trim()] || toText(value).trim()
-const normalizePermit = (value) => {
-  const textValue = toText(value).trim()
-  if (removedPermitValues.has(textValue)) return ''
-  return permitAliases[textValue] || textValue
-}
-const displayLanguageName = (value) => getLocalizedLabel(languageCatalog, normalizeLanguageName(value), toText(value).trim())
-const displaySectorExperience = (value) => getLocalizedLabel(sectorExperienceCatalog, normalizeSectorExperience(value), toText(value).trim())
-const displayPermit = (value) => getLocalizedLabel(permitCatalog, normalizePermit(value), toText(value).trim())
-const displayEducation = (value) => {
-  const normalized = toText(value).trim()
-  return getLocalizedLabel(educationCatalog, normalized, normalized)
-}
-const displayPreferredEmployment = (value) => {
-  const normalized = toText(value).trim()
-  return getLocalizedLabel(preferredEmploymentCatalog, normalized, normalized)
-}
+const permitOptions = computed(() => mapCatalogToOptions(permitCatalog, language.value))
+const baseAvailabilityOptions = computed(() => mapCatalogToOptions(availabilityCatalog, language.value)
+  .filter((option) => option.value))
+const educationOptions = computed(() => mapCatalogToOptions(educationCatalog, language.value))
+const preferredEmploymentOptions = computed(() => mapCatalogToOptions(preferredEmploymentCatalog, language.value))
+const displayLanguageName = (value) => displayLanguageLabel(value, language.value)
+const displaySectorExperience = (value) => displaySectorExperienceLabel(value, language.value)
+const displayPermit = (value) => displayPermitLabel(value, language.value)
+const displayEducation = (value) => displayEducationLabel(value, language.value)
+const displayPreferredEmployment = (value) => displayPreferredEmploymentLabel(value, language.value)
 const displayAvailability = (value) => {
   const normalized = toText(value).trim()
   if (isDateAvailability(normalized)) {
@@ -222,28 +105,19 @@ const displayAvailability = (value) => {
   }
 
   const option = availabilityCatalog.find((entry) => entry.value === normalized)
-  return option ? labelByLocale(option) : normalized
+  return option ? getCatalogEntryLabel(option, language.value) : normalized
 }
 
 const copy = computed(() => translate('resumeBuilderPage', {}, language.value))
 
-const cvLanguageOptions = computed(() => [
-  { value: 'lv', label: 'Latviešu' },
-  { value: 'en', label: 'English' },
-  { value: 'ru', label: 'Русский' },
-])
 const genderOptions = computed(() => [
   { value: '', label: copy.value.choose },
   { value: 'female', label: copy.value.female },
   { value: 'male', label: copy.value.male },
   { value: 'other', label: copy.value.otherGender },
 ])
-const countryOptions = computed(() => [
-  { value: 'Latvia', label: copy.value.latvia },
-  { value: 'Lithuania', label: copy.value.lithuania },
-  { value: 'Estonia', label: copy.value.estonia },
-  { value: 'Other', label: copy.value.otherCountry },
-])
+const countryOptions = computed(() => countryDropdownOptions)
+const citizenshipOptions = computed(() => countryDropdownOptions)
 
 const { state } = useAuth()
 const jobsStore = useJobsStore()
@@ -264,9 +138,31 @@ const resumeFile = ref(null)
 const avatarObjectUrl = ref('')
 const selectedSector = ref('')
 const selectedSectorExperience = ref(DEFAULT_SECTOR_EXPERIENCE)
-const newLanguage = ref(languageCatalog[0].value)
+
+const normalizedCountryAliasMap = new Map(
+  countryMeta.flatMap((country) => [
+    [country.key.toLowerCase(), country.key],
+    [country.label.toLowerCase(), country.key],
+    [country.canonicalLabel.toLowerCase(), country.key],
+    ...country.aliases.map((alias) => [String(alias).toLowerCase(), country.key]),
+  ]),
+)
+
+const normalizeCitizenship = (value) => {
+  const normalized = toText(value).trim().toLowerCase()
+  if (!normalized) return ''
+  return normalizedCountryAliasMap.get(normalized) || toText(value).trim()
+}
+
+const normalizeCountryValue = (value) => {
+  const normalized = toText(value).trim().toLowerCase()
+  if (!normalized) return ''
+  return normalizedCountryAliasMap.get(normalized) || toText(value).trim()
+}
+const newLanguage = ref('')
 const newLanguageLevel = ref(languageLevelOptions[2].value)
 const newLicense = ref(copy.value.noLicense)
+const newSkillQuery = ref('')
 const cvDocumentRef = ref(null)
 const avatarInputRef = ref(null)
 const resumeInputRef = ref(null)
@@ -277,76 +173,6 @@ let isApplyingServerProfile = false
 let printFrame = null
 let previousBodyOverflow = ''
 
-const createEmptyWorkExperience = () => ({
-  position: '',
-  job_category: '',
-  company_name: '',
-  start_date: '',
-  end_date: '',
-  current: false,
-  country: 'Latvia',
-  experience_years: '',
-  description: '',
-})
-
-const createEmptyEducation = () => ({
-  level: '',
-  institution: '',
-  speciality: '',
-  second_speciality: '',
-  country: 'Latvia',
-  start_date: '',
-  end_date: '',
-  current: false,
-  unfinished: false,
-  additional_information: '',
-})
-
-const createEmptyResumeData = () => ({
-  cv_language: 'lv',
-  birth_date: '',
-  birth_month: '',
-  birth_day: '',
-  birth_year: '',
-  hide_birth_date: false,
-  gender: '',
-  hide_gender: false,
-  communication_language: 'lv',
-  citizenship: '',
-  no_driving_license: false,
-  driving_licenses: [],
-  additional_emails: [],
-  additional_phones: [],
-  no_work_experience: false,
-  total_experience_years: '',
-  work_experiences: [createEmptyWorkExperience()],
-  educations: [createEmptyEducation()],
-})
-
-const createEmptyProfile = () => ({
-  email: '',
-  first_name: '',
-  last_name: '',
-  phone: '',
-  summary: '',
-  current_role: '',
-  skills: '',
-  sectors: [],
-  languages: [],
-  licenses: [],
-  mobility: '',
-  work_permit: '',
-  availability: '',
-  salary_expectation: '',
-  preferred_employment_type: '',
-  education_level: '',
-  remote_ready: false,
-  resume_name: '',
-  resume_url: '',
-  avatar_url: '',
-  resume_data: createEmptyResumeData(),
-})
-
 const profile = ref(createEmptyProfile())
 
 watch(
@@ -356,35 +182,6 @@ watch(
   },
   { immediate: true },
 )
-
-const toText = (value) => (value == null ? '' : String(value))
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value
-  if (typeof value !== 'string' || !value.trim()) return []
-
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-const splitTextList = (value) => toText(value)
-  .split(/[,;\n]+/)
-  .map((item) => item.trim())
-  .filter(Boolean)
-
-const limitText = (value, maxLength = 520, { preserveLineBreaks = false } = {}) => {
-  const cleanText = preserveLineBreaks
-    ? toText(value).replace(/[^\S\r\n]+/g, ' ').replace(/\r\n?/g, '\n').trim()
-    : toText(value).replace(/\s+/g, ' ').trim()
-  if (cleanText.length <= maxLength) return cleanText
-
-  const clipped = cleanText.slice(0, maxLength).replace(/[^\S\r\n]+\S*$/, '').trim()
-  return `${clipped}…`
-}
 
 const hashText = (value) => {
   const text = toText(value) || 'cvhold'
@@ -522,30 +319,20 @@ const isDateAvailability = (value) => (
   || /^\d{4}-\d{2}-\d{2}$/.test(value)
 )
 
-const legacyAvailabilityDropdownOptions = computed(() => {
-  const currentValue = profile.value.availability.trim()
-  const exists = baseAvailabilityOptions.value.some((option) => option.value === currentValue)
-
-  if (currentValue && !exists && isDateAvailability(currentValue)) {
-    return [
-      ...baseAvailabilityOptions,
-      { value: currentValue, label: `Дата: ${currentValue}` },
-    ]
+const normalizeCandidateAvailability = (value) => {
+  const normalized = toText(value).trim()
+  if (normalized === 'Immediate' || (isDateAvailability(normalized) && isValidDateValue(normalized))) {
+    return normalized
   }
+  return ''
+}
 
-  return baseAvailabilityOptions
-})
-
-const legacyAvailabilityLabel = computed(() => {
-  const currentValue = profile.value.availability.trim()
-  return availabilityDropdownOptions.value.find((option) => option.value === currentValue)?.label || currentValue
-})
-
-const isValidAvailability = (value) => {
-  const cleanValue = value.trim()
-  if (!cleanValue) return true
-  if (baseAvailabilityOptions.value.some((option) => option.value === cleanValue)) return true
-  return isDateAvailability(cleanValue)
+const isValidAvailabilityDate = (value) => {
+  if (!isValidDateValue(value)) return false
+  const parsed = parseBirthDate(value)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return parsed >= today
 }
 
 const avatarInitials = computed(() => {
@@ -589,15 +376,7 @@ const jobCategoryOptions = computed(() => {
     }))
 })
 
-const sectorDropdownOptions = computed(() => [
-  {
-    value: '',
-    label: copy.value.sectorChoose,
-    hint: copy.value.sectorListHint,
-    iconClass: 'fas fa-layer-group',
-  },
-  ...jobCategoryOptions.value,
-])
+const sectorDropdownOptions = computed(() => jobCategoryOptions.value)
 
 const sectorOptionsByValue = computed(() => new Map(
   jobCategoryOptions.value.map((option) => [option.value, option]),
@@ -609,23 +388,71 @@ const sectorOptionsByLabel = computed(() => new Map(
 
 const selectedSectorOption = computed(() => sectorOptionsByValue.value.get(selectedSector.value) || null)
 
-const availabilityDropdownOptions = computed(() => {
-  const currentValue = profile.value.availability.trim()
-  const exists = baseAvailabilityOptions.value.some((option) => option.value === currentValue)
+const workPositionSuggestions = computed(() => (
+  profile.value.resume_data.work_experiences.map((work) => findOccupationSuggestions(work.position, language.value).map((item) => ({
+    id: item.id,
+    value: item.label,
+    label: item.label,
+  })))
+))
 
-  if (currentValue && !exists && isDateAvailability(currentValue)) {
-    return [
-      ...baseAvailabilityOptions.value,
-      { value: currentValue, label: displayAvailability(currentValue) },
-    ]
-  }
+const desiredOccupationSuggestions = computed(() => findOccupationSuggestions(
+  profile.value.desired_occupation_label,
+  language.value,
+).map((item) => ({ id: item.id, value: item.label, label: item.label })))
 
-  return baseAvailabilityOptions.value
+const skillSuggestions = computed(() => findSkillSuggestions(
+  newSkillQuery.value,
+  language.value,
+  profile.value.skill_ids,
+))
+
+const localizeProfileOccupations = (targetProfile, locale = language.value) => {
+  targetProfile.resume_data.work_experiences.forEach((work) => {
+    const occupation = resolveOccupation(work.occupation_id, work.position, locale)
+    if (!occupation) return
+    work.occupation_id = occupation.id
+    work.position = occupation.label
+  })
+
+  const desiredOccupation = resolveOccupation(
+    targetProfile.desired_occupation_id,
+    targetProfile.desired_occupation_label,
+    locale,
+  )
+  if (!desiredOccupation) return
+  targetProfile.desired_occupation_id = desiredOccupation.id
+  targetProfile.desired_occupation_label = desiredOccupation.label
+}
+
+const availabilityMode = computed({
+  get: () => {
+    const currentValue = profile.value.availability.trim()
+    if (currentValue === 'Immediate') return 'Immediate'
+    if (currentValue === '__date__' || isDateAvailability(currentValue)) return '__date__'
+    return ''
+  },
+  set: (value) => {
+    profile.value.availability = value
+    clearError('availability')
+  },
+})
+
+const availabilityDateInput = computed({
+  get: () => (isDateAvailability(profile.value.availability.trim())
+    ? formatDateInput(profile.value.availability)
+    : ''),
+  set: (value) => {
+    const normalized = normalizeDateInput(value)
+    profile.value.availability = normalized || '__date__'
+    clearError('availability')
+  },
 })
 
 const availabilityLabel = computed(() => {
   const currentValue = profile.value.availability.trim()
-  return availabilityDropdownOptions.value.find((option) => option.value === currentValue)?.label || currentValue
+  if (!currentValue || currentValue === '__date__') return copy.value.notSpecified
+  return displayAvailability(currentValue) || copy.value.notSpecified
 })
 
 const steps = computed(() => copy.value.steps)
@@ -678,14 +505,14 @@ const normalizeResumeData = (value, source = {}) => {
     : (legacyEducation ? [legacyEducation] : [])
   const workExperiences = rawWorkExperiences.map((entry, index) => ({
     ...createEmptyWorkExperience(),
+    occupation_id: toText(entry?.occupation_id),
     position: toText(entry?.position || (index === 0 ? source.current_role : '')),
     job_category: toText(entry?.job_category),
     company_name: toText(entry?.company_name),
     start_date: toText(entry?.start_date),
     end_date: toText(entry?.end_date),
     current: Boolean(entry?.current),
-    country: toText(entry?.country || 'Latvia'),
-    experience_years: toText(entry?.experience_years || (index === 0 ? resumeData.total_experience_years || legacyWorkExperience?.total_years : '')),
+    country: normalizeCountryValue(entry?.country || 'latvia'),
     description: toText(entry?.description || (index === 0 ? source.summary : '')),
   }))
   const educations = rawEducations.map((entry, index) => ({
@@ -694,7 +521,7 @@ const normalizeResumeData = (value, source = {}) => {
     institution: toText(entry?.institution),
     speciality: toText(entry?.speciality),
     second_speciality: toText(entry?.second_speciality),
-    country: toText(entry?.country || 'Latvia'),
+    country: normalizeCountryValue(entry?.country || 'latvia'),
     start_date: toText(entry?.start_date),
     end_date: toText(entry?.end_date),
     current: Boolean(entry?.current),
@@ -717,13 +544,12 @@ const normalizeResumeData = (value, source = {}) => {
     gender: toText(resumeData.gender),
     hide_gender: Boolean(resumeData.hide_gender),
     communication_language: toText(resumeData.communication_language || defaults.communication_language),
-    citizenship: toText(resumeData.citizenship),
+    citizenship: normalizeCitizenship(resumeData.citizenship),
     no_driving_license: Boolean(resumeData.no_driving_license),
     driving_licenses: toArray(resumeData.driving_licenses).map((item) => toText(item)).filter((item) => drivingLicenseValues.includes(item)),
     additional_emails: toArray(resumeData.additional_emails).map((item) => toText(item).trim()).filter(Boolean),
     additional_phones: toArray(resumeData.additional_phones).map((item) => toText(item)).filter(Boolean),
     no_work_experience: Boolean(resumeData.no_work_experience),
-    total_experience_years: toText(resumeData.total_experience_years || legacyWorkExperience?.total_years),
     work_experiences: workExperiences.length ? workExperiences : [createEmptyWorkExperience()],
     educations: educations.length ? educations : [createEmptyEducation()],
   }
@@ -741,13 +567,16 @@ const normalizeProfile = (value = {}) => {
     phone: toText(source.phone),
     summary: toText(source.summary),
     current_role: toText(source.current_role),
+    desired_occupation_id: toText(source.desired_occupation_id),
+    desired_occupation_label: toText(source.desired_occupation_label),
     skills: toText(source.skills),
+    skill_ids: toArray(source.skill_ids ?? source.skill_ids_json),
     sectors: normalizeSectors(source.sectors ?? source.sectors_json),
     languages: normalizeLanguages(source.languages ?? source.languages_json),
     licenses: normalizeLicenses(source.licenses ?? source.licenses_json),
     mobility: toText(source.mobility),
     work_permit: normalizePermit(source.work_permit),
-    availability: toText(source.availability),
+    availability: normalizeCandidateAvailability(source.availability),
     salary_expectation: toText(source.salary_expectation),
     preferred_employment_type: toText(source.preferred_employment_type),
     education_level: toText(source.education_level),
@@ -784,7 +613,10 @@ const snapshotProfile = () => JSON.stringify({
   phone: profile.value.phone,
   summary: profile.value.summary,
   current_role: profile.value.current_role,
+  desired_occupation_id: profile.value.desired_occupation_id,
+  desired_occupation_label: profile.value.desired_occupation_label,
   skills: profile.value.skills,
+  skill_ids: profile.value.skill_ids,
   sectors: profile.value.sectors,
   languages: profile.value.languages,
   licenses: profile.value.licenses,
@@ -812,7 +644,6 @@ const progressChecks = computed(() => [
   profile.value.phone,
   profile.value.resume_data.birth_date,
   profile.value.resume_data.gender,
-  profile.value.resume_data.communication_language,
   profile.value.resume_data.work_experiences[0]?.position,
   profile.value.resume_data.work_experiences[0]?.company_name,
   profile.value.resume_data.educations[0]?.level,
@@ -822,7 +653,14 @@ const progressChecks = computed(() => [
 const filledFields = computed(() => progressChecks.value.filter(Boolean).length)
 const progress = computed(() => Math.round((filledFields.value / progressChecks.value.length) * 100))
 
-const canAddLanguage = computed(() => !profile.value.languages.some((item) => item.name === newLanguage.value))
+const availableLanguageValues = computed(() => {
+  const selectedValues = new Set(profile.value.languages.map((item) => item.name))
+  return languageOptions.value
+    .map((item) => item.value)
+    .filter((value) => !selectedValues.has(value))
+})
+
+const canAddLanguage = computed(() => availableLanguageValues.value.includes(newLanguage.value))
 
 const legacyStatusMessage = computed(() => {
   if (isLoading.value) return 'Загрузка профиля...'
@@ -834,7 +672,10 @@ const legacyStatusMessage = computed(() => {
 
 const cvName = computed(() => fullName.value || 'Кандидат CVHOLD')
 const cvRole = computed(() => profile.value.current_role.trim() || 'Специалист')
-const cvSkills = computed(() => splitTextList(profile.value.skills))
+const cvSkills = computed(() => [...new Set([
+  ...profile.value.skill_ids.map((skill) => localizeSkill(skill, language.value)),
+  ...splitTextList(profile.value.skills),
+])].filter(Boolean))
 const legacyCvSectors = computed(() => profile.value.sectors
   .map((sector) => {
     const option = getSectorOption(sector)
@@ -973,14 +814,9 @@ const cvAdditionalItems = computed(() => [
     value: genderOptions.value.find((option) => option.value === profile.value.resume_data.gender)?.label || copy.value.notSpecified,
   },
   {
-    icon: 'fas fa-globe',
-    label: copy.value.communicationLanguage,
-    value: cvLanguageOptions.value.find((option) => option.value === profile.value.resume_data.communication_language)?.label || copy.value.notSpecified,
-  },
-  {
     icon: 'fas fa-passport',
     label: copy.value.citizenship,
-    value: profile.value.resume_data.citizenship || copy.value.notSpecified,
+    value: getLocalizedCountryLabel(profile.value.resume_data.citizenship, profile.value.resume_data.citizenship) || copy.value.notSpecified,
   },
   profile.value.resume_data.no_driving_license && {
     icon: 'fas fa-car-side',
@@ -990,7 +826,7 @@ const cvAdditionalItems = computed(() => [
   {
     icon: 'fas fa-location-dot',
     label: copy.value.country,
-    value: primaryWorkExperience.value.country || copy.value.notSpecified,
+    value: getLocalizedCountryLabel(primaryWorkExperience.value.country, primaryWorkExperience.value.country) || copy.value.notSpecified,
   },
   {
     icon: 'fas fa-user-graduate',
@@ -1010,23 +846,6 @@ const cvEducations = computed(() => profile.value.resume_data.educations.filter(
   entry.level || entry.institution || entry.speciality
 )))
 const categoryLabel = (value) => jobCategoryOptions.value.find((option) => option.value === value)?.label || value
-const parseBirthDate = (value) => {
-  const text = toText(value).trim()
-  if (!text) return null
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    const [year, month, day] = text.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  }
-
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(text)) {
-    const [day, month, year] = text.split('.').map(Number)
-    return new Date(year, month - 1, day)
-  }
-
-  return null
-}
-
 const birthDateInput = computed({
   get: () => {
     const value = toText(profile.value.resume_data.birth_date).trim()
@@ -1039,7 +858,7 @@ const birthDateInput = computed({
     return `${day}.${month}.${year}`
   },
   set: (value) => {
-    const text = toText(value).trim()
+    const text = formatDateTypingValue(value)
     if (!text) {
       profile.value.resume_data.birth_date = ''
       return
@@ -1055,33 +874,7 @@ const birthDateInput = computed({
   },
 })
 
-const formatDate = (value) => {
-  const parsed = parseBirthDate(value)
-  if (!parsed) return toText(value)
-  return new Intl.DateTimeFormat(language.value).format(parsed)
-}
-
-const formatDateInput = (value) => {
-  const parsed = parseBirthDate(value)
-  if (!parsed) return toText(value)
-
-  const day = String(parsed.getDate()).padStart(2, '0')
-  const month = String(parsed.getMonth() + 1).padStart(2, '0')
-  const year = String(parsed.getFullYear())
-  return `${day}.${month}.${year}`
-}
-
-const normalizeDateInput = (value) => {
-  const text = toText(value).trim()
-  if (!text) return ''
-
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(text)) {
-    const [day, month, year] = text.split('.').map(Number)
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  }
-
-  return text
-}
+const formatDate = (value) => formatDateValue(value, language.value)
 
 const currentStepHeading = computed(() => {
   if (step.value === 1) return copy.value.step1Heading
@@ -1221,10 +1014,11 @@ const clearErrors = () => {
   errors.value = {}
 }
 
-const requiredWorkFields = ['position', 'job_category', 'company_name', 'country', 'experience_years', 'start_date', 'end_date', 'description']
+const requiredWorkFields = ['position', 'job_category', 'company_name', 'country', 'start_date', 'end_date', 'description']
 const workErrorKey = (index, field) => `work_${index}_${field}`
 const isWorkFieldMissing = (work, field) => {
   if (field === 'end_date' && work.current) return false
+  if (field === 'start_date' || field === 'end_date') return !isValidDateValue(work[field])
   return !toText(work[field]).trim()
 }
 const isWorkFieldInvalid = (index, field) => Boolean(errors.value[workErrorKey(index, field)])
@@ -1244,10 +1038,27 @@ const toggleNoWorkExperience = () => {
   status.value = ''
 }
 
-const requiredEducationFields = ['level', 'institution', 'speciality', 'second_speciality', 'country', 'start_date', 'end_date', 'additional_information']
+const educationLevelsWithSpeciality = new Set(['vocational', 'bachelor', 'master', 'phd'])
+const educationLevelsWithOptionalSpecialities = new Set(['vocational', 'bachelor', 'master', 'phd'])
+const requiredEducationFields = ['level', 'institution', 'country', 'start_date', 'end_date']
 const educationErrorKey = (index, field) => `education_${index}_${field}`
+const isEducationSpecialityRequired = (education) => educationLevelsWithSpeciality.has(toText(education?.level).trim())
+const shouldShowEducationSpecialities = (education) => educationLevelsWithOptionalSpecialities.has(toText(education?.level).trim())
+const handleEducationLevelChange = (education, index) => {
+  clearError(educationErrorKey(index, 'level'))
+  if (!shouldShowEducationSpecialities(education)) {
+    education.speciality = ''
+    education.second_speciality = ''
+    clearError(educationErrorKey(index, 'speciality'))
+  }
+}
 const isEducationFieldMissing = (education, field) => {
-  if (field === 'end_date' && education.current) return false
+  if (field === 'speciality') {
+    if (!isEducationSpecialityRequired(education)) return false
+    return !toText(education[field]).trim()
+  }
+  if (field === 'end_date' && (education.current || education.unfinished)) return false
+  if (field === 'start_date' || field === 'end_date') return !isValidDateValue(education[field])
   return !toText(education[field]).trim()
 }
 const isEducationFieldInvalid = (index, field) => Boolean(errors.value[educationErrorKey(index, field)])
@@ -1276,6 +1087,7 @@ const applyServerProfile = (rawProfile) => {
   isApplyingServerProfile = true
   const normalizedProfile = normalizeProfile(rawProfile)
   normalizedProfile.resume_data.cv_language = language.value
+  localizeProfileOccupations(normalizedProfile, language.value)
   profile.value = normalizedProfile
   savedSnapshot.value = snapshotProfile()
 
@@ -1330,7 +1142,10 @@ const buildPayload = () => ({
   phone: profile.value.phone.trim(),
   summary: primaryWorkExperience.value.description.trim(),
   current_role: primaryWorkExperience.value.position.trim(),
+  desired_occupation_id: profile.value.desired_occupation_id,
+  desired_occupation_label: profile.value.desired_occupation_label.trim(),
   skills: profile.value.skills.trim(),
+  skill_ids_json: profile.value.skill_ids,
   sectors_json: profile.value.sectors
     .map((sector) => {
       const option = getSectorOption(sector)
@@ -1449,20 +1264,20 @@ const validateStep = (stepId) => {
       delete nextErrors.last_name
     }
 
-    if (!profileEmail.value.trim()) {
+    if (!profileEmail.value.trim() || !isValidEmail(profileEmail.value)) {
       nextErrors.email = copy.value.emailRequired
       isValid = false
-    } else if (profile.value.resume_data.additional_emails.some((item) => !toText(item).trim())) {
+    } else if (profile.value.resume_data.additional_emails.some((item) => !toText(item).trim() || !isValidEmail(item))) {
       nextErrors.email = copy.value.requiredFields
       isValid = false
     } else {
       delete nextErrors.email
     }
 
-    if (!profile.value.phone.trim()) {
+    if (!profile.value.phone.trim() || !isValidPhone(profile.value.phone)) {
       nextErrors.phone = copy.value.phoneRequired
       isValid = false
-    } else if (profile.value.resume_data.additional_phones.some((item) => !toText(item).trim())) {
+    } else if (profile.value.resume_data.additional_phones.some((item) => !toText(item).trim() || !isValidPhone(item))) {
       nextErrors.phone = copy.value.requiredFields
       isValid = false
     } else {
@@ -1470,7 +1285,7 @@ const validateStep = (stepId) => {
     }
 
     const resumeData = profile.value.resume_data
-    if (!resumeData.birth_date) {
+    if (!isValidDateValue(resumeData.birth_date)) {
       nextErrors.birth_date = copy.value.birthDateRequired
       isValid = false
     } else {
@@ -1484,14 +1299,16 @@ const validateStep = (stepId) => {
       delete nextErrors.gender
     }
 
-    delete nextErrors.cv_language
-
-    if (!resumeData.communication_language) {
-      nextErrors.communication_language = copy.value.communicationLanguageRequired
+    if (!profile.value.desired_occupation_id) {
+      nextErrors.desired_occupation = copy.value.roleRequired
       isValid = false
     } else {
-      delete nextErrors.communication_language
+      delete nextErrors.desired_occupation
     }
+
+    delete nextErrors.cv_language
+
+    delete nextErrors.communication_language
   }
 
   if (stepId === 2) {
@@ -1508,6 +1325,18 @@ const validateStep = (stepId) => {
           if (firstInvalidWorkIndex === -1) firstInvalidWorkIndex = index
           isValid = false
         })
+        if (work.position && !work.occupation_id) {
+          nextErrors[workErrorKey(index, 'position')] = copy.value.requiredFields
+          if (firstInvalidWorkIndex === -1) firstInvalidWorkIndex = index
+          isValid = false
+        }
+        const start = parseBirthDate(work.start_date)
+        const end = work.current ? null : parseBirthDate(work.end_date)
+        if (start && end && end < start) {
+          nextErrors[workErrorKey(index, 'end_date')] = copy.value.requiredFields
+          if (firstInvalidWorkIndex === -1) firstInvalidWorkIndex = index
+          isValid = false
+        }
       })
 
       if (firstInvalidWorkIndex !== -1) expandedWorkIndex.value = firstInvalidWorkIndex
@@ -1525,6 +1354,21 @@ const validateStep = (stepId) => {
         if (firstInvalidEducationIndex === -1) firstInvalidEducationIndex = index
         isValid = false
       })
+
+      if (isEducationFieldMissing(education, 'speciality')) {
+        nextErrors[educationErrorKey(index, 'speciality')] = copy.value.requiredFields
+        if (firstInvalidEducationIndex === -1) firstInvalidEducationIndex = index
+        isValid = false
+      } else {
+        delete nextErrors[educationErrorKey(index, 'speciality')]
+      }
+      const start = parseBirthDate(education.start_date)
+      const end = education.current || education.unfinished ? null : parseBirthDate(education.end_date)
+      if (start && end && end < start) {
+        nextErrors[educationErrorKey(index, 'end_date')] = copy.value.requiredFields
+        if (firstInvalidEducationIndex === -1) firstInvalidEducationIndex = index
+        isValid = false
+      }
     })
 
     if (firstInvalidEducationIndex !== -1) expandedEducationIndex.value = firstInvalidEducationIndex
@@ -1532,6 +1376,10 @@ const validateStep = (stepId) => {
 
   if (stepId === 4) {
     const resumeData = profile.value.resume_data
+
+    if (!profile.value.languages.length && newLanguage.value && canAddLanguage.value) {
+      addLanguage()
+    }
 
     if (!resumeData.citizenship.trim()) {
       nextErrors.citizenship = copy.value.citizenshipRequired
@@ -1552,6 +1400,13 @@ const validateStep = (stepId) => {
       isValid = false
     } else {
       delete nextErrors.languages
+    }
+
+    if (availabilityMode.value === '__date__' && !isValidAvailabilityDate(profile.value.availability)) {
+      nextErrors.availability = copy.value.availabilityInvalid
+      isValid = false
+    } else {
+      delete nextErrors.availability
     }
   }
 
@@ -1623,10 +1478,15 @@ const removeSector = (index) => {
 const addLanguage = () => {
   if (!canAddLanguage.value) return
 
+  const nextLanguage = newLanguage.value
+
+  if (!nextLanguage) return
+
   profile.value.languages.push({
-    name: newLanguage.value,
+    name: nextLanguage,
     level: newLanguageLevel.value,
   })
+  newLanguage.value = ''
   clearError('languages')
 }
 
@@ -1634,6 +1494,42 @@ const removeLanguage = (index) => {
   profile.value.languages.splice(index, 1)
   clearError('languages')
 }
+
+const selectWorkOccupation = (work, option) => {
+  work.occupation_id = option?.id || ''
+  work.position = option?.label || work.position
+  clearError(workErrorKey(profile.value.resume_data.work_experiences.indexOf(work), 'position'))
+}
+
+const handleWorkPositionInput = (work, index) => {
+  work.occupation_id = ''
+  clearError(workErrorKey(index, 'position'))
+}
+
+const selectDesiredOccupation = (option) => {
+  profile.value.desired_occupation_id = option?.id || ''
+  profile.value.desired_occupation_label = option?.label || profile.value.desired_occupation_label
+  clearError('desired_occupation')
+}
+
+const handleDesiredOccupationInput = () => {
+  profile.value.desired_occupation_id = ''
+  clearError('desired_occupation')
+}
+
+watch([language, isLoaded], ([, loaded]) => {
+  if (!loaded || isApplyingServerProfile) return
+  localizeProfileOccupations(profile.value, language.value)
+}, { immediate: true })
+
+const addSkill = (option) => {
+  const id = String(option?.id || option?.value || '').trim()
+  if (!id || profile.value.skill_ids.some((skill) => String(skill?.id || skill) === id)) return
+  profile.value.skill_ids.push({ id, label: option.label })
+  newSkillQuery.value = ''
+}
+
+const removeSkill = (index) => profile.value.skill_ids.splice(index, 1)
 
 const toggleLicense = (license) => {
   const licenses = profile.value.resume_data.driving_licenses
@@ -2485,6 +2381,18 @@ onBeforeUnmount(() => {
                     <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
                   </label>
 
+                  <label class="entry-wide">
+                    <span class="field-label" :class="{ 'field-label--error': errors.desired_occupation }">{{ copy.desiredRole }} <b>*</b></span>
+                    <AutocompleteInput
+                      v-model="profile.desired_occupation_label"
+                      :suggestions="desiredOccupationSuggestions"
+                      :placeholder="copy.desiredRolePlaceholder"
+                      :aria-label="copy.desiredRole"
+                      @update:model-value="handleDesiredOccupationInput"
+                      @select="selectDesiredOccupation"
+                    />
+                  </label>
+
                   <div class="contact-group">
                     <span class="field-label" :class="{ 'field-label--error': errors.email }">Email <b>*</b></span>
                     <label class="contact-row contact-row--addable">
@@ -2544,18 +2452,6 @@ onBeforeUnmount(() => {
                 </div>
               </section>
 
-              <section class="form-panel">
-                <div class="form-panel__head">
-                  <span><i class="fas fa-language"></i></span>
-                  <div><h3>{{ copy.languageSection }}</h3></div>
-                </div>
-                <div class="form-grid form-grid--fixed-two">
-                  <label class="entry-wide">
-                    <span class="field-label" :class="{ 'field-label--error': errors.communication_language }">{{ copy.communicationLanguage }} <b>*</b></span>
-                    <BaseDropdown v-model="profile.resume_data.communication_language" full-width overlay :options="cvLanguageOptions" @change="clearError('communication_language')" />
-                  </label>
-                </div>
-              </section>
             </div>
           </template>
 
@@ -2608,13 +2504,12 @@ onBeforeUnmount(() => {
                   </div>
 
                   <div v-show="expandedWorkIndex === index" class="entry-card__body entry-card__body--work">
-                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'position') }">{{ copy.position }} <b>*</b></span><input v-model="work.position" :disabled="profile.resume_data.no_work_experience" /></label>
-                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'job_category') }">{{ copy.jobCategory }} <b>*</b></span><BaseDropdown v-model="work.job_category" full-width overlay :options="sectorDropdownOptions" :show-selected-hint="false" :disabled="profile.resume_data.no_work_experience" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'position') }">{{ copy.position }} <b>*</b></span><AutocompleteInput v-model="work.position" :suggestions="workPositionSuggestions[index] || []" :aria-label="copy.position" :disabled="profile.resume_data.no_work_experience" @update:model-value="handleWorkPositionInput(work, index)" @select="selectWorkOccupation(work, $event)" /></label>
+                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'job_category') }">{{ copy.jobCategory }} <b>*</b></span><BaseDropdown v-model="work.job_category" full-width overlay menu-class="cv-builder-category-menu" :max-menu-height="220" :options="sectorDropdownOptions" :show-selected-hint="false" :placeholder="copy.notSpecified" :disabled="profile.resume_data.no_work_experience" /></label>
                     <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'company_name') }">{{ copy.companyName }} <b>*</b></span><input v-model="work.company_name" :disabled="profile.resume_data.no_work_experience" /></label>
-                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="work.country" full-width overlay :options="countryOptions" :disabled="profile.resume_data.no_work_experience" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="work.country" full-width overlay :options="countryOptions" :placeholder="copy.choose" :disabled="profile.resume_data.no_work_experience" /></label>
 
                     <div class="work-period entry-wide">
-                      <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'experience_years') }">{{ copy.totalExperience }} <b>*</b></span><BaseDropdown v-model="work.experience_years" full-width overlay :options="sectorExperienceOptions" :disabled="profile.resume_data.no_work_experience" /></label>
                       <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'start_date') }">{{ copy.start }} <b>*</b></span><input :value="formatDateInput(work.start_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="profile.resume_data.no_work_experience" @input="work.start_date = normalizeDateInput($event.target.value)" /></label>
                       <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'end_date') }">{{ copy.end }} <b v-if="!work.current">*</b></span><input :value="formatDateInput(work.end_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="profile.resume_data.no_work_experience || work.current" @input="work.end_date = normalizeDateInput($event.target.value)" /></label>
                     </div>
@@ -2683,17 +2578,19 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div v-show="expandedEducationIndex === index" class="entry-card__body entry-card__body--education">
-                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'level') }">{{ copy.educationLevel }} <b>*</b></span><BaseDropdown v-model="education.level" full-width overlay :options="educationOptions" /></label>
+                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'level') }">{{ copy.educationLevel }} <b>*</b></span><BaseDropdown v-model="education.level" full-width overlay :options="educationOptions" @update:model-value="handleEducationLevelChange(education, index)" /></label>
                   <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'institution') }">{{ copy.institution }} <b>*</b></span><input v-model="education.institution" /></label>
-                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'speciality') }">{{ copy.speciality }} <b>*</b></span><input v-model="education.speciality" /></label>
-                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'second_speciality') }">{{ copy.secondSpeciality }} <b>*</b></span><input v-model="education.second_speciality" /></label>
+                  <template v-if="shouldShowEducationSpecialities(education)">
+                    <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'speciality') }">{{ copy.speciality }} <b v-if="isEducationSpecialityRequired(education)">*</b></span><input v-model="education.speciality" /></label>
+                    <label><span class="field-label">{{ copy.secondSpeciality }}</span><input v-model="education.second_speciality" /></label>
+                  </template>
                   <div class="education-period entry-wide">
-                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" /></label>
+                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" :placeholder="copy.choose" /></label>
                     <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'start_date') }">{{ copy.start }} <b>*</b></span><input :value="formatDateInput(education.start_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" @input="education.start_date = normalizeDateInput($event.target.value)" /></label>
                     <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'end_date') }">{{ copy.end }} <b v-if="!education.current">*</b></span><input :value="formatDateInput(education.end_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="education.current" @input="education.end_date = normalizeDateInput($event.target.value)" /></label>
                   </div>
 
-                  <label class="entry-wide"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'additional_information') }">{{ copy.additionalInformation }} <b>*</b></span><textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
+                  <label class="entry-wide"><span class="field-label">{{ copy.additionalInformation }}</span><textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
 
                   <div class="entry-wide work-checkboxes">
                     <label class="checkbox-field current-field"><input v-model="education.current" type="checkbox" @change="toggleCurrentEducation(education)" /><span>{{ copy.currentlyStudying }}</span></label>
@@ -2708,12 +2605,41 @@ onBeforeUnmount(() => {
             <div class="form-stack additional-step">
               <section class="form-panel">
                 <div class="form-panel__head">
+                  <span><i class="fas fa-calendar-check"></i></span>
+                  <div><h3>{{ copy.availability }}</h3><p>{{ copy.availabilityHint }}</p></div>
+                </div>
+                <div class="availability-fields" :class="{ 'availability-fields--date': availabilityMode === '__date__' }">
+                  <label>
+                    <span class="field-label" :class="{ 'field-label--error': errors.availability }">{{ copy.availability }}</span>
+                    <BaseDropdown
+                      v-model="availabilityMode"
+                      full-width
+                      overlay
+                      :options="baseAvailabilityOptions"
+                      :placeholder="copy.notSpecified"
+                    />
+                  </label>
+                  <label v-if="availabilityMode === '__date__'">
+                    <span class="field-label" :class="{ 'field-label--error': errors.availability }">{{ copy.availableFrom }}</span>
+                    <input
+                      v-model="availabilityDateInput"
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="10"
+                      placeholder="DD.MM.YYYY"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section class="form-panel">
+                <div class="form-panel__head">
                   <span><i class="fas fa-passport"></i></span>
                   <div><h3>{{ copy.citizenshipSection }}</h3><p>{{ copy.citizenshipHint }}</p></div>
                 </div>
                 <label>
                   <span class="field-label" :class="{ 'field-label--error': errors.citizenship }">{{ copy.citizenship }} <b>*</b></span>
-                  <input v-model="profile.resume_data.citizenship" :placeholder="copy.citizenshipPlaceholder" @input="clearError('citizenship')" />
+                  <BaseDropdown v-model="profile.resume_data.citizenship" full-width overlay :options="citizenshipOptions" :placeholder="copy.choose" @change="clearError('citizenship')" />
                 </label>
               </section>
 
@@ -2755,28 +2681,60 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
 
-                <div class="language-add-row">
+                <div class="language-add-row" :class="{ 'language-add-row--with-button': !profile.languages.length }">
                   <label>
                     <span class="field-label">{{ copy.languageAria }}</span>
-                    <BaseDropdown v-model="newLanguage" full-width overlay :options="languageOptions" />
+                    <BaseDropdown v-model="newLanguage" full-width overlay :options="languageOptions" :placeholder="copy.notSpecified" />
                   </label>
                   <label>
                     <span class="field-label">{{ copy.languageLevel }}</span>
                     <BaseDropdown v-model="newLanguageLevel" full-width overlay :options="languageLevelOptions" />
                   </label>
-                  <button type="button" class="language-add-button" :disabled="!canAddLanguage" :aria-label="copy.addLanguage" @click="addLanguage">
+                  <button v-if="!profile.languages.length" type="button" class="language-add-button" :disabled="!canAddLanguage" :aria-label="copy.addLanguage" @click="addLanguage">
                     <i class="fas fa-plus"></i>
                   </button>
                 </div>
 
                 <div v-if="profile.languages.length" class="language-list">
                   <div v-for="(item, index) in profile.languages" :key="`${item.name}-${index}`" class="language-row">
-                    <strong>{{ displayLanguageName(item.name) }}</strong>
+                    <div class="language-row__value">{{ displayLanguageName(item.name) }}</div>
                     <BaseDropdown v-model="item.level" full-width overlay :options="languageLevelOptions" />
-                    <button type="button" class="entry-remove" :aria-label="copy.removeLanguage" @click="removeLanguage(index)"><i class="far fa-trash-can"></i></button>
+                    <div class="language-row__actions">
+                      <button
+                        v-if="index === profile.languages.length - 1"
+                        type="button"
+                        class="language-add-button"
+                        :disabled="!canAddLanguage"
+                        :aria-label="copy.addLanguage"
+                        @click="addLanguage"
+                      >
+                        <i class="fas fa-plus"></i>
+                      </button>
+                      <button type="button" class="entry-remove" :aria-label="copy.removeLanguage" @click="removeLanguage(index)"><i class="far fa-trash-can"></i></button>
+                    </div>
                   </div>
                 </div>
                 <p v-else class="additional-empty">{{ copy.noLanguages }}</p>
+              </section>
+
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-tags"></i></span>
+                  <div><h3>{{ copy.skills }}</h3></div>
+                </div>
+                <AutocompleteInput
+                  v-model="newSkillQuery"
+                  :suggestions="skillSuggestions"
+                  :placeholder="copy.skills"
+                  :aria-label="copy.skills"
+                  @select="addSkill"
+                />
+                <div v-if="profile.skill_ids.length" class="skill-list">
+                  <span v-for="(skill, index) in profile.skill_ids" :key="`${skill.id || skill}-${index}`" class="skill-chip">
+                    {{ localizeSkill(skill, language) }}
+                    <button type="button" :aria-label="copy.removeEntry" @click="removeSkill(index)"><i class="far fa-trash-can"></i></button>
+                  </span>
+                </div>
               </section>
             </div>
           </template>
@@ -2876,8 +2834,7 @@ onBeforeUnmount(() => {
                           —
                           {{ work.current ? copy.present : formatDate(work.end_date) }}
                           <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
-                          <span v-if="work.country"> · {{ work.country }}</span>
-                          <span v-if="work.experience_years"> · {{ copy.totalExperience }}: {{ displaySectorExperience(work.experience_years) }}</span>
+                          <span v-if="work.country"> · {{ getLocalizedCountryLabel(work.country, work.country) }}</span>
                         </p>
                         <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
                       </div>
@@ -2889,9 +2846,9 @@ onBeforeUnmount(() => {
                         <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
                         <p class="cv-summary-text">
                           {{ displayEducation(education.level) }}
-                          <span v-if="education.speciality"> · {{ education.speciality }}</span>
-                          <span v-if="education.second_speciality"> · {{ education.second_speciality }}</span>
-                          <span v-if="education.country"> · {{ education.country }}</span>
+                          <span v-if="shouldShowEducationSpecialities(education) && education.speciality"> · {{ education.speciality }}</span>
+                          <span v-if="shouldShowEducationSpecialities(education) && education.second_speciality"> · {{ education.second_speciality }}</span>
+                          <span v-if="education.country"> · {{ getLocalizedCountryLabel(education.country, education.country) }}</span>
                           <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? copy.present : formatDate(education.end_date) }}</span>
                         </p>
                         <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
@@ -3582,7 +3539,7 @@ onBeforeUnmount(() => {
 .work-period,
 .education-period {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 0.75rem;
 }
@@ -3636,7 +3593,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+.main-card :deep(.autocomplete__input-wrap input) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -3656,6 +3614,7 @@ textarea {
 }
 
 .main-card :deep(.dropdown__trigger),
+.main-card :deep(.autocomplete__input-wrap),
 .main-card :deep(.phone-input) {
   min-height: 3.3rem;
   font-size: var(--cv-ui-text-size);
@@ -3666,10 +3625,39 @@ textarea {
   font-size: var(--cv-ui-meta-size);
 }
 
+.main-card :deep(.autocomplete__menu) {
+  max-height: 12.5rem;
+  border-radius: 0.95rem;
+}
+
+.main-card :deep(.autocomplete__option) {
+  min-height: 2.5rem;
+  padding: 0.56rem 0.8rem;
+  font-size: var(--cv-ui-text-size);
+}
+
 .main-card :deep(.dropdown__trigger) {
   padding: 0.74rem 0.95rem;
   border-color: color-mix(in srgb, var(--brand-base) 16%, var(--border-subtle));
   border-radius: 0.95rem;
+}
+
+.main-card :deep(.dropdown__menu) {
+  max-height: 12.5rem !important;
+  border-radius: 0.95rem;
+}
+
+.main-card :deep(.cv-builder-category-menu) {
+  max-height: 10.25rem !important;
+}
+
+.main-card :deep(.dropdown__option) {
+  min-height: 2.7rem;
+  padding: 0.58rem 0.8rem;
+}
+
+.main-card :deep(.dropdown__option-label) {
+  font-size: var(--cv-ui-text-size);
 }
 
 .main-card :deep(.dropdown__trigger:hover),
@@ -3687,7 +3675,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+.main-card :deep(.autocomplete__input-wrap input:focus) {
   outline: none;
   border-color: var(--brand-strong);
   box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
@@ -3781,6 +3770,16 @@ textarea:focus {
   gap: 0.9rem;
 }
 
+.availability-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.availability-fields--date {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .license-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(4.3rem, 1fr));
@@ -3841,9 +3840,13 @@ textarea:focus {
 
 .language-add-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.65fr) 3.3rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: end;
   gap: 0.65rem;
+}
+
+.language-add-row--with-button {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 3.3rem;
 }
 
 .language-add-button {
@@ -3879,27 +3882,46 @@ textarea:focus {
 }
 
 .language-row {
-  min-height: 3.3rem;
-  padding: 0.45rem 0.5rem 0.45rem 0.85rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 20%, var(--border-subtle));
-  border-radius: 0.85rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.55fr) 2.15rem;
-  align-items: center;
-  gap: 0.6rem;
-  background: color-mix(in srgb, var(--brand-base) 4%, #fff);
+  grid-template-columns: minmax(0, calc((100% - 0.65rem) / 2)) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.65rem;
 }
 
-.language-row > strong {
+.language-row__value {
+  min-height: 3.3rem;
+  padding: 0.74rem 0.95rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 16%, var(--border-subtle));
+  border-radius: 0.95rem;
+  display: flex;
+  align-items: center;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--cv-ui-text-size);
+  font-weight: 700;
 }
 
 .language-row :deep(.dropdown__trigger) {
-  min-height: 2.4rem;
-  padding-block: 0.45rem;
+  min-height: 3.3rem;
+  padding-block: 0.74rem;
+}
+
+.language-row .entry-remove {
+  width: 3.3rem;
+  height: 3.3rem;
+  border-radius: 0.85rem;
+}
+
+.language-row__actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.45rem;
 }
 
 .additional-empty {
@@ -4710,6 +4732,10 @@ button:disabled {
 }
 
 @media (max-width: 24rem) {
+  .availability-fields--date {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .entry-card__head {
     gap: 0.4rem;
   }
@@ -4778,12 +4804,16 @@ button:disabled {
   }
 
   .language-add-row {
-    grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 0.62fr) 3.3rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.45rem;
   }
 
+  .language-add-row--with-button {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 3.3rem;
+  }
+
   .language-row {
-    grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 0.58fr) 2.15rem;
+    grid-template-columns: minmax(0, calc((100% - 0.45rem) / 2)) minmax(0, 1fr) auto;
     gap: 0.45rem;
   }
 
@@ -4804,12 +4834,15 @@ button:disabled {
   }
 
   .language-add-row {
-    grid-template-columns: minmax(0, 1fr) 5.4rem 3.3rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .language-add-row--with-button {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 3.3rem;
   }
 
   .language-row {
-    grid-template-columns: minmax(0, 1fr) 5.4rem 2rem;
-    padding-left: 0.6rem;
+    grid-template-columns: minmax(0, calc((100% - 0.45rem) / 2)) minmax(0, 1fr) auto;
   }
 
   .pdf-preview-heading {
@@ -4823,6 +4856,39 @@ button:disabled {
   .cv-preview-scale {
     transform: translateX(-50%) scale(0.4);
   }
+}
+
+.skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.45rem 0.45rem 0.8rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 25%, #dce8e0);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--brand-base) 7%, #fff);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.skill-chip button {
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: #fff0f0;
+  color: #df3333;
+  cursor: pointer;
 }
 
 @media print {

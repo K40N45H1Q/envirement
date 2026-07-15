@@ -1,9 +1,62 @@
+import occupationsDirectory from '@/data/occupationsDirectory'
+
 const createCategory = (id, labelKey, icon, patterns = []) => ({
   id,
   labelKey,
   icon,
   patterns,
 })
+
+const categoryIdMap = {
+  'administrative-work': 'administrativeWork',
+  banking: 'banking',
+  'public-administration': 'publicAdministration',
+  'healthcare-social-work': 'healthcareAndSocialWork',
+  'information-technology': 'informationTechnology',
+  'media-creative-translation': 'mediaCreativeEconomyAndTranslation',
+  'mechanics-technology': 'mechanicsAndEngineering',
+  'education-science': 'educationAndScience',
+  service: 'services',
+  security: 'lawEnforcementAndSecurity',
+  'hr-training': 'humanResourcesAndTraining',
+  food: 'foodAndCatering',
+  sales: 'sales',
+  'industry-production': 'industryAndManufacturing',
+  'agriculture-forestry': 'agricultureForestry',
+  'construction-real-estate': 'constructionRealEstate',
+  'transport-logistics': 'transportLogistics',
+  'tourism-hospitality': 'tourismHospitality',
+  management: 'management',
+  finance: 'finance',
+  'electronics-telecommunications': 'electronicsTelecommunications',
+  'energy-natural-resources': 'energyNaturalResources',
+}
+
+const normalizeLocale = (locale) => {
+  const value = String(locale || '').trim().toLowerCase()
+  if (value === 'lv' || value === 'en' || value === 'ru') return value
+  return 'ru'
+}
+
+const extractCategoryTitles = (items = [], bucket = new Map()) => {
+  for (const item of items) {
+    if (!item || !item.title || !Array.isArray(item.occupations)) continue
+    bucket.set(String(item.id), item.title)
+    extractCategoryTitles(item.occupations, bucket)
+  }
+
+  return bucket
+}
+
+const categoryTitles = extractCategoryTitles(occupationsDirectory)
+
+const getDirectoryCategoryLabel = (categoryId, locale) => {
+  const directoryId = categoryIdMap[categoryId]
+  if (!directoryId) return ''
+  const title = categoryTitles.get(directoryId)
+  if (!title) return ''
+  return String(title[normalizeLocale(locale)] || title.ru || title.en || title.lv || '').trim()
+}
 
 export const categoryConfigs = [
   createCategory('all', 'jobsStore.allCategories', 'fas fa-border-all'),
@@ -103,9 +156,9 @@ export const categoryConfigs = [
 
 const categoryById = Object.fromEntries(categoryConfigs.map((category) => [category.id, category]))
 
-export const localizeCategoryConfigs = (translate) => categoryConfigs.map((category) => ({
+export const localizeCategoryConfigs = (translate, locale = 'ru') => categoryConfigs.map((category) => ({
   ...category,
-  label: translate(category.labelKey),
+  label: getDirectoryCategoryLabel(category.id, locale) || translate(category.labelKey),
 }))
 
 export const inferJobCategory = (job = {}) => {

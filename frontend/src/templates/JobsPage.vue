@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/i18n'
+import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import AppFlag from '@/components/AppFlag.vue'
 import AppLayout from '@/components/AppLayout.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
@@ -10,18 +11,23 @@ import HeroBannerCarousel from '@/components/HeroBannerCarousel.vue'
 import JobLocationsMap from '@/components/JobLocationsMap.vue'
 import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
+import { findOccupationSuggestions } from '@/utils/occupations'
 
 const route = useRoute()
 const router = useRouter()
 const jobsListRef = ref(null)
 const auth = useAuth()
 const jobsStore = useJobsStore()
-const { t } = useI18n()
+const { t, language } = useI18n()
 const draftSearchTitle = ref('')
 const draftSearchLocation = ref('')
 const draftSelectedCategory = ref('all')
 const currentPage = ref(1)
 const JOBS_PER_PAGE = 4
+const FAVORITE_HEART_PATHS = {
+  outline: 'M378.9 80c-27.3 0-53 13.1-69 35.2l-34.4 47.6c-4.5 6.2-11.7 9.9-19.4 9.9s-14.9-3.7-19.4-9.9l-34.4-47.6c-16-22.1-41.7-35.2-69-35.2-47 0-85.1 38.1-85.1 85.1 0 49.9 32 98.4 68.1 142.3 41.1 50 91.4 94 125.9 120.3 3.2 2.4 7.9 4.2 14 4.2s10.8-1.8 14-4.2c34.5-26.3 84.8-70.4 125.9-120.3 36.2-43.9 68.1-92.4 68.1-142.3 0-47-38.1-85.1-85.1-85.1zM271 87.1c25-34.6 65.2-55.1 107.9-55.1 73.5 0 133.1 59.6 133.1 133.1 0 68.6-42.9 128.9-79.1 172.8-44.1 53.6-97.3 100.1-133.8 127.9-12.3 9.4-27.5 14.1-43.1 14.1s-30.8-4.7-43.1-14.1C176.4 438 123.2 391.5 79.1 338 42.9 294.1 0 233.7 0 165.1 0 91.6 59.6 32 133.1 32 175.8 32 216 52.5 241 87.1l15 20.7 15-20.7z',
+  solid: 'M241 87.1l15 20.7 15-20.7C296 52.5 336.2 32 378.9 32 452.4 32 512 91.6 512 165.1l0 2.6c0 112.2-139.9 242.5-212.9 298.2-12.4 9.4-27.6 14.1-43.1 14.1s-30.8-4.6-43.1-14.1C139.9 410.2 0 279.9 0 167.7l0-2.6C0 91.6 59.6 32 133.1 32 175.8 32 216 52.5 241 87.1z',
+}
 
 const {
   isLoading,
@@ -103,16 +109,33 @@ const selectTab = async (value) => {
   await syncRoute(1)
 }
 
-const toggleBookmark = async (jobId) => {
+const toggleBookmark = (jobId) => {
   if (!isAuthenticated.value) {
-    await openLogin()
+    void openLogin()
     return
   }
 
   jobsStore.toggleBookmark(jobId)
 }
 
-const isJobBookmarked = (job) => isAuthenticated.value && job.isBookmarked
+const toggleBookmarkOnPress = (event, jobId) => {
+  if (event.button !== 0) return
+  event.currentTarget.dataset.favoritePressHandled = 'true'
+  toggleBookmark(jobId)
+}
+
+const toggleBookmarkOnClick = (event, jobId) => {
+  if (event.currentTarget.dataset.favoritePressHandled === 'true') {
+    delete event.currentTarget.dataset.favoritePressHandled
+    return
+  }
+
+  toggleBookmark(jobId)
+}
+
+const isJobBookmarked = (job) => (
+  isAuthenticated.value && jobsStore.bookmarks.includes(String(job.id))
+)
 
 const runSearch = async () => {
   jobsStore.setFilter('searchTitle', draftSearchTitle.value.trim())
@@ -170,6 +193,10 @@ const categoryDropdownOptions = computed(() => categoryCounts.value.map((categor
   hint: t('jobsPage.jobsCount', { count: category.count }),
   iconClass: category.icon,
 })))
+const titleSuggestions = computed(() => findOccupationSuggestions(draftSearchTitle.value, language.value).map((item) => ({
+  value: item.label,
+  label: item.label,
+})))
 const sortOptions = computed(() => [
   { value: 'newest', label: t('jobsPage.newestFirst') },
   { value: 'salary', label: t('jobsPage.bySalary') },
@@ -222,10 +249,13 @@ watch(filteredJobs, async () => {
             <form class="search-grid" @submit.prevent="runSearch">
               <label>
                 <span>{{ t('search.lookingFor') }}</span>
-                <div class="input-wrap">
-                  <input v-model="draftSearchTitle" :placeholder="t('search.lookingPlaceholder')" />
-                  <i class="fas fa-magnifying-glass"></i>
-                </div>
+                <AutocompleteInput
+                  v-model="draftSearchTitle"
+                  :suggestions="titleSuggestions"
+                  :placeholder="t('search.lookingPlaceholder')"
+                  :aria-label="t('search.lookingFor')"
+                  icon-class="fas fa-magnifying-glass"
+                />
               </label>
 
               <label>
@@ -367,10 +397,11 @@ watch(filteredJobs, async () => {
                     }"
                     :aria-pressed="isJobBookmarked(job)"
                     :aria-label="isJobBookmarked(job) ? t('jobsPage.removeBookmark') : t('jobsPage.addBookmark')"
-                    @click.stop="toggleBookmark(job.id)"
+                    @pointerdown.stop.prevent="toggleBookmarkOnPress($event, job.id)"
+                    @click.stop.prevent="toggleBookmarkOnClick($event, job.id)"
                   >
-                    <svg class="bookmark-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M7.25 3.5h9.5c.97 0 1.75.78 1.75 1.75v15.1L12 16.3l-6.5 4.05V5.25c0-.97.78-1.75 1.75-1.75Z" />
+                    <svg class="favorite-icon" viewBox="0 0 512 512" aria-hidden="true">
+                      <path :d="isJobBookmarked(job) ? FAVORITE_HEART_PATHS.solid : FAVORITE_HEART_PATHS.outline" />
                     </svg>
                   </button>
                   <RouterLink :to="`/jobs/${job.id}`" class="btn-primary details-button" @click.stop>
@@ -635,6 +666,11 @@ watch(filteredJobs, async () => {
   position: relative;
 }
 
+.search-grid :deep(.autocomplete__input-wrap) {
+  position: relative;
+}
+
+.search-grid :deep(.autocomplete__input-wrap input),
 .input-wrap input {
   width: 100%;
   min-height: 3.3rem;
@@ -646,12 +682,14 @@ watch(filteredJobs, async () => {
   font: inherit;
 }
 
+.search-grid :deep(.autocomplete__input-wrap input:focus),
 .input-wrap input:focus {
   outline: none;
   border-color: var(--brand-strong);
   box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
 }
 
+.search-grid :deep(.autocomplete__input-wrap :is(i, svg.svg-inline--fa)),
 .input-wrap :is(i, svg.svg-inline--fa) {
   position: absolute;
   top: 50%;
@@ -1088,7 +1126,7 @@ watch(filteredJobs, async () => {
   background: var(--surface-secondary);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition: none;
 }
 
 .save-button:hover {
@@ -1105,14 +1143,11 @@ watch(filteredJobs, async () => {
   box-shadow: none;
 }
 
-.bookmark-icon {
+.favorite-icon {
   width: 1.2rem;
   height: 1.2rem;
-  fill: transparent;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-  transition: fill 0.2s ease, stroke 0.2s ease, color 0.2s ease;
+  fill: currentColor;
+  transition: none;
 }
 
 .save-button--active {
@@ -1121,9 +1156,7 @@ watch(filteredJobs, async () => {
   background: color-mix(in srgb, var(--brand-soft) 62%, white);
 }
 
-.save-button--active .bookmark-icon {
-  fill: currentColor;
-  stroke: currentColor;
+.save-button--active .favorite-icon {
   color: var(--brand-strong);
 }
 

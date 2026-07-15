@@ -57,6 +57,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  maxMenuHeight: {
+    type: Number,
+    default: 320,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'change', 'open', 'close'])
@@ -118,11 +122,12 @@ const updateMenuPosition = () => {
   const viewportPadding = 8
   const gap = 8
   const width = Math.min(rect.width, window.innerWidth - (viewportPadding * 2))
-  const desiredHeight = Math.min(menu.value?.scrollHeight || 320, 320)
+  const maxMenuHeight = Math.max(120, Number(props.maxMenuHeight) || 320)
+  const desiredHeight = Math.min(menu.value?.scrollHeight || maxMenuHeight, maxMenuHeight)
   const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap
   const spaceAbove = rect.top - viewportPadding - gap
   const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow
-  const availableHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow)
+  const availableHeight = Math.max(120, Math.min(maxMenuHeight, openAbove ? spaceAbove : spaceBelow))
   const top = openAbove
     ? Math.max(viewportPadding, rect.top - Math.min(desiredHeight, availableHeight) - gap)
     : rect.bottom + gap

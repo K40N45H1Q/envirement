@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
-import { applyToJob, getJob, getResponses } from '@/api/jobs'
+import { applyToJob, getJob, getJobMatch, getResponses } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { normalizeJob } from '@/utils/jobs'
+import { presentMatchAnalysis } from '@/utils/matchPresentation'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const job = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
 const responses = ref([])
+const matchResult = ref(null)
 const error = ref('')
 const applyStatus = ref('')
 const brokenLogo = ref(false)
@@ -30,6 +32,8 @@ const form = ref({ name: '', surname: '', phone: '', email: '', nationality: '',
 
 const user = computed(() => state.user)
 const isEmployer = computed(() => String(user.value?.account_type || user.value?.accountType || '').toLowerCase() === 'employer')
+const isCandidate = computed(() => String(user.value?.account_type || user.value?.accountType || '').toLowerCase() === 'candidate')
+const matchAnalysis = computed(() => matchResult.value ? presentMatchAnalysis(matchResult.value, language.value) : null)
 const isJobOwner = computed(() => isEmployer.value && Number(user.value?.id || 0) === Number(job.value?.user_id || 0))
 const hasActiveSubscription = computed(() => {
   if (!user.value?.subscription_plan || !user.value?.subscription_expires_at) return false
@@ -39,7 +43,9 @@ const hasActiveSubscription = computed(() => {
 const canViewEmployerResponses = computed(() => isJobOwner.value && hasActiveSubscription.value)
 const hasLogo = computed(() => !!job.value?.logo && !brokenLogo.value)
 const hasBanner = computed(() => !!job.value?.banner_url && !brokenBanner.value)
-const licenses = computed(() => job.value?.licenses?.filter(Boolean) || [])
+const licenses = computed(() => job.value?.licenses?.map((item) => (
+  typeof item === 'string' ? item : item?.label || item?.id || item?.value || ''
+)).filter(Boolean) || [])
 const jobResponses = computed(() => responses.value.filter((item) => Number(item.job_id) === Number(job.value?.id || 0)))
 const approvedResponsesCount = computed(() => jobResponses.value.filter((item) => item.chat_approved).length)
 const pendingResponsesCount = computed(() => Math.max(jobResponses.value.length - approvedResponsesCount.value, 0))
@@ -113,6 +119,16 @@ const loadEmployerResponses = async () => {
   }
 }
 
+const loadCandidateMatch = async () => {
+  matchResult.value = null
+  if (!isCandidate.value || !job.value?.id) return
+  try {
+    matchResult.value = await getJobMatch(job.value.id)
+  } catch {
+    matchResult.value = null
+  }
+}
+
 const submitApplication = async () => {
   applyStatus.value = ''
 
@@ -135,6 +151,7 @@ const submitApplication = async () => {
     })
 
     applyStatus.value = t(result?.application_id ? 'jobDetailPage.apply.sentWithChat' : 'jobDetailPage.apply.sent')
+    matchResult.value = result?.match_analysis || matchResult.value
     resetApplicationForm()
   } catch (err) {
     applyStatus.value = t(
@@ -172,6 +189,7 @@ onMounted(async () => {
   }
 
   await loadJob()
+  await loadCandidateMatch()
   await loadEmployerResponses()
 })
 
@@ -181,6 +199,7 @@ onBeforeUnmount(() => {
 
 watch(() => route.params.id, async () => {
   await loadJob()
+  await loadCandidateMatch()
   await loadEmployerResponses()
 })
 </script>
@@ -288,6 +307,22 @@ watch(() => route.params.id, async () => {
                   <strong>{{ approvedResponsesCount }}</strong>
                 </article>
               </div>
+            </section>
+
+            <section v-if="isCandidate && matchAnalysis" class="side-section candidate-match">
+              <div class="candidate-match__header">
+                <div>
+                  <strong>{{ matchAnalysis.meta.label }}</strong>
+                  <span>{{ matchAnalysis.profile }}</span>
+                </div>
+                <b>{{ matchAnalysis.score }}/100</b>
+              </div>
+              <div class="candidate-match__parts">
+                <span v-for="part in matchAnalysis.breakdown" :key="part.key">
+                  {{ part.label }} <b>{{ part.score }}</b>
+                </span>
+              </div>
+              <p v-for="flag in matchAnalysis.failedGates" :key="flag" class="candidate-match__flag">{{ flag }}</p>
             </section>
 
             <section v-if="!isEmployer" class="side-section apply">
@@ -547,6 +582,58 @@ a {
   display: grid;
   gap: 1rem;
   margin-top: auto;
+}
+
+.candidate-match {
+  display: grid;
+  gap: 0.85rem;
+  background: color-mix(in srgb, var(--brand-base) 7%, #fff);
+}
+
+.candidate-match__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.candidate-match__header > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.candidate-match__header span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.candidate-match__header > b {
+  color: var(--brand-strong);
+  font-size: 1.45rem;
+}
+
+.candidate-match__parts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.candidate-match__parts span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--brand-base) 18%, #dde5df);
+  border-radius: 0.65rem;
+  background: #fff;
+  font-size: 0.76rem;
+}
+
+.candidate-match__flag {
+  margin: 0;
+  color: #c62828;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .employer-responses {

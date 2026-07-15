@@ -37,7 +37,7 @@ const getLanguage = () => {
 
 const t = (key, params = {}) => translate(key, params, getLanguage())
 
-const getLocalizedCategories = () => localizeCategoryConfigs((key) => t(key))
+const getLocalizedCategories = () => localizeCategoryConfigs((key) => t(key), getLanguage())
 
 const localizeCountryMeta = () => countryMeta.map((country) => ({
   ...country,
@@ -75,8 +75,23 @@ const readBookmarks = () => {
   }
 }
 
+let bookmarkPersistenceHandle = null
+
 const persistBookmarks = (bookmarks) => {
-  localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(bookmarks))
+  const serializedBookmarks = JSON.stringify(bookmarks)
+  const writeBookmarks = () => {
+    bookmarkPersistenceHandle = null
+    localStorage.setItem(BOOKMARKS_STORAGE_KEY, serializedBookmarks)
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    if (bookmarkPersistenceHandle !== null) window.cancelIdleCallback(bookmarkPersistenceHandle)
+    bookmarkPersistenceHandle = window.requestIdleCallback(writeBookmarks, { timeout: 500 })
+    return
+  }
+
+  if (bookmarkPersistenceHandle !== null) window.clearTimeout(bookmarkPersistenceHandle)
+  bookmarkPersistenceHandle = window.setTimeout(writeBookmarks, 32)
 }
 
 const legacyInferCountry = (location = '') => {
@@ -187,7 +202,6 @@ export const useJobsStore = defineStore('jobs', {
           hasHousing: inferHousing(job),
           hasTransport: inferTransport(job),
           employmentType: inferEmployment(job),
-          isBookmarked: state.bookmarks.includes(String(job.id)),
           categoryLabel: categoriesById[category] || '',
           tags: [
             inferHousing(job) ? t('jobsStore.housing') : t('jobsStore.noHousing'),
@@ -271,7 +285,7 @@ export const useJobsStore = defineStore('jobs', {
       }
 
       if (this.filters.onlyBookmarked) {
-        result = result.filter((job) => job.isBookmarked)
+        result = result.filter((job) => this.bookmarks.includes(String(job.id)))
       }
 
       if (this.filters.selectedTab === 'hot') {
@@ -279,7 +293,7 @@ export const useJobsStore = defineStore('jobs', {
       }
 
       if (this.filters.selectedTab === 'favorites') {
-        result = result.filter((job) => job.isBookmarked)
+        result = result.filter((job) => this.bookmarks.includes(String(job.id)))
       }
 
       if (this.filters.selectedSort === 'salary') {
@@ -296,7 +310,7 @@ export const useJobsStore = defineStore('jobs', {
     },
 
     bookmarkedCount() {
-      return this.enrichedJobs.filter((job) => job.isBookmarked).length
+      return this.bookmarks.length
     },
 
     resultsLabel() {

@@ -248,6 +248,24 @@ p {
   font: inherit;
 }
 
+.requirement-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.requirement-toggle input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--brand-base);
+}
+
 .inline-add {
   display: grid;
   grid-template-columns: 1fr 1fr;

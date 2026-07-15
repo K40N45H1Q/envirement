@@ -317,6 +317,7 @@ onBeforeUnmount(() => {
                   {{ application.job_company }}{{ application.chat_approved ? '' : ` · ${copy.chatPending}` }}
                 </span>
               </div>
+              <strong v-if="application.match_score != null" class="activity-score">{{ application.match_score }}/100</strong>
             </button>
 
             <RouterLink v-if="!applications.length" to="/dashboard?section=profile" class="activity-item empty">
@@ -726,6 +727,13 @@ h2 {
   text-decoration: none;
   font: inherit;
   cursor: pointer;
+}
+
+.activity-score {
+  margin-left: auto;
+  color: var(--brand-strong);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .activity-item i {

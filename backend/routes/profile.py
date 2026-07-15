@@ -1,13 +1,15 @@
 import json
 import secrets
 import shutil
+from datetime import date
 from os import getenv, path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, get_session
+from app.services.matching import parse_date
 from routes.safety import get_current_user
 
 router = APIRouter()
@@ -46,7 +48,10 @@ def serialize_profile(profile: Optional[CandidateProfile]):
             "phone": "",
             "summary": "",
             "current_role": "",
+            "desired_occupation_id": "",
+            "desired_occupation_label": "",
             "skills": "",
+            "skill_ids": [],
             "sectors": [],
             "languages": [],
             "licenses": [],
@@ -70,7 +75,10 @@ def serialize_profile(profile: Optional[CandidateProfile]):
         "phone": profile.phone or "",
         "summary": profile.summary or "",
         "current_role": profile.current_role or "",
+        "desired_occupation_id": profile.desired_occupation_id or "",
+        "desired_occupation_label": profile.desired_occupation_label or "",
         "skills": profile.skills or "",
+        "skill_ids": parse_json_field(profile.skill_ids_json, []),
         "sectors": parse_json_field(profile.sectors_json, []),
         "languages": parse_json_field(profile.languages_json, []),
         "licenses": parse_json_field(profile.licenses_json, []),
@@ -104,7 +112,10 @@ async def update_profile(
     phone: Optional[str] = Form(None),
     summary: Optional[str] = Form(None),
     current_role: Optional[str] = Form(None),
+    desired_occupation_id: Optional[str] = Form(None),
+    desired_occupation_label: Optional[str] = Form(None),
     skills: Optional[str] = Form(None),
+    skill_ids_json: Optional[str] = Form(None),
     sectors_json: Optional[str] = Form(None),
     languages_json: Optional[str] = Form(None),
     licenses_json: Optional[str] = Form(None),
@@ -122,6 +133,13 @@ async def update_profile(
     current_user=Depends(get_current_user),
     session=Depends(get_session),
 ):
+    availability = (availability or '').strip()
+    availability_date = parse_date(availability)
+    if availability and availability != 'Immediate' and (
+        not availability_date or availability_date < date.today()
+    ):
+        raise HTTPException(status_code=400, detail={"key": "invalid_availability"})
+
     profile = session.exec(
         select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
     ).first()
@@ -136,7 +154,10 @@ async def update_profile(
     profile.phone = phone
     profile.summary = summary
     profile.current_role = current_role
+    profile.desired_occupation_id = desired_occupation_id
+    profile.desired_occupation_label = desired_occupation_label
     profile.skills = skills
+    profile.skill_ids_json = skill_ids_json
     profile.sectors_json = sectors_json
     profile.languages_json = languages_json
     profile.licenses_json = licenses_json
@@ -147,7 +168,7 @@ async def update_profile(
     profile.education_level = education_level
     profile.remote_ready = remote_ready
     profile.work_permit = work_permit
-    profile.availability = availability
+    profile.availability = availability or None
     profile.resume_data_json = resume_data_json
 
     if avatar_url:
@@ -206,6 +227,9 @@ def get_my_applications(current_user=Depends(get_current_user), session=Depends(
             "surname": application.surname,
             "nationality": application.nationality,
             "chat_approved": application.chat_approved,
+            "match_score": application.match_score,
+            "match_label": application.match_label,
+            "match_analysis": parse_json_field(application.match_json, None),
             "created_at": application.created_at,
         })
     return result

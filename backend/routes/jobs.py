@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Path,
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
+from app.services.matching import ALGORITHM_VERSION, parse_date, score_candidate
 from routes.safety import get_current_user, require_account_types
 
 router = APIRouter()
@@ -143,6 +144,7 @@ def ensure_employer_plan_allows_job(user: User, session) -> None:
 @router.post("/create_job")
 async def create_job(
     title: str = Form(...),
+    occupation_id: Optional[str] = Form(None),
     company: Optional[str] = Form(None),
     salary: str = Form(...),
     category: Optional[str] = Form(None),
@@ -158,6 +160,7 @@ async def create_job(
     description: str = Form(...),
     languages_json: Optional[str] = Form(None),
     licenses_json: Optional[str] = Form(None),
+    skills_json: Optional[str] = Form(None),
     has_housing: bool = Form(False),
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
@@ -168,6 +171,11 @@ async def create_job(
     session=Depends(get_session),
 ):
     require_account_types(current_user, "employer", "admin")
+
+    if not (occupation_id or "").strip():
+        raise HTTPException(status_code=400, detail={"key": "occupation_required"})
+    if required_from and not parse_date(required_from):
+        raise HTTPException(status_code=400, detail={"key": "invalid_required_from"})
 
     company_name = (current_user.company_name or "").strip() or (company or "").strip()
     if not company_name:
@@ -192,6 +200,7 @@ async def create_job(
 
     job = Job(
         title=title,
+        occupation_id=occupation_id,
         company=company_name,
         salary=salary,
         category=category,
@@ -209,6 +218,7 @@ async def create_job(
         banner_url=banner_path,
         languages_json=languages_json,
         licenses_json=licenses_json,
+        skills_json=skills_json,
         has_housing=has_housing,
         has_transport=has_transport,
         user_id=current_user.id,
@@ -241,6 +251,22 @@ def get_job(
     return job
 
 
+@router.get("/jobs/{job_id}/match")
+def get_job_match(
+    job_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    require_account_types(current_user, "candidate")
+    job = session.get(Job, job_id)
+    if not job or job.status != "approved":
+        raise HTTPException(status_code=404, detail={"key": "job_not_found"})
+    profile = session.exec(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    ).first()
+    return score_candidate(profile or {}, job)
+
+
 @router.get("/my_jobs", response_model=List[Job])
 def get_my_jobs(
     current_user: User = Depends(get_current_user),
@@ -257,6 +283,7 @@ def get_my_jobs(
 async def update_job(
     job_id: int = Path(...),
     title: str = Form(...),
+    occupation_id: Optional[str] = Form(None),
     company: Optional[str] = Form(None),
     salary: str = Form(...),
     category: Optional[str] = Form(None),
@@ -272,6 +299,7 @@ async def update_job(
     description: str = Form(...),
     languages_json: Optional[str] = Form(None),
     licenses_json: Optional[str] = Form(None),
+    skills_json: Optional[str] = Form(None),
     has_housing: bool = Form(False),
     has_transport: bool = Form(False),
     logo: Optional[UploadFile] = File(None),
@@ -283,6 +311,11 @@ async def update_job(
 ):
     require_account_types(current_user, "employer", "admin")
     ensure_active_employer_subscription(current_user)
+
+    if not (occupation_id or "").strip():
+        raise HTTPException(status_code=400, detail={"key": "occupation_required"})
+    if required_from and not parse_date(required_from):
+        raise HTTPException(status_code=400, detail={"key": "invalid_required_from"})
 
     company_name = (current_user.company_name or "").strip() or (company or "").strip()
     if not company_name:
@@ -322,6 +355,7 @@ async def update_job(
         job.banner_url = banner_url
 
     job.title = title
+    job.occupation_id = occupation_id
     job.company = company_name
     job.salary = salary
     job.category = category
@@ -337,6 +371,7 @@ async def update_job(
     job.description = description
     job.languages_json = languages_json
     job.licenses_json = licenses_json
+    job.skills_json = skills_json
     job.has_housing = has_housing
     job.has_transport = has_transport
 
@@ -473,6 +508,11 @@ async def apply_to_job(
         resume_url = store_resume_file(resume_upload)
         resume_name = resume_upload.filename
 
+    profile = session.exec(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    ).first()
+    match_result = score_candidate(profile or {}, job)
+
     application = JobApplication(
         job_id=job_id,
         applicant_user_id=current_user.id,
@@ -486,11 +526,16 @@ async def apply_to_job(
         resume_name=resume_name,
         resume_url=resume_url,
         chat_approved=False,
+        match_score=match_result["score"],
+        match_label=match_result["label"],
+        match_algorithm_version=ALGORITHM_VERSION,
+        match_json=json.dumps(match_result, ensure_ascii=False),
+        matched_at=datetime.now(timezone.utc),
     )
     session.add(application)
     session.commit()
     session.refresh(application)
-    return {"status": "ok", "application_id": application.id}
+    return {"status": "ok", "application_id": application.id, "match_analysis": match_result}
 
 
 @router.get("/responses")
@@ -514,9 +559,11 @@ def get_my_job_responses(
         .order_by(JobApplication.created_at.desc())
     ).all()
 
+    my_jobs_by_id = {job.id: job for job in my_jobs}
     job_map = {
         job.id: {
             "title": job.title,
+            "occupation_id": job.occupation_id,
             "company": job.company,
             "category": job.category,
             "employment_type": job.employment_type,
@@ -534,6 +581,7 @@ def get_my_job_responses(
             "description": job.description,
             "languages": parse_json_field(job.languages_json, []),
             "licenses": parse_json_field(job.licenses_json, []),
+            "skills": parse_json_field(job.skills_json, []),
         }
         for job in my_jobs
     }
@@ -552,10 +600,14 @@ def get_my_job_responses(
     for app in applications:
         job_data = job_map.get(app.job_id, {})
         profile = profile_map.get(app.applicant_user_id)
+        match_analysis = parse_json_field(app.match_json, None)
+        if not isinstance(match_analysis, dict):
+            match_analysis = score_candidate(profile or {}, my_jobs_by_id.get(app.job_id, {}))
         result.append({
             "id": app.id,
             "job_id": app.job_id,
             "job_title": job_data.get("title", ""),
+            "job_occupation_id": job_data.get("occupation_id", ""),
             "job_company": job_data.get("company", ""),
             "job_category": job_data.get("category", ""),
             "job_employment_type": job_data.get("employment_type", ""),
@@ -573,6 +625,7 @@ def get_my_job_responses(
             "job_description": job_data.get("description", ""),
             "job_languages": job_data.get("languages", []),
             "job_licenses": job_data.get("licenses", []),
+            "job_skills": job_data.get("skills", []),
             "phone": app.phone,
             "email": app.email,
             "username": app.username,
@@ -586,6 +639,7 @@ def get_my_job_responses(
             "candidate_current_role": profile.current_role if profile else "",
             "candidate_summary": profile.summary if profile else "",
             "candidate_skills": profile.skills if profile else "",
+            "candidate_skill_ids": parse_json_field(profile.skill_ids_json, []) if profile else [],
             "candidate_education_level": profile.education_level if profile else "",
             "candidate_salary_expectation": profile.salary_expectation if profile else "",
             "candidate_preferred_employment_type": profile.preferred_employment_type if profile else "",
@@ -596,9 +650,12 @@ def get_my_job_responses(
             "candidate_languages": parse_json_field(profile.languages_json, []) if profile else [],
             "candidate_licenses": parse_json_field(profile.licenses_json, []) if profile else [],
             "candidate_sectors": parse_json_field(profile.sectors_json, []) if profile else [],
+            "match_analysis": match_analysis,
+            "match_score": match_analysis.get("score", 0),
+            "match_label": match_analysis.get("label", "weak"),
             "created_at": app.created_at,
         })
-    return result
+    return sorted(result, key=lambda item: item["match_score"], reverse=True)
 
 
 @router.patch("/responses/{response_id}/approve-chat")

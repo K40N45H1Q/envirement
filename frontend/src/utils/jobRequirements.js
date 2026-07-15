@@ -2,7 +2,7 @@
 import { useUiStore } from '@/stores/ui'
 
 const languageValues = ['English', 'Russian', 'German', 'Polish', 'Latvian', 'Lithuanian', 'Estonian', 'French']
-const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Native']
 const licenseLabels = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE', 'Code 95', 'ADR', 'Forklift', 'VCA']
 
 const languageKeyByValue = {
@@ -101,7 +101,6 @@ export const normalizeLanguages = (value) => toArray(value)
   .filter((language) => language.name)
 
 export const normalizeLicenses = (value) => toArray(value)
-  .map((license) => (typeof license === 'string' ? license : license?.name || license?.title || ''))
+  .map((license) => (typeof license === 'string' ? license : license?.id || license?.value || license?.name || license?.title || license?.label || ''))
   .map((license) => toText(license).trim())
   .filter((license) => license && !isNoLicenseValue(license))
-

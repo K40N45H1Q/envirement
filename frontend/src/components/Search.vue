@@ -2,13 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
+import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import { useJobsStore } from '@/stores/jobs'
+import { findOccupationSuggestions } from '@/utils/occupations'
 
 const route = useRoute()
 const router = useRouter()
 const jobsStore = useJobsStore()
-const { t } = useI18n()
+const { t, language } = useI18n()
 
 const query = ref('')
 const location = ref('')
@@ -18,6 +20,11 @@ const categoryOptions = computed(() => jobsStore.categoryConfigs.map((item) => (
   value: item.id,
   label: item.label,
   iconClass: item.icon,
+})))
+
+const querySuggestions = computed(() => findOccupationSuggestions(query.value, language.value).map((item) => ({
+  value: item.label,
+  label: item.label,
 })))
 
 const syncFromRoute = () => {
@@ -44,10 +51,13 @@ watch(() => route.query, syncFromRoute)
       <form class="search-grid" @submit.prevent="submit">
         <label>
           <span>{{ t('search.lookingFor') }}</span>
-          <div class="input-wrap">
-            <input v-model="query" type="text" :placeholder="t('search.lookingPlaceholder')" />
-            <i class="fas fa-magnifying-glass"></i>
-          </div>
+          <AutocompleteInput
+            v-model="query"
+            :suggestions="querySuggestions"
+            :placeholder="t('search.lookingPlaceholder')"
+            :aria-label="t('search.lookingFor')"
+            icon-class="fas fa-magnifying-glass"
+          />
         </label>
 
         <label>
@@ -104,10 +114,7 @@ label {
   font-weight: 700;
 }
 
-.input-wrap {
-  position: relative;
-}
-
+:deep(.autocomplete__input-wrap input),
 .input-wrap input {
   width: 100%;
   min-height: 3.3rem;
@@ -119,6 +126,7 @@ label {
   font: inherit;
 }
 
+:deep(.autocomplete__input-wrap :is(i, svg.svg-inline--fa)),
 .input-wrap :is(i, svg.svg-inline--fa) {
   position: absolute;
   top: 50%;
@@ -128,6 +136,12 @@ label {
   pointer-events: none;
   width: 1rem;
   height: 1rem;
+}
+
+:deep(.autocomplete__input-wrap input:focus) {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-base) 12%, transparent);
 }
 
 .search-dropdown {

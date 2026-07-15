@@ -13,6 +13,7 @@ export const getJobs = (params = {}) => {
   return apiRequest(`/api/get_jobs${query ? `?${query}` : ''}`)
 }
 export const getJob = (id) => apiRequest(`/api/jobs/${id}`)
+export const getJobMatch = (id) => apiRequest(`/api/jobs/${id}/match`, { requireAuth: true })
 
 export const getMyJobs = () => apiRequest('/api/my_jobs', { requireAuth: true })
 export const getMyApplications = () => apiRequest('/api/my_applications', { requireAuth: true })
