@@ -227,15 +227,18 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (isJobDetailRoute && !token) {
+  if (isJobDetailRoute) {
+    const authenticatedUser = token ? await auth.initialize() : null
+
+    if (!authenticatedUser) {
       return localizeRouteLocation({
         path: '/',
         query: {
-          ...to.query,
           auth: 'login',
-        redirect: to.fullPath,
-      },
-    }, locale)
+          redirect: to.fullPath,
+        },
+      }, locale)
+    }
   }
 
   if (to.meta.requiresAuth) {
