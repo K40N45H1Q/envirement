@@ -55,6 +55,8 @@ defineEmits(['select-section', 'stat-click'])
         :class="{
           'dashboard-sidebar__item--active': activeSection === section.id,
           'dashboard-sidebar__item--disabled': section.disabled,
+          'dashboard-sidebar__item--danger': section.danger,
+          'dashboard-sidebar__item--divider': section.divider,
         }"
         @click="!section.disabled && !section.to && $emit('select-section', section.id)"
       >
@@ -235,6 +237,30 @@ defineEmits(['select-section', 'stat-click'])
 .dashboard-sidebar__item--disabled:hover i,
 .dashboard-sidebar__item--disabled:focus-visible i {
   color: var(--text-muted);
+}
+
+.dashboard-sidebar__item--divider {
+  margin-top: 0.55rem;
+}
+
+.dashboard-sidebar__item--danger {
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 22%, transparent);
+  background: color-mix(in srgb, var(--danger, #dc2626) 7%, transparent);
+  color: var(--danger, #dc2626);
+  font-weight: 700;
+}
+
+.dashboard-sidebar__item--danger i,
+.dashboard-sidebar__item--danger:hover i,
+.dashboard-sidebar__item--danger:focus-visible i {
+  color: currentColor;
+}
+
+.dashboard-sidebar__item--danger:hover,
+.dashboard-sidebar__item--danger:focus-visible {
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 45%, transparent);
+  background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);
+  color: var(--danger, #dc2626);
 }
 
 .dashboard-content,

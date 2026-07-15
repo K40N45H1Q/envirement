@@ -1,17 +1,16 @@
 ﻿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import AppLayout from '@/components/AppLayout.vue'
+import { useRouter } from 'vue-router'
 import BaseDropdown from '@/components/BaseDropdown.vue'
-import Logo from '@/components/Logo.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import { getProfile, updateProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useJobsStore } from '@/stores/jobs'
 
-const AUTOSAVE_DELAY = 1200
-const GUEST_RESUME_DRAFT_KEY = 'cvhold:createcv:draft'
+const emit = defineEmits(['step-change', 'close'])
+
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 const MAX_RESUME_SIZE = 10 * 1024 * 1024
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -31,6 +30,7 @@ const languageLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
 
 const { language } = useI18n()
+const router = useRouter()
 const isEnglish = computed(() => language.value === 'en')
 const isLatvian = computed(() => language.value === 'lv')
 
@@ -62,6 +62,7 @@ const languageCatalog = [
 ]
 
 const licenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE', 'Код 95', 'ADR', 'Forklift', 'VCA']
+const drivingLicenseValues = ['AM', 'A1', 'A2', 'A', 'B', 'BE', 'C1', 'C1E', 'C', 'CE', 'D1', 'D1E', 'D', 'DE']
 
 const permitCatalog = [
   { value: '', ru: 'Выберите', en: 'Choose', lv: 'Izvēlieties' },
@@ -254,6 +255,7 @@ const expandedEducationIndex = ref(0)
 const isLoaded = ref(false)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const isGeneratingPdf = ref(false)
 const status = ref('')
 const errors = ref({})
 const savedSnapshot = ref('')
@@ -269,11 +271,11 @@ const cvDocumentRef = ref(null)
 const avatarInputRef = ref(null)
 const resumeInputRef = ref(null)
 
-let autosaveTimer = null
 let savePromise = null
 let shouldSaveAgain = false
 let isApplyingServerProfile = false
 let printFrame = null
+let previousBodyOverflow = ''
 
 const createEmptyWorkExperience = () => ({
   position: '',
@@ -310,6 +312,9 @@ const createEmptyResumeData = () => ({
   gender: '',
   hide_gender: false,
   communication_language: 'lv',
+  citizenship: '',
+  no_driving_license: false,
+  driving_licenses: [],
   additional_emails: [],
   additional_phones: [],
   no_work_experience: false,
@@ -344,6 +349,14 @@ const createEmptyProfile = () => ({
 
 const profile = ref(createEmptyProfile())
 
+watch(
+  [language, () => profile.value.resume_data],
+  ([siteLanguage, resumeData]) => {
+    if (resumeData) resumeData.cv_language = siteLanguage
+  },
+  { immediate: true },
+)
+
 const toText = (value) => (value == null ? '' : String(value))
 
 const toArray = (value) => {
@@ -359,7 +372,7 @@ const toArray = (value) => {
 }
 
 const splitTextList = (value) => toText(value)
-  .split(/[,;\s]+/)
+  .split(/[,;\n]+/)
   .map((item) => item.trim())
   .filter(Boolean)
 
@@ -704,9 +717,12 @@ const normalizeResumeData = (value, source = {}) => {
     gender: toText(resumeData.gender),
     hide_gender: Boolean(resumeData.hide_gender),
     communication_language: toText(resumeData.communication_language || defaults.communication_language),
+    citizenship: toText(resumeData.citizenship),
+    no_driving_license: Boolean(resumeData.no_driving_license),
+    driving_licenses: toArray(resumeData.driving_licenses).map((item) => toText(item)).filter((item) => drivingLicenseValues.includes(item)),
     additional_emails: toArray(resumeData.additional_emails).map((item) => toText(item).trim()).filter(Boolean),
     additional_phones: toArray(resumeData.additional_phones).map((item) => toText(item)).filter(Boolean),
-    no_work_experience: Boolean(resumeData.no_work_experience ?? legacyWorkExperience?.no_experience),
+    no_work_experience: Boolean(resumeData.no_work_experience),
     total_experience_years: toText(resumeData.total_experience_years || legacyWorkExperience?.total_years),
     work_experiences: workExperiences.length ? workExperiences : [createEmptyWorkExperience()],
     educations: educations.length ? educations : [createEmptyEducation()],
@@ -806,9 +822,7 @@ const progressChecks = computed(() => [
 const filledFields = computed(() => progressChecks.value.filter(Boolean).length)
 const progress = computed(() => Math.round((filledFields.value / progressChecks.value.length) * 100))
 
-const canAddLanguage = computed(() => !profile.value.languages.some((language) => (
-  language.name === newLanguage.value && language.level === newLanguageLevel.value
-)))
+const canAddLanguage = computed(() => !profile.value.languages.some((item) => item.name === newLanguage.value))
 
 const legacyStatusMessage = computed(() => {
   if (isLoading.value) return 'Загрузка профиля...'
@@ -833,7 +847,10 @@ const legacyCvSectors = computed(() => profile.value.sectors
   })
   .filter(Boolean))
 const cvLanguages = computed(() => profile.value.languages.filter((language) => language.name && language.level))
-const cvLicenses = computed(() => profile.value.licenses.filter(Boolean))
+const cvLicenses = computed(() => [...new Set([
+  ...profile.value.resume_data.driving_licenses,
+  ...profile.value.licenses,
+])].filter(Boolean))
 
 const cvVisibleSectors = computed(() => cvSectors.value.slice(0, MAX_PRINT_SECTORS))
 const cvVisibleSkills = computed(() => cvSkills.value.slice(0, MAX_PRINT_SKILLS))
@@ -961,6 +978,16 @@ const cvAdditionalItems = computed(() => [
     value: cvLanguageOptions.value.find((option) => option.value === profile.value.resume_data.communication_language)?.label || copy.value.notSpecified,
   },
   {
+    icon: 'fas fa-passport',
+    label: copy.value.citizenship,
+    value: profile.value.resume_data.citizenship || copy.value.notSpecified,
+  },
+  profile.value.resume_data.no_driving_license && {
+    icon: 'fas fa-car-side',
+    label: copy.value.drivingLicenses,
+    value: copy.value.noDrivingLicense,
+  },
+  {
     icon: 'fas fa-location-dot',
     label: copy.value.country,
     value: primaryWorkExperience.value.country || copy.value.notSpecified,
@@ -972,36 +999,140 @@ const cvAdditionalItems = computed(() => [
   },
 ].filter(Boolean))
 
-const cvWorkExperiences = computed(() => profile.value.resume_data.work_experiences.filter((entry) => (
-  entry.position || entry.company_name || entry.description
-)))
+const cvWorkExperiences = computed(() => (
+  profile.value.resume_data.no_work_experience
+    ? []
+    : profile.value.resume_data.work_experiences.filter((entry) => (
+      entry.position || entry.company_name || entry.description
+    ))
+))
 const cvEducations = computed(() => profile.value.resume_data.educations.filter((entry) => (
   entry.level || entry.institution || entry.speciality
 )))
 const categoryLabel = (value) => jobCategoryOptions.value.find((option) => option.value === value)?.label || value
+const parseBirthDate = (value) => {
+  const text = toText(value).trim()
+  if (!text) return null
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [year, month, day] = text.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(text)) {
+    const [day, month, year] = text.split('.').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  return null
+}
+
+const birthDateInput = computed({
+  get: () => {
+    const value = toText(profile.value.resume_data.birth_date).trim()
+    const parsed = parseBirthDate(value)
+    if (!parsed) return value
+
+    const day = String(parsed.getDate()).padStart(2, '0')
+    const month = String(parsed.getMonth() + 1).padStart(2, '0')
+    const year = String(parsed.getFullYear())
+    return `${day}.${month}.${year}`
+  },
+  set: (value) => {
+    const text = toText(value).trim()
+    if (!text) {
+      profile.value.resume_data.birth_date = ''
+      return
+    }
+
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(text)) {
+      const [day, month, year] = text.split('.').map(Number)
+      profile.value.resume_data.birth_date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      return
+    }
+
+    profile.value.resume_data.birth_date = text
+  },
+})
+
 const formatDate = (value) => {
-  if (!value) return ''
-  const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) return value
-  return new Intl.DateTimeFormat(language.value).format(new Date(year, month - 1, day))
+  const parsed = parseBirthDate(value)
+  if (!parsed) return toText(value)
+  return new Intl.DateTimeFormat(language.value).format(parsed)
+}
+
+const formatDateInput = (value) => {
+  const parsed = parseBirthDate(value)
+  if (!parsed) return toText(value)
+
+  const day = String(parsed.getDate()).padStart(2, '0')
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const year = String(parsed.getFullYear())
+  return `${day}.${month}.${year}`
+}
+
+const normalizeDateInput = (value) => {
+  const text = toText(value).trim()
+  if (!text) return ''
+
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(text)) {
+    const [day, month, year] = text.split('.').map(Number)
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  return text
 }
 
 const currentStepHeading = computed(() => {
   if (step.value === 1) return copy.value.step1Heading
   if (step.value === 2) return copy.value.step2Heading
   if (step.value === 3) return copy.value.step3Heading
-  return copy.value.step4Heading
+  if (step.value === 4) return copy.value.step4Heading
+  return copy.value.step5Heading
 })
 
 const currentStepDescription = computed(() => copy.value.stepDescriptions?.[step.value - 1] || '')
-const currentStepIcon = computed(() => ['fa-user', 'fa-briefcase', 'fa-graduation-cap', 'fa-file-pdf'][step.value - 1])
+const currentStepIcon = computed(() => ['fa-user', 'fa-briefcase', 'fa-graduation-cap', 'fa-id-card', 'fa-file-pdf'][step.value - 1])
 const stepProgress = computed(() => Math.round((step.value / steps.value.length) * 100))
 
 const formatMore = (key, count) => translate(`resumeBuilderPage.${key}`, { count }, language.value)
 
-const addEmail = () => profile.value.resume_data.additional_emails.push('')
+const canAddEmail = computed(() => {
+  const items = profile.value.resume_data.additional_emails
+  if (!items.length) return true
+  return toText(items[items.length - 1]).trim().length > 0
+})
+
+const canAddPhone = computed(() => {
+  const items = profile.value.resume_data.additional_phones
+  if (!items.length) return true
+  return toText(items[items.length - 1]).trim().length > 0
+})
+
+const emailHasMissingValue = computed(() => (
+  !profileEmail.value.trim()
+  || profile.value.resume_data.additional_emails.some((item) => !toText(item).trim())
+))
+
+const phoneHasMissingValue = computed(() => (
+  !profile.value.phone.trim()
+  || profile.value.resume_data.additional_phones.some((item) => !toText(item).trim())
+))
+
+const firstNameHasMissingValue = computed(() => !profile.value.first_name.trim())
+const lastNameHasMissingValue = computed(() => !profile.value.last_name.trim())
+const birthDateHasMissingValue = computed(() => !toText(profile.value.resume_data.birth_date).trim())
+const genderHasMissingValue = computed(() => !toText(profile.value.resume_data.gender).trim())
+
+const addEmail = () => {
+  if (!canAddEmail.value) return
+  profile.value.resume_data.additional_emails.push('')
+}
 const removeEmail = (index) => profile.value.resume_data.additional_emails.splice(index, 1)
-const addPhone = () => profile.value.resume_data.additional_phones.push('')
+const addPhone = () => {
+  if (!canAddPhone.value) return
+  profile.value.resume_data.additional_phones.push('')
+}
 const removePhone = (index) => profile.value.resume_data.additional_phones.splice(index, 1)
 
 const addWorkExperience = () => {
@@ -1067,13 +1198,6 @@ const cvQrCells = computed(() => Array.from({ length: 121 }, (_, index) => {
   return hashText(`${cvId.value}-${index}`) % 3 === 0
 }))
 
-const clearAutosaveTimer = () => {
-  if (autosaveTimer) {
-    window.clearTimeout(autosaveTimer)
-    autosaveTimer = null
-  }
-}
-
 const revokeAvatarPreview = () => {
   if (avatarObjectUrl.value) {
     URL.revokeObjectURL(avatarObjectUrl.value)
@@ -1097,6 +1221,42 @@ const clearErrors = () => {
   errors.value = {}
 }
 
+const requiredWorkFields = ['position', 'job_category', 'company_name', 'country', 'experience_years', 'start_date', 'end_date', 'description']
+const workErrorKey = (index, field) => `work_${index}_${field}`
+const isWorkFieldMissing = (work, field) => {
+  if (field === 'end_date' && work.current) return false
+  return !toText(work[field]).trim()
+}
+const isWorkFieldInvalid = (index, field) => Boolean(errors.value[workErrorKey(index, field)])
+
+const clearWorkErrors = (target = errors.value) => {
+  Object.keys(target).forEach((key) => {
+    if (key.startsWith('work_')) delete target[key]
+  })
+}
+
+const toggleNoWorkExperience = () => {
+  if (!profile.value.resume_data.no_work_experience) return
+
+  const nextErrors = { ...errors.value }
+  clearWorkErrors(nextErrors)
+  errors.value = nextErrors
+  status.value = ''
+}
+
+const requiredEducationFields = ['level', 'institution', 'speciality', 'second_speciality', 'country', 'start_date', 'end_date', 'additional_information']
+const educationErrorKey = (index, field) => `education_${index}_${field}`
+const isEducationFieldMissing = (education, field) => {
+  if (field === 'end_date' && education.current) return false
+  return !toText(education[field]).trim()
+}
+const isEducationFieldInvalid = (index, field) => Boolean(errors.value[educationErrorKey(index, field)])
+const clearEducationErrors = (target = errors.value) => {
+  Object.keys(target).forEach((key) => {
+    if (key.startsWith('education_')) delete target[key]
+  })
+}
+
 const getErrorMessage = (error, fallback) => (
   error?.response?.data?.message
   || error?.response?.data?.detail
@@ -1112,43 +1272,11 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file)
 })
 
-const saveGuestDraft = () => {
-  if (typeof window === 'undefined') return
-
-  const draft = {
-    ...buildPayload(),
-    email: profile.value.email.trim(),
-    avatar: null,
-    resume: null,
-    avatar_url: profile.value.avatar_url || avatarPreview.value,
-    resume_url: profile.value.resume_url,
-    resume_name: profile.value.resume_name,
-  }
-
-  window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, JSON.stringify(draft))
-  window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-}
-
-const loadGuestDraft = () => {
-  if (typeof window === 'undefined') return null
-
-  const rawDraft = window.localStorage.getItem(GUEST_RESUME_DRAFT_KEY)
-    || window.sessionStorage.getItem(GUEST_RESUME_DRAFT_KEY)
-  if (!rawDraft) return null
-
-  try {
-    const draft = JSON.parse(rawDraft)
-    window.localStorage.setItem(GUEST_RESUME_DRAFT_KEY, rawDraft)
-    window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-    return draft
-  } catch {
-    return null
-  }
-}
-
 const applyServerProfile = (rawProfile) => {
   isApplyingServerProfile = true
-  profile.value = normalizeProfile(rawProfile)
+  const normalizedProfile = normalizeProfile(rawProfile)
+  normalizedProfile.resume_data.cv_language = language.value
+  profile.value = normalizedProfile
   savedSnapshot.value = snapshotProfile()
 
   window.setTimeout(() => {
@@ -1161,12 +1289,10 @@ const loadProfile = async () => {
   status.value = ''
 
   if (!isAuthenticated.value) {
-    const guestDraft = loadGuestDraft()
-    profile.value = normalizeProfile(guestDraft || {})
+    profile.value = createEmptyProfile()
+    profile.value.resume_data.cv_language = language.value
     savedSnapshot.value = snapshotProfile()
-    status.value = guestDraft
-      ? copy.value.guestDraftLoaded
-      : copy.value.guestMode
+    status.value = copy.value.guestMode
     isLoading.value = false
     isLoaded.value = true
     return
@@ -1174,11 +1300,10 @@ const loadProfile = async () => {
 
   try {
     const loadedProfile = await getProfile()
-    const localDraft = loadGuestDraft()
-    applyServerProfile(localDraft || loadedProfile)
-    if (localDraft) status.value = copy.value.guestDraftLoaded
+    applyServerProfile(loadedProfile)
   } catch (error) {
     profile.value = createEmptyProfile()
+    profile.value.resume_data.cv_language = language.value
     savedSnapshot.value = snapshotProfile()
     status.value = getErrorMessage(error, copy.value.loadProfileError)
   } finally {
@@ -1242,18 +1367,9 @@ const performSave = async ({ silent = false, force = false } = {}) => {
   if (!silent) status.value = ''
 
   if (!isAuthenticated.value) {
-    try {
-      saveGuestDraft()
-      savedSnapshot.value = snapshotProfile()
-      clearErrors()
-      status.value = silent ? '' : copy.value.saveDraftSuccess
-      return true
-    } catch (error) {
-      status.value = getErrorMessage(error, copy.value.saveDraftError)
-      return false
-    } finally {
-      isSaving.value = false
-    }
+    status.value = copy.value.guestMode
+    isSaving.value = false
+    return false
   }
 
   try {
@@ -1283,8 +1399,6 @@ const performSave = async ({ silent = false, force = false } = {}) => {
 
 const saveProfile = async ({ silent = false, force = false } = {}) => {
   if (!isLoaded.value) return false
-
-  clearAutosaveTimer()
 
   if (savePromise) {
     shouldSaveAgain = true
@@ -1316,21 +1430,6 @@ const saveProfile = async ({ silent = false, force = false } = {}) => {
   }
 }
 
-const scheduleAutosave = () => {
-  if (!isLoaded.value || isLoading.value || isApplyingServerProfile) return
-  if (snapshotProfile() === savedSnapshot.value) return
-
-  clearAutosaveTimer()
-  autosaveTimer = window.setTimeout(() => {
-    try {
-      saveGuestDraft()
-      savedSnapshot.value = snapshotProfile()
-    } catch (error) {
-      status.value = getErrorMessage(error, copy.value.saveDraftError)
-    }
-  }, AUTOSAVE_DELAY)
-}
-
 const validateStep = (stepId) => {
   const nextErrors = { ...errors.value }
   let isValid = true
@@ -1353,12 +1452,18 @@ const validateStep = (stepId) => {
     if (!profileEmail.value.trim()) {
       nextErrors.email = copy.value.emailRequired
       isValid = false
+    } else if (profile.value.resume_data.additional_emails.some((item) => !toText(item).trim())) {
+      nextErrors.email = copy.value.requiredFields
+      isValid = false
     } else {
       delete nextErrors.email
     }
 
     if (!profile.value.phone.trim()) {
       nextErrors.phone = copy.value.phoneRequired
+      isValid = false
+    } else if (profile.value.resume_data.additional_phones.some((item) => !toText(item).trim())) {
+      nextErrors.phone = copy.value.requiredFields
       isValid = false
     } else {
       delete nextErrors.phone
@@ -1378,16 +1483,75 @@ const validateStep = (stepId) => {
     } else {
       delete nextErrors.gender
     }
+
+    delete nextErrors.cv_language
+
+    if (!resumeData.communication_language) {
+      nextErrors.communication_language = copy.value.communicationLanguageRequired
+      isValid = false
+    } else {
+      delete nextErrors.communication_language
+    }
   }
 
   if (stepId === 2) {
-    const availability = profile.value.availability.trim()
+    clearWorkErrors(nextErrors)
+    delete nextErrors.availability
 
-    if (!isValidAvailability(availability)) {
-      nextErrors.availability = copy.value.availabilityInvalid
+    if (!profile.value.resume_data.no_work_experience) {
+      let firstInvalidWorkIndex = -1
+
+      profile.value.resume_data.work_experiences.forEach((work, index) => {
+        requiredWorkFields.forEach((field) => {
+          if (!isWorkFieldMissing(work, field)) return
+          nextErrors[workErrorKey(index, field)] = copy.value.requiredFields
+          if (firstInvalidWorkIndex === -1) firstInvalidWorkIndex = index
+          isValid = false
+        })
+      })
+
+      if (firstInvalidWorkIndex !== -1) expandedWorkIndex.value = firstInvalidWorkIndex
+    }
+  }
+
+  if (stepId === 3) {
+    clearEducationErrors(nextErrors)
+    let firstInvalidEducationIndex = -1
+
+    profile.value.resume_data.educations.forEach((education, index) => {
+      requiredEducationFields.forEach((field) => {
+        if (!isEducationFieldMissing(education, field)) return
+        nextErrors[educationErrorKey(index, field)] = copy.value.requiredFields
+        if (firstInvalidEducationIndex === -1) firstInvalidEducationIndex = index
+        isValid = false
+      })
+    })
+
+    if (firstInvalidEducationIndex !== -1) expandedEducationIndex.value = firstInvalidEducationIndex
+  }
+
+  if (stepId === 4) {
+    const resumeData = profile.value.resume_data
+
+    if (!resumeData.citizenship.trim()) {
+      nextErrors.citizenship = copy.value.citizenshipRequired
       isValid = false
     } else {
-      delete nextErrors.availability
+      delete nextErrors.citizenship
+    }
+
+    if (!resumeData.no_driving_license && !resumeData.driving_licenses.length) {
+      nextErrors.driving_license = copy.value.drivingLicenseRequired
+      isValid = false
+    } else {
+      delete nextErrors.driving_license
+    }
+
+    if (!profile.value.languages.length) {
+      nextErrors.languages = copy.value.languagesRequired
+      isValid = false
+    } else {
+      delete nextErrors.languages
     }
   }
 
@@ -1404,6 +1568,18 @@ const validateBeforeFinalSave = () => {
 
   if (!validateStep(2)) {
     step.value = 2
+    status.value = copy.value.requiredFields
+    return false
+  }
+
+  if (!validateStep(3)) {
+    step.value = 3
+    status.value = copy.value.requiredFields
+    return false
+  }
+
+  if (!validateStep(4)) {
+    step.value = 4
     status.value = copy.value.requiredFields
     return false
   }
@@ -1451,10 +1627,29 @@ const addLanguage = () => {
     name: newLanguage.value,
     level: newLanguageLevel.value,
   })
+  clearError('languages')
 }
 
 const removeLanguage = (index) => {
   profile.value.languages.splice(index, 1)
+  clearError('languages')
+}
+
+const toggleLicense = (license) => {
+  const licenses = profile.value.resume_data.driving_licenses
+  const index = licenses.indexOf(license)
+  if (index === -1) {
+    licenses.push(license)
+    profile.value.resume_data.no_driving_license = false
+  } else {
+    licenses.splice(index, 1)
+  }
+  clearError('driving_license')
+}
+
+const toggleNoDrivingLicense = () => {
+  if (profile.value.resume_data.no_driving_license) profile.value.resume_data.driving_licenses = []
+  clearError('driving_license')
 }
 
 const addLicense = () => {
@@ -1507,7 +1702,6 @@ const onAvatarChange = async (event) => {
     profile.value.avatar_url = avatarDataUrl
 
     clearError('avatar')
-    scheduleAutosave()
   } catch (error) {
     setError('avatar', getErrorMessage(error, copy.value.saveDraftError))
   }
@@ -1532,7 +1726,6 @@ const onResumeChange = (event) => {
   resumeFile.value = file
   profile.value.resume_name = file.name
   clearError('resume')
-  scheduleAutosave()
 }
 
 const saveCurrentStep = async () => {
@@ -1541,14 +1734,8 @@ const saveCurrentStep = async () => {
     return false
   }
 
-  try {
-    saveGuestDraft()
-    savedSnapshot.value = snapshotProfile()
-    return true
-  } catch (error) {
-    status.value = getErrorMessage(error, copy.value.saveDraftError)
-    return false
-  }
+  status.value = ''
+  return true
 }
 
 const goToStep = async (targetStep) => {
@@ -1563,24 +1750,39 @@ const goToStep = async (targetStep) => {
   if (saved) step.value = targetStep
 }
 
+defineExpose({ goToStep })
+
 const goNext = async () => {
   const saved = await saveCurrentStep()
-  if (saved && step.value < steps.value.length) {
-    step.value += 1
+  if (!saved || step.value >= steps.value.length) return
+
+  if (step.value === 4) {
+    if (!isAuthenticated.value) {
+      status.value = copy.value.guestMode
+      return
+    }
+
+    const persisted = await saveProfile({ silent: false, force: true })
+    if (!persisted) return
   }
+
+  step.value += 1
 }
 
 const goPrev = () => {
   if (step.value > 1) step.value -= 1
 }
 
+const exitBuilder = () => emit('close')
+
+const openProfile = async () => {
+  emit('close')
+  await router.push('/profile')
+}
+
 const handleFinalSave = async () => {
   if (!validateBeforeFinalSave()) return
-  const saved = await saveProfile({ silent: false, force: true })
-  if (saved && isAuthenticated.value) {
-    window.localStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-    window.sessionStorage.removeItem(GUEST_RESUME_DRAFT_KEY)
-  }
+  await saveProfile({ silent: false, force: true })
 }
 
 const getPrintableStyles = () => `
@@ -1607,7 +1809,7 @@ const getPrintableStyles = () => `
     display: block !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    font-family: Inter, Arial, sans-serif !important;
+    font-family: var(--cv-font-family) !important;
   }
 
   .cv-document {
@@ -1634,7 +1836,7 @@ const getPrintableStyles = () => `
     display: flex !important;
     flex-direction: column !important;
     gap: 0 !important;
-    font-family: Inter, Arial, sans-serif !important;
+    font-family: var(--cv-font-family) !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -1658,7 +1860,7 @@ const getPrintableStyles = () => `
   }
 
   .cv-header {
-    min-height: 12mm !important;
+    min-height: 15mm !important;
     padding-bottom: 5mm !important;
     border-bottom: 0.35mm solid var(--cv-line) !important;
   }
@@ -1673,12 +1875,14 @@ const getPrintableStyles = () => `
     color: var(--cv-ink) !important;
   }
 
-  .cv-brand__logo,
-  .cv-brand__logo svg {
+  .cv-header .cv-brand__logo,
+  .cv-header .cv-brand__logo svg {
     width: 34mm !important;
     max-width: 34mm !important;
-    height: auto !important;
+    height: 9mm !important;
     max-height: 9mm !important;
+    object-fit: contain !important;
+    object-position: left center !important;
     display: block !important;
     flex: 0 0 auto !important;
   }
@@ -1700,6 +1904,31 @@ const getPrintableStyles = () => `
     gap: 2.5mm !important;
     color: var(--cv-green) !important;
     flex: 0 0 auto !important;
+  }
+
+  .cv-verified > i {
+    font-size: 15pt !important;
+  }
+
+  .cv-verified > span {
+    display: grid !important;
+    gap: 0.8mm !important;
+    text-align: right !important;
+  }
+
+  .cv-verified strong {
+    color: var(--cv-ink) !important;
+    font-size: 8.2pt !important;
+    line-height: 1 !important;
+  }
+
+  .cv-verified small {
+    color: var(--cv-green-dark) !important;
+    font-size: 6.3pt !important;
+    line-height: 1 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
   }
 
   .cv-top {
@@ -2077,15 +2306,87 @@ const buildPrintableDocument = () => {
   }
 }
 
+const openPdfPreview = async () => {
+  if (isGeneratingPdf.value || !cvDocumentRef.value) return
+
+  const pdfWindow = window.open('', '_blank')
+  if (!pdfWindow) {
+    status.value = copy.value.pdfPopupBlocked
+    return
+  }
+
+  pdfWindow.document.title = copy.value.pdfPreviewTitle
+  pdfWindow.document.body.style.cssText = 'margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6f4;font-family:Arial,sans-serif;color:#17211c;'
+  const loadingMessage = pdfWindow.document.createElement('strong')
+  loadingMessage.textContent = copy.value.pdfGenerating
+  pdfWindow.document.body.appendChild(loadingMessage)
+  isGeneratingPdf.value = true
+  status.value = ''
+
+  const renderHost = document.createElement('div')
+  renderHost.style.cssText = 'position:fixed;left:-10000px;top:0;width:49.625rem;background:#fff;pointer-events:none;'
+  const printableClone = cvDocumentRef.value.cloneNode(true)
+  printableClone.classList.add('cv-document--pdf')
+  printableClone.style.transform = 'none'
+  printableClone.style.margin = '0'
+  renderHost.appendChild(printableClone)
+  document.body.appendChild(renderHost)
+
+  try {
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+
+    await waitForImages(printableClone)
+    await document.fonts?.ready
+
+    const canvas = await html2canvas(printableClone, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: 1280,
+    })
+    const imageData = canvas.toDataURL('image/jpeg', 0.96)
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
+    const pageWidth = 210
+    const pageHeight = 297
+    const imageHeight = (canvas.height * pageWidth) / canvas.width
+    const canFitSinglePage = imageHeight <= pageHeight * 1.2
+
+    if (canFitSinglePage) {
+      const fittedWidth = pageWidth * Math.min(1, pageHeight / imageHeight)
+      const fittedHeight = imageHeight * (fittedWidth / pageWidth)
+      const offsetX = (pageWidth - fittedWidth) / 2
+      const offsetY = (pageHeight - fittedHeight) / 2
+      pdf.addImage(imageData, 'JPEG', offsetX, offsetY, fittedWidth, fittedHeight, undefined, 'FAST')
+    } else {
+      const pageCount = Math.ceil(imageHeight / pageHeight)
+      for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+        if (pageIndex > 0) pdf.addPage('a4', 'portrait')
+        pdf.addImage(imageData, 'JPEG', 0, -(pageIndex * pageHeight), pageWidth, imageHeight, undefined, 'FAST')
+      }
+    }
+
+    const pdfUrl = URL.createObjectURL(pdf.output('blob'))
+    pdfWindow.location.replace(pdfUrl)
+    window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60 * 1000)
+  } catch (error) {
+    pdfWindow.close()
+    status.value = getErrorMessage(error, copy.value.pdfPrepareError)
+  } finally {
+    renderHost.remove()
+    isGeneratingPdf.value = false
+  }
+}
+
 const printCv = async () => {
   if (!validateBeforeFinalSave()) return
 
-  try {
-    saveGuestDraft()
-    savedSnapshot.value = snapshotProfile()
-  } catch (error) {
-    status.value = getErrorMessage(error, copy.value.saveDraftError)
-    return
+  if (isAuthenticated.value) {
+    const saved = await saveProfile({ silent: true, force: false })
+    if (!saved) return
   }
 
   await nextTick()
@@ -2126,116 +2427,87 @@ const printCv = async () => {
   window.setTimeout(cleanup, 8000)
 }
 
-watch(
-  profile,
-  () => {
-    scheduleAutosave()
-  },
-  { deep: true },
-)
+watch(step, (value) => {
+  emit('step-change', value)
+}, { immediate: true })
 
-watch([avatarFile, resumeFile], () => {
-  scheduleAutosave()
+onMounted(() => {
+  previousBodyOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  loadInitialData()
 })
 
-onMounted(loadInitialData)
-
 onBeforeUnmount(() => {
+  document.body.style.overflow = previousBodyOverflow
   removePrintFrame()
-  clearAutosaveTimer()
   revokeAvatarPreview()
 })
 </script>
 
 <template>
-  <AppLayout>
-    <main class="page">
-      <section class="hero no-print">
-        <div class="hero-copy">
-          <span class="builder-kicker"><i class="fas fa-wand-magic-sparkles"></i>{{ copy.builderKicker }}</span>
-          <div class="title-row">
-            <h1>{{ copy.pageTitle }}</h1>
-            <span class="hero-progress">{{ stepProgress }}%</span>
-          </div>
-
-          <p>{{ copy.pageDescription }}</p>
-        </div>
-
-        <div class="steps">
-          <button
-            v-for="item in steps"
-            :key="item.id"
-            type="button"
-            class="step"
-            :class="{ 'step--active': step === item.id, 'step--done': step > item.id }"
-            :disabled="isSaving && item.id > step"
-            @click="goToStep(item.id)"
-          >
-            <span class="step-index">{{ item.id }}</span>
-            <span class="step-copy">
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.subtitle }}</small>
-            </span>
-          </button>
-        </div>
-      </section>
-
-      <section class="builder">
-        <div class="main-card">
-          <div class="card-head no-print">
-            <span class="card-head__icon"><i class="fas" :class="currentStepIcon"></i></span>
-            <div class="card-head__copy">
-              <span class="card-head__step">{{ copy.stepLabel }} {{ step }} / {{ steps.length }}</span>
-              <h2>{{ currentStepHeading }}</h2>
-              <p v-if="currentStepDescription">{{ currentStepDescription }}</p>
-              <p v-if="statusMessage" class="hint"><i class="fas fa-cloud-arrow-up"></i>{{ statusMessage }}</p>
-            </div>
-          </div>
+  <Teleport to="body">
+    <div class="cv-builder-overlay">
+      <div class="main-card" role="dialog" aria-modal="true" :aria-label="copy.pageTitle">
+        <div class="main-card__scroll">
 
           <template v-if="step === 1">
             <div class="form-stack">
               <section class="form-panel">
                 <div class="form-panel__head">
                   <span><i class="fas fa-address-card"></i></span>
-                  <div><h3>{{ copy.identitySection }}</h3><p>{{ copy.identitySectionHint }}</p></div>
+                  <div><h3>{{ copy.identitySection }}</h3></div>
                 </div>
 
-                <div class="form-grid">
+                <div class="form-grid form-grid--fixed-two form-grid--personal form-grid--identity">
+                  <div class="avatar-upload">
+                    <div class="avatar-upload__preview">
+                      <img v-if="avatarPreview" :src="avatarPreview" :alt="copy.avatar" />
+                      <span v-else><i class="fas fa-user"></i></span>
+                    </div>
+                    <div class="avatar-upload__copy">
+                      <span class="field-label">{{ copy.avatar }}</span>
+                      <small>{{ copy.avatarUploadHint }}</small>
+                    </div>
+                    <button type="button" class="avatar-upload__button" @click="openAvatarPicker">
+                      <i class="fas fa-camera"></i>
+                      {{ avatarPreview ? copy.changeAvatar : copy.uploadAvatar }}
+                    </button>
+                    <input ref="avatarInputRef" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onAvatarChange" />
+                  </div>
+
                   <label>
-                    <span class="field-label">{{ copy.firstName }} <b>*</b></span>
+                    <span class="field-label" :class="{ 'field-label--error': errors.first_name }">{{ copy.firstName }} <b>*</b></span>
                     <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" @input="clearError('first_name')" />
-                    <span v-if="errors.first_name" class="field-error">{{ errors.first_name }}</span>
                   </label>
 
                   <label>
-                    <span class="field-label">{{ copy.lastName }} <b>*</b></span>
+                    <span class="field-label" :class="{ 'field-label--error': errors.last_name }">{{ copy.lastName }} <b>*</b></span>
                     <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
-                    <span v-if="errors.last_name" class="field-error">{{ errors.last_name }}</span>
                   </label>
 
                   <div class="contact-group">
-                    <span class="field-label">Email <b>*</b></span>
-                    <label class="contact-row">
+                    <span class="field-label" :class="{ 'field-label--error': errors.email }">Email <b>*</b></span>
+                    <label class="contact-row contact-row--addable">
                       <input v-if="!isAuthenticated" v-model="profile.email" type="email" placeholder="email@example.com" />
                       <input v-else :value="profileEmail" disabled />
+                      <button type="button" class="contact-add" :disabled="!canAddEmail" :aria-label="copy.addEmail" @click="addEmail"><i class="fas fa-plus"></i></button>
                     </label>
-                    <label v-for="(_, index) in profile.resume_data.additional_emails" :key="`email-${index}`" class="contact-row">
+                    <label v-for="(_, index) in profile.resume_data.additional_emails" :key="`email-${index}`" class="contact-row contact-row--removable">
                       <input v-model="profile.resume_data.additional_emails[index]" type="email" :placeholder="`email${index + 2}@example.com`" />
                       <button type="button" class="contact-remove" :aria-label="copy.removeEntry" @click="removeEmail(index)"><i class="far fa-trash-can"></i></button>
                     </label>
-                    <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
-                    <button type="button" class="contact-add" @click="addEmail"><i class="fas fa-plus"></i>{{ copy.addEmail }}</button>
                   </div>
 
                   <div class="contact-group">
-                    <span class="field-label">{{ copy.phone }} <b>*</b></span>
-                    <label class="contact-row"><PhoneInput v-model="profile.phone" placeholder="2X XXX XXX" :aria-label="copy.phone" /></label>
-                    <label v-for="(_, index) in profile.resume_data.additional_phones" :key="`phone-${index}`" class="contact-row">
+                    <span class="field-label" :class="{ 'field-label--error': errors.phone }">{{ copy.phone }} <b>*</b></span>
+                    <label class="contact-row contact-row--addable">
+                      <PhoneInput v-model="profile.phone" placeholder="2X XXX XXX" :aria-label="copy.phone" />
+                      <button type="button" class="contact-add" :disabled="!canAddPhone" :aria-label="copy.addPhone" @click="addPhone"><i class="fas fa-plus"></i></button>
+                    </label>
+                    <label v-for="(_, index) in profile.resume_data.additional_phones" :key="`phone-${index}`" class="contact-row contact-row--removable">
                       <PhoneInput v-model="profile.resume_data.additional_phones[index]" placeholder="2X XXX XXX" :aria-label="`${copy.phone} ${index + 2}`" />
                       <button type="button" class="contact-remove" :aria-label="copy.removeEntry" @click="removePhone(index)"><i class="far fa-trash-can"></i></button>
                     </label>
-                    <span v-if="errors.phone" class="field-error">{{ errors.phone }}</span>
-                    <button type="button" class="contact-add" @click="addPhone"><i class="fas fa-plus"></i>{{ copy.addPhone }}</button>
                   </div>
                 </div>
               </section>
@@ -2243,24 +2515,29 @@ onBeforeUnmount(() => {
               <section class="form-panel">
                 <div class="form-panel__head">
                   <span><i class="fas fa-user-shield"></i></span>
-                  <div><h3>{{ copy.personalSection }}</h3><p>{{ copy.personalSectionHint }}</p></div>
+                  <div><h3>{{ copy.personalSection }}</h3></div>
                 </div>
 
-                <div class="form-grid">
+                <div class="form-grid form-grid--fixed-two">
                   <div class="field-cluster">
                     <label>
-                      <span class="field-label">{{ copy.birthDate }} <b>*</b></span>
-                      <input v-model="profile.resume_data.birth_date" type="date" @input="clearError('birth_date')" />
-                      <span v-if="errors.birth_date" class="field-error">{{ errors.birth_date }}</span>
+                      <span class="field-label" :class="{ 'field-label--error': errors.birth_date }">{{ copy.birthDate }} <b>*</b></span>
+                      <input
+                        v-model="birthDateInput"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="10"
+                        placeholder="DD.MM.YYYY"
+                        @input="clearError('birth_date')"
+                      />
                     </label>
                     <label class="checkbox-field"><input v-model="profile.resume_data.hide_birth_date" type="checkbox" /><span>{{ copy.hideInCv }}</span></label>
                   </div>
 
                   <div class="field-cluster">
                     <label>
-                      <span class="field-label">{{ copy.gender }} <b>*</b></span>
+                      <span class="field-label" :class="{ 'field-label--error': errors.gender }">{{ copy.gender }} <b>*</b></span>
                       <BaseDropdown v-model="profile.resume_data.gender" full-width overlay :options="genderOptions" @change="clearError('gender')" />
-                      <span v-if="errors.gender" class="field-error">{{ errors.gender }}</span>
                     </label>
                     <label class="checkbox-field"><input v-model="profile.resume_data.hide_gender" type="checkbox" /><span>{{ copy.hideInCv }}</span></label>
                   </div>
@@ -2270,11 +2547,13 @@ onBeforeUnmount(() => {
               <section class="form-panel">
                 <div class="form-panel__head">
                   <span><i class="fas fa-language"></i></span>
-                  <div><h3>{{ copy.languageSection }}</h3><p>{{ copy.languageSectionHint }}</p></div>
+                  <div><h3>{{ copy.languageSection }}</h3></div>
                 </div>
-                <div class="form-grid">
-                  <label><span class="field-label">{{ copy.cvLanguage }} <b>*</b></span><BaseDropdown v-model="profile.resume_data.cv_language" full-width overlay :options="cvLanguageOptions" /></label>
-                  <label><span class="field-label">{{ copy.communicationLanguage }} <b>*</b></span><BaseDropdown v-model="profile.resume_data.communication_language" full-width overlay :options="cvLanguageOptions" /></label>
+                <div class="form-grid form-grid--fixed-two">
+                  <label class="entry-wide">
+                    <span class="field-label" :class="{ 'field-label--error': errors.communication_language }">{{ copy.communicationLanguage }} <b>*</b></span>
+                    <BaseDropdown v-model="profile.resume_data.communication_language" full-width overlay :options="cvLanguageOptions" @change="clearError('communication_language')" />
+                  </label>
                 </div>
               </section>
             </div>
@@ -2282,17 +2561,14 @@ onBeforeUnmount(() => {
 
           <template v-else-if="step === 2">
             <div class="form-stack">
-              <label class="checkbox-field choice-card">
-                <input v-model="profile.resume_data.no_work_experience" type="checkbox" />
-                <span><strong>{{ copy.noWorkExperience }}</strong><small>{{ copy.noWorkExperienceHint }}</small></span>
-              </label>
-
-              <template v-if="!profile.resume_data.no_work_experience">
-                <section
+              <section
                   v-for="(work, index) in profile.resume_data.work_experiences"
                   :key="`work-${index}`"
                   class="entry-card"
-                  :class="{ 'entry-card--collapsed': expandedWorkIndex !== index }"
+                  :class="{
+                    'entry-card--collapsed': expandedWorkIndex !== index,
+                    'entry-card--disabled': profile.resume_data.no_work_experience,
+                  }"
                 >
                   <div class="entry-card__head">
                     <button
@@ -2309,28 +2585,55 @@ onBeforeUnmount(() => {
                       </span>
                       <i class="fas fa-chevron-down"></i>
                     </button>
-                    <button type="button" class="entry-remove" @click="removeWorkExperience(index)"><i class="far fa-trash-can"></i>{{ copy.removeEntry }}</button>
+                    <div class="entry-card__actions">
+                      <button
+                        type="button"
+                        class="entry-add entry-add--inline"
+                        :aria-label="copy.addWorkExperience"
+                        :title="copy.addWorkExperience"
+                        @click.stop="addWorkExperience"
+                      >
+                        <i class="fas fa-plus"></i>
+                      </button>
+                      <button
+                        type="button"
+                        class="entry-remove"
+                        :aria-label="copy.removeEntry"
+                        :title="copy.removeEntry"
+                        @click.stop="removeWorkExperience(index)"
+                      >
+                        <i class="far fa-trash-can"></i>
+                      </button>
+                    </div>
                   </div>
 
-                  <div v-show="expandedWorkIndex === index" class="entry-card__body">
-                    <label>{{ copy.position }}<input v-model="work.position" /></label>
-                    <label>{{ copy.jobCategory }}<BaseDropdown v-model="work.job_category" full-width overlay :options="sectorDropdownOptions" /></label>
-                    <label>{{ copy.companyName }}<input v-model="work.company_name" /></label>
-                    <label>{{ copy.country }}<BaseDropdown v-model="work.country" full-width overlay :options="countryOptions" /></label>
-                    <label>{{ copy.totalExperience }}<input v-model="work.experience_years" type="number" min="0" :placeholder="copy.yearsPlaceholder" /></label>
+                  <div v-show="expandedWorkIndex === index" class="entry-card__body entry-card__body--work">
+                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'position') }">{{ copy.position }} <b>*</b></span><input v-model="work.position" :disabled="profile.resume_data.no_work_experience" /></label>
+                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'job_category') }">{{ copy.jobCategory }} <b>*</b></span><BaseDropdown v-model="work.job_category" full-width overlay :options="sectorDropdownOptions" :show-selected-hint="false" :disabled="profile.resume_data.no_work_experience" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'company_name') }">{{ copy.companyName }} <b>*</b></span><input v-model="work.company_name" :disabled="profile.resume_data.no_work_experience" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="work.country" full-width overlay :options="countryOptions" :disabled="profile.resume_data.no_work_experience" /></label>
 
-                    <div class="grid-two entry-wide">
-                      <label>{{ copy.start }}<input v-model="work.start_date" type="date" /></label>
-                      <label>{{ copy.end }}<input v-model="work.end_date" type="date" :disabled="work.current" /></label>
+                    <div class="work-period entry-wide">
+                      <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'experience_years') }">{{ copy.totalExperience }} <b>*</b></span><BaseDropdown v-model="work.experience_years" full-width overlay :options="sectorExperienceOptions" :disabled="profile.resume_data.no_work_experience" /></label>
+                      <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'start_date') }">{{ copy.start }} <b>*</b></span><input :value="formatDateInput(work.start_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="profile.resume_data.no_work_experience" @input="work.start_date = normalizeDateInput($event.target.value)" /></label>
+                      <label><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'end_date') }">{{ copy.end }} <b v-if="!work.current">*</b></span><input :value="formatDateInput(work.end_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="profile.resume_data.no_work_experience || work.current" @input="work.end_date = normalizeDateInput($event.target.value)" /></label>
                     </div>
 
-                    <label class="checkbox-field current-field entry-wide"><input v-model="work.current" type="checkbox" @change="toggleCurrentWork(work)" /><span>{{ copy.currentlyWorking }}</span></label>
-                    <label class="entry-wide">{{ copy.workDescription }}<textarea v-model="work.description" rows="5" :placeholder="copy.workDescriptionPlaceholder"></textarea></label>
-                  </div>
-                </section>
+                    <div class="work-checkboxes entry-wide">
+                      <label class="checkbox-field current-field"><input v-model="work.current" type="checkbox" :disabled="profile.resume_data.no_work_experience" @change="toggleCurrentWork(work)" /><span>{{ copy.currentlyWorking }}</span></label>
+                      <label
+                        v-if="index === 0"
+                        class="checkbox-field no-work-toggle"
+                        :class="{ 'no-work-toggle--active': profile.resume_data.no_work_experience }"
+                      >
+                        <input v-model="profile.resume_data.no_work_experience" type="checkbox" @change="toggleNoWorkExperience" />
+                        <span>{{ copy.noWorkExperience }}</span>
+                      </label>
+                    </div>
 
-                <button type="button" class="btn-light entry-add" @click="addWorkExperience"><i class="fas fa-plus"></i>{{ copy.addWorkExperience }}</button>
-              </template>
+                    <label class="entry-wide"><span class="field-label" :class="{ 'field-label--error': isWorkFieldInvalid(index, 'description') }">{{ copy.workDescription }} <b>*</b></span><textarea v-model="work.description" rows="5" :placeholder="copy.workDescriptionPlaceholder" :disabled="profile.resume_data.no_work_experience"></textarea></label>
+                  </div>
+              </section>
             </div>
           </template>
 
@@ -2357,58 +2660,158 @@ onBeforeUnmount(() => {
                     </span>
                     <i class="fas fa-chevron-down"></i>
                   </button>
-                  <button type="button" class="entry-remove" @click="removeEducation(index)"><i class="far fa-trash-can"></i>{{ copy.removeEntry }}</button>
+                  <div class="entry-card__actions">
+                    <button
+                      type="button"
+                      class="entry-add entry-add--inline"
+                      :aria-label="copy.addEducation"
+                      :title="copy.addEducation"
+                      @click.stop="addEducation"
+                    >
+                      <i class="fas fa-plus"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="entry-remove"
+                      :aria-label="copy.removeEntry"
+                      :title="copy.removeEntry"
+                      @click.stop="removeEducation(index)"
+                    >
+                      <i class="far fa-trash-can"></i>
+                    </button>
+                  </div>
                 </div>
 
-                <div v-show="expandedEducationIndex === index" class="entry-card__body">
-                  <label>{{ copy.educationLevel }}<BaseDropdown v-model="education.level" full-width overlay :options="educationOptions" /></label>
-                  <label>{{ copy.institution }}<input v-model="education.institution" /></label>
-                  <label>{{ copy.speciality }}<input v-model="education.speciality" /></label>
-                  <label>{{ copy.secondSpeciality }}<input v-model="education.second_speciality" /></label>
-                  <label>{{ copy.country }}<BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" /></label>
-
-                  <div class="grid-two entry-wide">
-                    <label>{{ copy.start }}<input v-model="education.start_date" type="date" /></label>
-                    <label>{{ copy.end }}<input v-model="education.end_date" type="date" :disabled="education.current" /></label>
+                <div v-show="expandedEducationIndex === index" class="entry-card__body entry-card__body--education">
+                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'level') }">{{ copy.educationLevel }} <b>*</b></span><BaseDropdown v-model="education.level" full-width overlay :options="educationOptions" /></label>
+                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'institution') }">{{ copy.institution }} <b>*</b></span><input v-model="education.institution" /></label>
+                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'speciality') }">{{ copy.speciality }} <b>*</b></span><input v-model="education.speciality" /></label>
+                  <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'second_speciality') }">{{ copy.secondSpeciality }} <b>*</b></span><input v-model="education.second_speciality" /></label>
+                  <div class="education-period entry-wide">
+                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'start_date') }">{{ copy.start }} <b>*</b></span><input :value="formatDateInput(education.start_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" @input="education.start_date = normalizeDateInput($event.target.value)" /></label>
+                    <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'end_date') }">{{ copy.end }} <b v-if="!education.current">*</b></span><input :value="formatDateInput(education.end_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="education.current" @input="education.end_date = normalizeDateInput($event.target.value)" /></label>
                   </div>
 
-                  <div class="grid-two entry-wide option-row">
+                  <label class="entry-wide"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'additional_information') }">{{ copy.additionalInformation }} <b>*</b></span><textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
+
+                  <div class="entry-wide work-checkboxes">
                     <label class="checkbox-field current-field"><input v-model="education.current" type="checkbox" @change="toggleCurrentEducation(education)" /><span>{{ copy.currentlyStudying }}</span></label>
                     <label class="checkbox-field"><input v-model="education.unfinished" type="checkbox" /><span>{{ copy.unfinished }}</span></label>
                   </div>
-
-                  <label class="entry-wide">{{ copy.additionalInformation }}<textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
                 </div>
               </section>
+            </div>
+          </template>
 
-              <button type="button" class="btn-light entry-add" @click="addEducation"><i class="fas fa-plus"></i>{{ copy.addEducation }}</button>
+          <template v-else-if="step === 4">
+            <div class="form-stack additional-step">
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-passport"></i></span>
+                  <div><h3>{{ copy.citizenshipSection }}</h3><p>{{ copy.citizenshipHint }}</p></div>
+                </div>
+                <label>
+                  <span class="field-label" :class="{ 'field-label--error': errors.citizenship }">{{ copy.citizenship }} <b>*</b></span>
+                  <input v-model="profile.resume_data.citizenship" :placeholder="copy.citizenshipPlaceholder" @input="clearError('citizenship')" />
+                </label>
+              </section>
+
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-car-side"></i></span>
+                  <div>
+                    <h3 :class="{ 'field-label--error': errors.driving_license }">{{ copy.drivingLicenses }}</h3>
+                    <p>{{ copy.drivingLicensesHint }}</p>
+                  </div>
+                </div>
+
+                <div class="license-grid" :class="{ 'license-grid--disabled': profile.resume_data.no_driving_license }">
+                  <button
+                    v-for="license in drivingLicenseValues"
+                    :key="license"
+                    type="button"
+                    class="license-chip"
+                    :class="{ 'license-chip--selected': profile.resume_data.driving_licenses.includes(license) }"
+                    :disabled="profile.resume_data.no_driving_license"
+                    @click="toggleLicense(license)"
+                  >
+                    <i :class="profile.resume_data.driving_licenses.includes(license) ? 'fas fa-check' : 'fas fa-plus'"></i>{{ license }}
+                  </button>
+                </div>
+
+                <label class="checkbox-field no-license-toggle" :class="{ 'no-license-toggle--active': profile.resume_data.no_driving_license }">
+                  <input v-model="profile.resume_data.no_driving_license" type="checkbox" @change="toggleNoDrivingLicense" />
+                  <span>{{ copy.noDrivingLicense }}</span>
+                </label>
+              </section>
+
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-language"></i></span>
+                  <div>
+                    <h3 :class="{ 'field-label--error': errors.languages }">{{ copy.languageSkills }}</h3>
+                    <p>{{ copy.languageSkillsHint }}</p>
+                  </div>
+                </div>
+
+                <div class="language-add-row">
+                  <label>
+                    <span class="field-label">{{ copy.languageAria }}</span>
+                    <BaseDropdown v-model="newLanguage" full-width overlay :options="languageOptions" />
+                  </label>
+                  <label>
+                    <span class="field-label">{{ copy.languageLevel }}</span>
+                    <BaseDropdown v-model="newLanguageLevel" full-width overlay :options="languageLevelOptions" />
+                  </label>
+                  <button type="button" class="language-add-button" :disabled="!canAddLanguage" :aria-label="copy.addLanguage" @click="addLanguage">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+
+                <div v-if="profile.languages.length" class="language-list">
+                  <div v-for="(item, index) in profile.languages" :key="`${item.name}-${index}`" class="language-row">
+                    <strong>{{ displayLanguageName(item.name) }}</strong>
+                    <BaseDropdown v-model="item.level" full-width overlay :options="languageLevelOptions" />
+                    <button type="button" class="entry-remove" :aria-label="copy.removeLanguage" @click="removeLanguage(index)"><i class="far fa-trash-can"></i></button>
+                  </div>
+                </div>
+                <p v-else class="additional-empty">{{ copy.noLanguages }}</p>
+              </section>
             </div>
           </template>
 
           <template v-else>
             <div class="final-tools no-print">
-              <div class="review-card">
-                <div>
-                  <h3>{{ copy.readyCv }}</h3>
-                  <p>{{ copy.readyCvDescription }}</p>
-                </div>
-
-                <div class="review-actions">
-                  <button v-if="isAuthenticated" type="button" class="btn-light" :disabled="isSaving" @click="handleFinalSave">
-                    <i class="far fa-floppy-disk"></i>{{ isSaving ? copy.saving : copy.save }}
-                  </button>
-                  <button type="button" class="btn-primary" :disabled="isSaving" @click="printCv">
-                    <i class="fas fa-file-arrow-down"></i>{{ copy.downloadPdf }}
-                  </button>
-                </div>
+              <div class="pdf-preview-heading">
+                <span><i class="fas fa-file-pdf"></i></span>
+                <div><h2>{{ copy.pdfPreviewTitle }}</h2><p>{{ copy.pdfPreviewHint }}</p></div>
               </div>
-            </div>
 
-            <section class="cv-preview-shell">
-              <article ref="cvDocumentRef" class="cv-document">
+              <div
+                class="pdf-preview-trigger"
+                role="button"
+                tabindex="0"
+                :aria-label="copy.openPdf"
+                :class="{ 'pdf-preview-trigger--loading': isGeneratingPdf }"
+                @click="openPdfPreview"
+                @keydown.enter.prevent="openPdfPreview"
+                @keydown.space.prevent="openPdfPreview"
+              >
+                <div class="pdf-preview-overlay">
+                  <i :class="isGeneratingPdf ? 'fas fa-spinner fa-spin' : 'fas fa-up-right-from-square'"></i>
+                  <strong>{{ isGeneratingPdf ? copy.pdfGenerating : copy.openPdf }}</strong>
+                </div>
+                <section class="cv-preview-shell">
+                  <div class="cv-preview-scale">
+                    <article ref="cvDocumentRef" class="cv-document">
                 <header class="cv-header">
                   <div class="cv-brand" aria-label="CVHOLD">
-                    <Logo class="cv-brand__logo" aria-hidden="true" />
+                    <img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" />
+                  </div>
+                  <div class="cv-verified">
+                    <i class="fas fa-circle-check" aria-hidden="true"></i>
+                    <span><strong>{{ copy.cvDocument }}</strong><small>{{ copy.verifiedCv }}</small></span>
                   </div>
                 </header>
 
@@ -2461,7 +2864,7 @@ onBeforeUnmount(() => {
                       </p>
                     </section>
 
-                    <section v-if="!profile.resume_data.no_work_experience && cvWorkExperiences.length" class="cv-section">
+                    <section v-if="cvWorkExperiences.length" class="cv-section">
                       <h2>{{ copy.workExperience }}</h2>
                       <div v-for="(work, index) in cvWorkExperiences" :key="`cv-work-${index}`" class="cv-entry">
                         <p class="cv-summary-text">
@@ -2474,7 +2877,7 @@ onBeforeUnmount(() => {
                           {{ work.current ? copy.present : formatDate(work.end_date) }}
                           <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
                           <span v-if="work.country"> · {{ work.country }}</span>
-                          <span v-if="work.experience_years"> · {{ copy.totalExperience }}: {{ work.experience_years }}</span>
+                          <span v-if="work.experience_years"> · {{ copy.totalExperience }}: {{ displaySectorExperience(work.experience_years) }}</span>
                         </p>
                         <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
                       </div>
@@ -2559,251 +2962,124 @@ onBeforeUnmount(() => {
 
                 <footer class="cv-footer">
                   <div class="cv-brand cv-brand--small" aria-label="CVHOLD">
-                    <Logo class="cv-brand__logo" aria-hidden="true" />
+                    <img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" />
                   </div>
 
                   <span>{{ copy.cvFooterTagline }}</span>
                   <span>www.cvhold.com</span>
                 </footer>
-              </article>
-            </section>
+                    </article>
+                  </div>
+                </section>
+              </div>
+            </div>
           </template>
 
           <div class="footer-actions no-print">
-            <button type="button" class="btn-light" :disabled="step === 1 || isSaving" @click="goPrev">
+            <button
+              v-if="step === 1"
+              type="button"
+              class="cv-action-button btn-danger"
+              :disabled="isSaving"
+              @click="exitBuilder"
+            >
+              <i class="fas fa-right-from-bracket"></i>{{ copy.exit }}
+            </button>
+
+            <button v-else type="button" class="cv-action-button btn-light" :disabled="isSaving" @click="goPrev">
               <i class="fas fa-arrow-left"></i>{{ copy.back }}
             </button>
 
-            <span class="footer-step">{{ step }} / {{ steps.length }}</span>
-
-            <button v-if="step < 4" type="button" class="btn-primary" :disabled="isSaving" @click="goNext">
-              {{ isSaving ? copy.saving : copy.next }}<i class="fas fa-arrow-right"></i>
+            <button v-if="step < steps.length" type="button" class="cv-action-button btn-primary" :disabled="isSaving" @click="goNext">
+              {{ isSaving ? copy.saving : copy.next }}<i class="fas fa-arrow-right-long"></i>
             </button>
           </div>
         </div>
-
-        <aside class="sidebar no-print">
-          <div class="side-card profile-card">
-            <input
-              ref="avatarInputRef"
-              class="upload-card__input"
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-              @change="onAvatarChange"
-            />
-            <div class="profile-card__top">
-              <button type="button" class="profile-avatar profile-avatar--button" :aria-label="copy.uploadAvatar" @click="openAvatarPicker">
-                <img v-if="avatarPreview" class="profile-avatar__image" :src="avatarPreview" :alt="copy.avatar" />
-                <span v-else>{{ avatarInitials }}</span>
-              </button>
-
-              <div>
-                <strong>{{ fullName || copy.yourName }}</strong>
-                <p>{{ primaryWorkExperience.position || copy.profession }}</p>
-              </div>
-            </div>
-
-            <div class="profile-meta">
-              <span><i class="far fa-envelope"></i>{{ profileEmail || 'email@example.com' }}</span>
-              <span><i class="fas fa-phone"></i>{{ profile.phone || '+000 00 000 000' }}</span>
-              <button type="button" class="text-link-button" @click="openAvatarPicker">
-                {{ avatarPreview ? copy.changeAvatar : copy.uploadAvatar }}
-              </button>
-              <span v-if="errors.avatar" class="field-error">{{ errors.avatar }}</span>
-            </div>
-          </div>
-
-          <div class="side-card">
-            <div class="side-card__head">
-              <strong>{{ copy.profileCompletion }}</strong>
-              <span class="shield">✓</span>
-            </div>
-
-            <div class="progress-value">{{ progress }}%</div>
-
-            <div class="progress-track" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100">
-              <span class="progress-bar" :style="{ width: `${progress}%` }"></span>
-            </div>
-
-            <p>{{ copy.profileCompletionDescription }}</p>
-          </div>
-
-          <div class="side-card side-card--dashed">
-            <h3>{{ copy.strongCvTitle }}</h3>
-
-            <div class="feature">
-              <span class="feature-icon">1</span>
-              <div class="feature-text">
-                <strong>{{ copy.strongCvClearRoleTitle }}</strong>
-                <small>{{ copy.strongCvClearRoleText }}</small>
-              </div>
-            </div>
-
-            <div class="feature">
-              <span class="feature-icon">2</span>
-              <div class="feature-text">
-                <strong>{{ copy.strongCvExperienceTitle }}</strong>
-                <small>{{ copy.strongCvExperienceText }}</small>
-              </div>
-            </div>
-
-            <div class="feature">
-              <span class="feature-icon">3</span>
-              <div class="feature-text">
-                <strong>{{ copy.readyCv }}</strong>
-                <small>{{ copy.strongCvReadyCvText }}</small>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </section>
-    </main>
-  </AppLayout>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
-.page {
-  width: min(100%, var(--shell-max-width));
+.cv-builder-overlay {
+  --cv-font-family: Inter, Arial, sans-serif;
+  --cv-ui-heading-size: 0.95rem;
+  --cv-ui-text-size: 0.86rem;
+  --cv-ui-meta-size: 0.78rem;
+  --cv-ui-small-size: 0.75rem;
+  font-size: var(--cv-ui-text-size);
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
   box-sizing: border-box;
-  margin: 0 auto;
-  padding: 2rem var(--shell-gutter) 4rem;
-  display: grid;
-  gap: 1.25rem;
-}
-
-.hero,
-.main-card,
-.side-card {
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1.25rem;
-  background: var(--surface-primary);
-  box-shadow: var(--shadow-soft);
-}
-
-.hero {
-  padding: 1.6rem;
-  display: grid;
-  gap: 1.3rem;
-}
-
-.hero-copy {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.title-row h1,
-.card-head h2,
-.review-card h3,
-.side-card h3 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.title-row h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.08;
-}
-
-.hero-copy p,
-.hint,
-.profile-meta,
-.side-card p,
-.feature small {
-  color: var(--text-muted);
-  line-height: 1.65;
-}
-
-.steps {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.step {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.85rem;
-  align-items: center;
-  padding: 1rem 1.05rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-secondary);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-}
-
-.step:hover {
-  border-color: color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
-}
-
-.step-copy,
-.main-card,
-.section {
-  display: grid;
-}
-
-.step-copy {
-  gap: 0.15rem;
-}
-
-.step strong,
-.step small {
-  display: block;
-}
-
-.step small {
-  color: var(--text-muted);
-}
-
-.step-index {
-  width: 2.5rem;
-  height: 2.5rem;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: #fff;
-  border: 0.0625rem solid var(--border-subtle);
-  color: var(--text-primary);
-  font-weight: 800;
+  padding: clamp(1rem, 3vw, 2rem);
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(0.18rem);
+  font-family: var(--cv-font-family);
 }
 
-.step--active,
-.step--done {
-  border-color: color-mix(in srgb, var(--brand-base) 26%, var(--border-subtle));
-  background: color-mix(in srgb, var(--brand-soft) 44%, white);
-}
-
-.step--active .step-index,
-.step--done .step-index {
-  background: linear-gradient(180deg, #16b85b 0%, #139e4f 100%);
-  border-color: transparent;
-  color: #fff;
-}
-
-.builder {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 23rem;
-  gap: 1.25rem;
-  align-items: start;
-}
-
-.main-card,
-.side-card {
-  padding: 1.35rem;
+.cv-builder-overlay *,
+.cv-builder-overlay *::before,
+.cv-builder-overlay *::after {
+  font-family: var(--cv-font-family) !important;
 }
 
 .main-card {
+  border: 0.25rem solid color-mix(in srgb, var(--brand-base) 42%, transparent);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--brand-base) 9%, transparent), transparent 24rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-base) 3%, var(--surface-primary)), var(--surface-primary));
+  box-shadow:
+    0 0 0 0.0625rem color-mix(in srgb, var(--brand-base) 18%, transparent),
+    0 1.5rem 4rem rgba(6, 46, 27, 0.24);
+  width: min(100%, 52rem);
+  max-height: calc(100vh - clamp(2rem, 6vw, 4rem));
   min-width: 0;
-  gap: 1.35rem;
-  height: 100%;
+  overflow: hidden;
+  font-size: var(--cv-ui-text-size);
+}
+
+.main-card__scroll {
+  display: grid;
+  gap: 0.9rem;
+  box-sizing: border-box;
+  max-height: inherit;
+  padding: 0.9rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: color-mix(in srgb, var(--brand-base) 56%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.main-card__scroll::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.main-card__scroll::-webkit-scrollbar-thumb {
+  border: 0.125rem solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-base) 58%, transparent);
+  background-clip: padding-box;
+}
+
+.card-head h2,
+.review-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--cv-ui-heading-size);
+  line-height: 1.2;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--cv-ui-text-size);
+  line-height: 1.5;
 }
 
 .card-head {
@@ -2821,9 +3097,11 @@ onBeforeUnmount(() => {
 .entry-card {
   min-width: 0;
   padding: 1.1rem;
-  border: 0.0625rem solid var(--border-subtle);
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
   border-radius: 1rem;
-  background: var(--surface-secondary);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-base) 3.5%, var(--surface-secondary)), var(--surface-secondary));
+  box-shadow: 0 0.45rem 1.2rem color-mix(in srgb, var(--brand-base) 5%, transparent);
 }
 
 .form-panel__head {
@@ -2840,8 +3118,8 @@ onBeforeUnmount(() => {
   flex: 0 0 2.25rem;
   place-items: center;
   border-radius: 50%;
-  background: #fff;
-  border: 0.0625rem solid var(--border-subtle);
+  background: color-mix(in srgb, var(--brand-base) 10%, #fff);
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
   color: var(--brand-strong);
   font-weight: 800;
 }
@@ -2849,6 +3127,16 @@ onBeforeUnmount(() => {
 .form-panel__head h3,
 .form-panel__head p {
   margin: 0;
+}
+
+.form-panel__head h3 {
+  color: color-mix(in srgb, var(--brand-strong) 88%, var(--text-primary));
+  font-size: var(--cv-ui-heading-size);
+  line-height: 1.2;
+}
+
+.form-panel__head p {
+  font-size: var(--cv-ui-text-size);
 }
 
 .form-panel__head p,
@@ -2864,22 +3152,107 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
+.form-grid--fixed-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.avatar-upload {
+  grid-column: 1 / -1;
+  min-height: 4.5rem;
+  padding: 0.65rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
+  border-radius: 0.9rem;
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--brand-base) 5%, var(--surface-secondary));
+}
+
+.avatar-upload__preview {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #19b65d, #11964b);
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.avatar-upload__preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.avatar-upload__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.avatar-upload__copy small {
+  color: var(--text-muted);
+  font-size: var(--cv-ui-small-size);
+}
+
+.avatar-upload__button {
+  min-height: 2.7rem;
+  padding: 0 0.9rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 36%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--brand-base) 10%, #fff);
+  color: var(--brand-strong);
+  font: inherit;
+  font-size: var(--cv-ui-text-size);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.avatar-upload__button:hover {
+  border-color: color-mix(in srgb, var(--brand-base) 62%, transparent);
+  background: color-mix(in srgb, var(--brand-base) 17%, #fff);
+}
+
 .entry-card {
   display: grid;
   gap: 1rem;
+  font-size: var(--cv-ui-text-size);
 }
 
 .entry-card--collapsed {
   gap: 0;
 }
 
+.entry-card--disabled {
+  opacity: 0.68;
+}
+
 .entry-card__head {
+  position: relative;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  pointer-events: auto;
+}
+
+.entry-card__actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: auto;
 }
 
 .entry-card__toggle {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   flex: 1;
   display: grid;
@@ -2893,12 +3266,28 @@ onBeforeUnmount(() => {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  pointer-events: auto;
+}
+
+.entry-card label {
+  font-size: var(--cv-ui-text-size);
+  line-height: 1.15;
 }
 
 .entry-card__title {
   min-width: 0;
   display: grid;
   gap: 0.15rem;
+}
+
+.entry-card__title strong {
+  font-size: var(--cv-ui-heading-size);
+  line-height: 1.2;
+}
+
+.entry-card__title small {
+  font-size: var(--cv-ui-meta-size);
+  line-height: 1.2;
 }
 
 .entry-card__title strong,
@@ -2916,14 +3305,31 @@ onBeforeUnmount(() => {
   transform: rotate(180deg);
 }
 
+.entry-card__toggle--static {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  cursor: default;
+  opacity: 1;
+}
+
 .entry-remove {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
+  width: 2.15rem;
+  height: 2.15rem;
+  display: grid;
+  place-items: center;
+  border: 0.0625rem solid rgba(217, 45, 32, 0.18);
+  border-radius: 0.75rem;
+  background: rgba(217, 45, 32, 0.08);
+  color: #d92d20;
   font: inherit;
-  font-weight: 600;
+  padding: 0;
+}
+
+.entry-remove,
+.entry-add {
+  font: inherit;
+  font-size: var(--cv-ui-text-size);
   cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .entry-wide {
@@ -2932,99 +3338,265 @@ onBeforeUnmount(() => {
 
 .entry-add {
   justify-self: start;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.8rem;
+  padding: 0;
+  border: 0.0625rem solid rgba(20, 184, 87, 0.2);
+  background: rgba(20, 184, 87, 0.1);
+  color: var(--brand-strong);
 }
 
-.checkbox-field,
-.choice-card {
+.entry-add--inline {
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 0.0625rem solid rgba(20, 184, 87, 0.2);
+  background: rgba(20, 184, 87, 0.1);
+  color: var(--brand-strong);
+}
+
+.entry-remove:hover,
+.entry-remove:focus-visible {
+  border-color: rgba(217, 45, 32, 0.35);
+  background: rgba(217, 45, 32, 0.14);
+  box-shadow: 0 0.35rem 0.8rem rgba(217, 45, 32, 0.12);
+  outline: none;
+}
+
+.entry-add:hover,
+.entry-add:focus-visible {
+  border-color: rgba(20, 184, 87, 0.4);
+  background: rgba(20, 184, 87, 0.18);
+  box-shadow: 0 0.35rem 0.8rem rgba(20, 184, 87, 0.14);
+  outline: none;
+}
+
+.entry-remove:active,
+.entry-add:active {
+  transform: translateY(0.0625rem) scale(0.97);
+}
+
+.entry-remove:disabled,
+.entry-add:disabled {
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.checkbox-field {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  padding-top: 0.65rem;
 }
 
-.checkbox-field input[type='checkbox'],
-.choice-card input[type='checkbox'] {
+.checkbox-field span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.checkbox-field input[type='checkbox'] {
   width: 1.15rem;
   min-width: 1.15rem;
   height: 1.15rem;
   min-height: 1.15rem;
   margin: 0;
   flex: 0 0 1.15rem;
+  cursor: pointer;
+  accent-color: var(--brand-base);
 }
 
-.choice-card > span {
+.no-work-toggle {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
+  background: var(--surface-secondary);
+  cursor: pointer;
+}
+
+.work-checkboxes {
   display: grid;
-  gap: 0.15rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
 }
 
-.choice-card small {
-  color: var(--text-muted);
-  font-weight: 400;
+.work-checkboxes .checkbox-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 3.3rem;
+  padding: 0.75rem 0.85rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
+  background: var(--surface-secondary);
+}
+
+.no-work-toggle--active {
+  border-color: color-mix(in srgb, var(--brand-base) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 62%, white);
 }
 
 .contact-group {
   min-width: 0;
+  grid-column: 1 / -1;
   display: grid;
   align-content: start;
   gap: 0.65rem;
 }
 
 .contact-row {
+  position: relative;
   min-width: 0;
+  height: 3.3rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) 3.3rem;
+  align-items: stretch;
+  border: 0;
+  border-radius: 0.95rem;
+  background: var(--surface-secondary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color 0.2s ease;
+}
+
+.contact-row:focus-within {
+  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
+}
+
+.contact-row:focus-within::after {
+  border-color: var(--brand-strong);
 }
 
 .contact-row > :first-child {
   min-width: 0;
+  width: 100%;
+  height: auto;
+  align-self: stretch;
+  min-height: 0;
+  border: 0;
+  border-radius: 0.9rem 0 0 0.9rem;
+  box-shadow: none;
 }
 
 .contact-remove,
 .contact-add {
   border: 0;
   background: transparent;
-  color: var(--brand-strong);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.contact-remove {
-  width: 2.5rem;
-  height: 2.5rem;
+.contact-remove,
+.contact-add {
+  position: relative;
+  z-index: 1;
+  width: 3.3rem;
+  height: 100%;
+  display: grid;
+  place-items: center;
   padding: 0;
-  border-radius: 0.65rem;
-  color: var(--text-muted);
+  border: 0;
+  border-left: 0.0625rem solid;
+  border-radius: 0 0.9rem 0.9rem 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.contact-remove {
+  border-left-color: rgba(217, 45, 32, 0.2);
+  background: rgba(217, 45, 32, 0.08);
+  color: #d92d20;
 }
 
 .contact-add {
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0;
+  border-left-color: rgba(20, 184, 87, 0.22);
+  background: rgba(20, 184, 87, 0.1);
+  color: var(--brand-strong);
 }
 
-.grid-two,
-.inline-add,
-.upload-grid {
+.contact-row--removable > input,
+.contact-row--addable > input {
+  padding-right: 0.9rem;
+}
+
+.contact-row :deep(.phone-input) {
+  height: auto;
+  align-self: stretch;
+  min-height: 0;
+  border: 0;
+  border-radius: 0.9rem 0 0 0.9rem;
+  box-shadow: none;
+}
+
+.contact-row :deep(.phone-input:focus-within),
+.contact-row :deep(.phone-input--open) {
+  border: 0;
+  box-shadow: none;
+}
+
+.contact-row :deep(.phone-input__field) {
+  padding-right: 0.9rem;
+  border-radius: 0;
+}
+
+.contact-remove:hover,
+.contact-remove:focus-visible {
+  border-color: rgba(217, 45, 32, 0.35);
+  background: rgba(217, 45, 32, 0.14);
+  outline: none;
+}
+
+.contact-add:hover,
+.contact-add:focus-visible {
+  border-color: rgba(20, 184, 87, 0.4);
+  background: rgba(20, 184, 87, 0.18);
+  outline: none;
+}
+
+.contact-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-left-color: rgba(20, 184, 87, 0.12);
+  background: rgba(20, 184, 87, 0.06);
+}
+
+.grid-two {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.grid-span-2 {
+.work-period,
+.education-period {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.work-period > label,
+.education-period > label {
+  min-width: 0;
+}
+
+.work-period .current-field {
   grid-column: 1 / -1;
-}
-
-.section {
-  gap: 0.85rem;
-}
-
-.section-label {
-  font-weight: 700;
-  color: var(--text-primary);
+  min-height: 1.4rem;
+  padding-top: 0.1rem;
+  align-self: start;
 }
 
 label {
@@ -3034,89 +3606,84 @@ label {
   font-weight: 600;
 }
 
-.toggle-field {
-  align-content: start;
+.field-label {
+  display: block;
+  color: var(--text-primary);
+  font-size: var(--cv-ui-text-size);
+  font-weight: 600;
+  line-height: 1.15;
 }
 
-.toggle-switch {
-  gap: 0.7rem;
+.form-grid--personal .checkbox-field {
+  padding-top: 0.45rem;
 }
 
-.toggle-switch__control {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 3.5rem;
-  height: 2rem;
+.form-grid--fixed-two > label .field-label {
+  font-size: var(--cv-ui-text-size);
+  line-height: 1.15;
 }
 
-.toggle-switch__control input[type="checkbox"] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 100%;
-  min-height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 2;
+.field-label--error {
+  color: #d92d20;
 }
 
-.toggle-switch__track {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--border-subtle) 78%, white);
-  border: 0.0625rem solid color-mix(in srgb, var(--border-strong) 55%, white);
-  box-shadow: inset 0 0.0625rem 0.2rem rgba(15, 23, 42, 0.08);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+.field-label b {
+  color: var(--brand-strong);
 }
 
-.toggle-switch__thumb {
-  position: absolute;
-  top: 0.1875rem;
-  left: 0.1875rem;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0.2rem 0.55rem rgba(15, 23, 42, 0.16);
-  transition: transform 0.2s ease;
-}
-
-.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track {
-  background: linear-gradient(135deg, var(--brand-base), var(--brand-strong));
-  border-color: color-mix(in srgb, var(--brand-strong) 70%, white);
-  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
-}
-
-.toggle-switch__control input[type="checkbox"]:checked + .toggle-switch__track .toggle-switch__thumb {
-  transform: translateX(1.5rem);
-}
-
-.toggle-switch__control input[type="checkbox"]:focus-visible + .toggle-switch__track {
-  outline: 0.1875rem solid rgba(20, 184, 87, 0.2);
-  outline-offset: 0.125rem;
+.field-label--error b {
+  color: inherit;
 }
 
 input,
 textarea {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 3.2rem;
-  padding: 0.9rem 1rem;
-  border: 0.0625rem solid var(--border-subtle);
-  border-radius: 0.875rem;
+  min-height: 3.3rem;
+  padding: 0.74rem 0.95rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 16%, var(--border-subtle));
+  border-radius: 0.95rem;
   background: var(--surface-secondary);
   color: var(--text-primary);
   font: inherit;
+  font-size: var(--cv-ui-text-size);
 }
 
 textarea {
-  min-height: 8rem;
+  min-height: 5.5rem;
   resize: vertical;
+}
+
+.main-card :deep(.dropdown__trigger),
+.main-card :deep(.phone-input) {
+  min-height: 3.3rem;
+  font-size: var(--cv-ui-text-size);
+}
+
+.main-card :deep(.dropdown__hint),
+.main-card :deep(.dropdown__option-hint) {
+  font-size: var(--cv-ui-meta-size);
+}
+
+.main-card :deep(.dropdown__trigger) {
+  padding: 0.74rem 0.95rem;
+  border-color: color-mix(in srgb, var(--brand-base) 16%, var(--border-subtle));
+  border-radius: 0.95rem;
+}
+
+.main-card :deep(.dropdown__trigger:hover),
+.main-card :deep(.dropdown--open .dropdown__trigger) {
+  border-color: color-mix(in srgb, var(--brand-base) 62%, var(--border-subtle));
+  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--brand-base) 12%, transparent);
+}
+
+.main-card :deep(.phone-input__country) {
+  padding-block: 0.7rem;
+}
+
+.main-card :deep(.phone-input__field) {
+  padding: 0.74rem 0.95rem;
 }
 
 input:focus,
@@ -3126,104 +3693,25 @@ textarea:focus {
   box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.12);
 }
 
-.sector-dropdown {
-  min-width: 10rem;
-}
-
-.sector-add {
-  grid-template-columns: minmax(0, 1fr) minmax(11rem, 12rem) auto;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.sector-chips:empty {
-  display: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 2.8rem;
-  padding: 0.7rem 0.85rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 14%, var(--border-subtle));
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--brand-soft) 62%, white);
-  color: var(--brand-strong);
-}
-
-.sector-chip {
-  padding-left: 0.65rem;
-}
-
-.sector-chip__copy {
-  display: grid;
-  gap: 0.08rem;
-}
-
-.sector-chip__copy strong,
-.sector-chip__copy small {
-  line-height: 1.2;
-}
-
-.sector-chip__copy strong {
-  font-size: 0.88rem;
-}
-
-.sector-chip__copy small {
-  color: color-mix(in srgb, var(--brand-strong) 82%, white);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.sector-chip__icon {
-  width: 1.9rem;
-  height: 1.9rem;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 0.55rem;
-  background: #fff;
-  color: var(--brand-strong);
-}
-
-.chip button,
-.ghost-button,
-.btn-light,
-.btn-primary {
+.cv-action-button {
   border: 0;
   cursor: pointer;
   font: inherit;
-}
-
-.chip button {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: var(--text-muted);
-}
-
-.ghost-button,
-.btn-light,
-.btn-primary {
-  min-height: 3.1rem;
-  padding: 0 1.2rem;
-  border-radius: 0.875rem;
+  min-height: 3.3rem;
+  padding: 0 1rem;
+  border-radius: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-size: var(--cv-ui-text-size);
   font-weight: 700;
+  line-height: 1;
 }
 
-.ghost-button {
-  border: 0.0625rem dashed color-mix(in srgb, var(--brand-base) 24%, var(--border-subtle));
-  background: #fff;
-  color: var(--brand-strong);
-}
-
-.ghost-button--small {
-  width: fit-content;
+.cv-action-button i {
+  font-size: 0.95em;
+  line-height: 1;
 }
 
 .btn-light {
@@ -3232,80 +3720,33 @@ textarea:focus {
   color: var(--text-primary);
 }
 
+.btn-light,
+.btn-primary,
+.btn-danger {
+  min-height: 3.3rem;
+  padding: 0 1rem;
+  border-radius: 0.95rem;
+  font: inherit;
+  font-size: var(--cv-ui-text-size);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
 .btn-primary {
   background: linear-gradient(180deg, #16b85b 0%, #139e4f 100%);
   color: #fff;
   box-shadow: 0 0.75rem 1.5rem rgba(20, 184, 87, 0.18);
 }
 
-.upload-card {
-  display: grid;
-  gap: 0.65rem;
-  padding: 1.1rem;
-  border: 0.0625rem dashed color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--brand-soft) 38%, white);
-  cursor: pointer;
-}
-
-.upload-card__input {
-  display: none;
-}
-
-.upload-card__title {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.upload-card__button {
-  width: fit-content;
-}
-
-.avatar,
-.profile-avatar {
-  width: 5.2rem;
-  height: 5.2rem;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #16b85b 0%, #139e4f 100%);
+.btn-danger {
+  border: 0.0625rem solid rgba(220, 38, 38, 0.22);
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
   color: #fff;
-  font-size: 1.3rem;
-  font-weight: 800;
-  flex: 0 0 5.2rem;
-}
-
-.profile-avatar--button {
-  border: 0;
-  padding: 0;
-  box-shadow: 0 0 0 0 transparent;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.profile-avatar--button:hover,
-.profile-avatar--button:focus-visible {
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0 0 0.1875rem rgba(20, 184, 87, 0.14);
-}
-
-.avatar__image,
-.profile-avatar__image {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
-  display: block;
-}
-
-.text-link-button {
-  width: fit-content;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--brand-strong);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
+  box-shadow: 0 0.75rem 1.5rem rgba(220, 38, 38, 0.18);
 }
 
 .review-card {
@@ -3336,128 +3777,302 @@ textarea:focus {
   gap: 1rem;
 }
 
-.footer-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.4rem;
+.additional-step {
+  gap: 0.9rem;
 }
 
-.footer-actions .btn-light,
-.footer-actions .btn-primary {
+.license-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.3rem, 1fr));
+  gap: 0.55rem;
+  transition: opacity 0.2s ease;
+}
+
+.license-grid--disabled {
+  opacity: 0.45;
+}
+
+.license-chip {
+  min-height: 2.7rem;
+  padding: 0.55rem 0.7rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
+  border-radius: 0.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3rem;
-  height: 3rem;
-  padding: 0 1.35rem;
+  gap: 0.4rem;
+  background: color-mix(in srgb, var(--brand-base) 4%, #fff);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.sidebar {
-  display: grid;
-  gap: 1rem;
-  position: sticky;
-  top: 5.75rem;
+.license-chip:hover:not(:disabled) {
+  transform: translateY(-0.0625rem);
+  border-color: color-mix(in srgb, var(--brand-base) 55%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-base) 10%, #fff);
 }
 
-.profile-card {
-  display: grid;
-  gap: 0.9rem;
+.license-chip--selected {
+  border-color: color-mix(in srgb, var(--brand-base) 75%, transparent);
+  background: color-mix(in srgb, var(--brand-base) 16%, #fff);
+  color: var(--brand-strong);
+  box-shadow: inset 0 0 0 0.0625rem color-mix(in srgb, var(--brand-base) 18%, transparent);
 }
 
-.profile-card__top {
+.license-chip:disabled {
+  cursor: not-allowed;
+}
+
+.no-license-toggle {
+  min-height: 3.3rem;
+  padding: 0.7rem 0.85rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: 0.85rem;
+  background: var(--surface-secondary);
+}
+
+.no-license-toggle--active {
+  border-color: color-mix(in srgb, var(--brand-base) 48%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-base) 10%, #fff);
+}
+
+.language-add-row {
   display: grid;
-  grid-template-columns: 5.2rem minmax(0, 1fr);
-  gap: 0.9rem;
+  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.65fr) 3.3rem;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.language-add-button {
+  width: 3.3rem;
+  height: 3.3rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 35%, transparent);
+  border-radius: 0.85rem;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--brand-base) 12%, #fff);
+  color: var(--brand-strong);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+.language-add-button:hover:not(:disabled),
+.language-add-button:focus-visible {
+  transform: translateY(-0.0625rem);
+  border-color: color-mix(in srgb, var(--brand-base) 66%, transparent);
+  background: color-mix(in srgb, var(--brand-base) 18%, #fff);
+  outline: none;
+}
+
+.language-add-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.language-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.language-row {
+  min-height: 3.3rem;
+  padding: 0.45rem 0.5rem 0.45rem 0.85rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 20%, var(--border-subtle));
+  border-radius: 0.85rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.55fr) 2.15rem;
   align-items: center;
+  gap: 0.6rem;
+  background: color-mix(in srgb, var(--brand-base) 4%, #fff);
 }
 
-.profile-card__top p {
-  margin: 0.25rem 0 0;
+.language-row > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.profile-meta {
-  display: grid;
-  gap: 0.35rem;
+.language-row :deep(.dropdown__trigger) {
+  min-height: 2.4rem;
+  padding-block: 0.45rem;
 }
 
-.side-card__head {
+.additional-empty {
+  margin: 0;
+  padding: 0.9rem;
+  border: 0.0625rem dashed color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  border-radius: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pdf-preview-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.8rem;
+  padding: 0.2rem;
 }
 
-.shield {
-  width: 2.2rem;
-  height: 2.2rem;
+.pdf-preview-heading > span {
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 0.85rem;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  background: color-mix(in srgb, var(--brand-base) 14%, #fff);
   color: var(--brand-strong);
-  font-weight: 800;
+  font-size: 1.1rem;
 }
 
-.progress-value {
-  margin-top: 0.9rem;
-  color: var(--brand-strong);
-  font-size: 2.2rem;
-  font-weight: 800;
+.pdf-preview-heading h2,
+.pdf-preview-heading p {
+  margin: 0;
 }
 
-.progress-track {
-  height: 0.7rem;
-  margin-top: 0.8rem;
+.pdf-preview-heading h2 {
+  font-size: 1.05rem;
+}
+
+.pdf-preview-heading p {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.pdf-preview-trigger {
+  position: relative;
+  min-width: 0;
+  border: 0.125rem solid color-mix(in srgb, var(--brand-base) 32%, transparent);
+  border-radius: 1rem;
   overflow: hidden;
-  border-radius: 999rem;
-  background: color-mix(in srgb, var(--surface-secondary) 90%, black 4%);
+  background: color-mix(in srgb, var(--brand-base) 5%, #eef3ef);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.progress-bar {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #0fb152 0%, #17c660 100%);
+.pdf-preview-trigger:hover,
+.pdf-preview-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-base) 68%, transparent);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--brand-base) 12%, transparent);
+  outline: none;
+  transform: translateY(-0.0625rem);
 }
 
-.side-card--dashed {
-  border-style: dashed;
+.pdf-preview-trigger--loading {
+  cursor: wait;
 }
 
-.feature {
-  display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
-  gap: 0.9rem;
+.pdf-preview-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
   align-items: center;
-  padding: 0.85rem 0;
+  justify-content: center;
+  gap: 0.55rem;
+  background: color-mix(in srgb, var(--brand-strong) 70%, transparent);
+  color: #fff;
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.feature + .feature {
-  border-top: 0.0625rem solid var(--border-subtle);
+.pdf-preview-trigger:hover .pdf-preview-overlay,
+.pdf-preview-trigger:focus-visible .pdf-preview-overlay,
+.pdf-preview-trigger--loading .pdf-preview-overlay {
+  opacity: 1;
 }
 
-.feature-icon {
-  width: 3rem;
-  height: 3rem;
+.pdf-preview-trigger .cv-preview-shell {
+  position: relative;
+  height: 31rem;
+  padding: 1rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cv-preview-scale {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  width: 49.625rem;
+  transform: translateX(-50%) scale(0.78);
+  transform-origin: top center;
+}
+
+.completion-card {
+  min-height: min(32rem, calc(100vh - 10rem));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: clamp(2rem, 7vw, 4.5rem) 1.5rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 28%, var(--border-subtle));
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(20, 184, 87, 0.16), transparent 42%),
+    var(--surface-primary);
+  text-align: center;
+}
+
+.completion-card__icon {
+  width: 4.5rem;
+  height: 4.5rem;
   display: grid;
   place-items: center;
+  margin-bottom: 0.5rem;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--brand-soft) 70%, white);
+  background: linear-gradient(180deg, #19bd61, #11994a);
+  color: #fff;
+  font-size: 1.6rem;
+  box-shadow: 0 1rem 2rem rgba(20, 184, 87, 0.24);
+}
+
+.completion-card__eyebrow {
+  margin: 0;
   color: var(--brand-strong);
+  font-size: var(--cv-ui-meta-size);
   font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.completion-card h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.completion-card__description {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--cv-ui-text-size);
+  line-height: 1.6;
+}
+
+.completion-card__action {
+  min-width: min(100%, 15rem);
+  margin-top: 1rem;
+}
+
+.footer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  flex-direction: row;
+  margin-top: 0.4rem;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.62;
-}
-
-.field-error {
-  color: #b42318;
-  font-size: 0.86rem;
-  font-weight: 700;
-  line-height: 1.4;
 }
 
 .upload-card--error {
@@ -3480,7 +4095,8 @@ button:disabled {
   --cv-line: #d9dee7;
   --cv-soft: #f3fbf6;
   width: min(100%, 49.625rem);
-  height: 70.1875rem;
+  min-height: 70.1875rem;
+  height: auto;
   margin: 0 auto;
   padding: 1.45rem 1.7rem 1.15rem;
   background: #fff;
@@ -3489,7 +4105,7 @@ button:disabled {
   box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, 0.12);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   font-family: Inter, Arial, sans-serif;
 }
 
@@ -3506,7 +4122,7 @@ button:disabled {
 }
 
 .cv-header {
-  min-height: 2.9rem;
+  min-height: 3.65rem;
   padding-bottom: 0.85rem;
   border-bottom: 0.0625rem solid var(--cv-line);
 }
@@ -3526,9 +4142,44 @@ button:disabled {
   width: 8.2rem;
   max-width: 8.2rem;
   max-height: 2.15rem;
-  height: auto;
+  height: 2.15rem;
+  object-fit: contain;
+  object-position: left center;
   display: block;
   flex: 0 0 auto;
+}
+
+.cv-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 0 0 auto;
+  color: var(--cv-green);
+}
+
+.cv-verified > i {
+  font-size: 1.25rem;
+}
+
+.cv-verified > span {
+  display: grid;
+  gap: 0.12rem;
+  text-align: right;
+}
+
+.cv-verified strong {
+  color: var(--cv-ink);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.cv-verified small {
+  color: var(--cv-green-dark);
+  font-size: 0.55rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .cv-brand small {
@@ -3539,42 +4190,6 @@ button:disabled {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.cv-verified {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--cv-green);
-  flex: 0 0 auto;
-}
-
-.cv-verified-icon {
-  width: 1.7rem;
-  height: 1.7rem;
-  display: grid;
-  place-items: center;
-  border: 0.1rem solid var(--cv-green);
-  border-radius: 50%;
-  font-size: 0.78rem;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.cv-verified strong {
-  display: block;
-  font-size: 0.68rem;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.cv-verified small {
-  display: block;
-  margin-top: 0.08rem;
-  color: var(--cv-muted);
-  font-size: 0.66rem;
-  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -3735,20 +4350,20 @@ button:disabled {
   gap: 1.25rem;
   padding-top: 1rem;
   flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
 }
 
 .cv-main {
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
   padding-right: 1.25rem;
   border-right: 0.0625rem solid var(--cv-line);
 }
 
 .cv-aside {
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
 }
 
 .cv-section {
@@ -3788,6 +4403,12 @@ button:disabled {
 
 .cv-section p + p {
   margin-top: 0.42rem;
+}
+
+.cv-entry + .cv-entry {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 0.0625rem solid var(--cv-line);
 }
 
 .cv-list {
@@ -3890,25 +4511,82 @@ button:disabled {
 }
 
 .cv-brand--small .cv-brand__logo {
-  width: 6.3rem;
-  max-width: 6.3rem;
-  max-height: 1.6rem;
+  width: 5.8rem;
+  max-width: 5.8rem;
+  max-height: 1.45rem;
+  height: 1.45rem;
 }
 
-.feature-text {
-  display: flex;
-  flex-direction: column;
+/* The CV remains an A4 composition in the modal and PDF at every viewport.
+   Only its outer preview wrapper scales on small screens. */
+.pdf-preview-trigger .cv-document,
+.cv-document--pdf {
+  width: 49.625rem;
+  min-width: 49.625rem;
+  padding: 1.45rem 1.7rem 1.15rem;
+  border-radius: 0.8rem;
+}
+
+.pdf-preview-trigger .cv-header,
+.pdf-preview-trigger .cv-footer,
+.cv-document--pdf .cv-header,
+.cv-document--pdf .cv-footer {
+  flex-direction: row;
+  align-items: center;
+}
+
+.pdf-preview-trigger .cv-top,
+.cv-document--pdf .cv-top {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.pdf-preview-trigger .cv-person,
+.cv-document--pdf .cv-person {
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+}
+
+.pdf-preview-trigger .cv-brand,
+.cv-document--pdf .cv-brand {
+  flex-wrap: nowrap;
+}
+
+.pdf-preview-trigger .cv-header .cv-brand__logo,
+.cv-document--pdf .cv-header .cv-brand__logo {
+  width: 8.2rem;
+  max-width: 8.2rem;
+  max-height: 2.15rem;
+}
+
+.pdf-preview-trigger .cv-footer .cv-brand__logo,
+.cv-document--pdf .cv-footer .cv-brand__logo {
+  width: 5.8rem;
+  max-width: 5.8rem;
+  max-height: 1.45rem;
+}
+
+.pdf-preview-trigger .cv-id,
+.cv-document--pdf .cv-id {
+  justify-items: center;
+}
+
+.pdf-preview-trigger .cv-body,
+.cv-document--pdf .cv-body {
+  grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr);
+}
+
+.pdf-preview-trigger .cv-main,
+.cv-document--pdf .cv-main {
+  padding-right: 1.25rem;
+  border-right: 0.0625rem solid var(--cv-line);
+}
+
+.pdf-preview-trigger .cv-sector-grid,
+.cv-document--pdf .cv-sector-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 72rem) {
-  .builder {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sidebar {
-    position: static;
-  }
-
   .cv-body {
     grid-template-columns: 1fr;
   }
@@ -3920,11 +4598,13 @@ button:disabled {
 }
 
 @media (max-width: 56rem) {
-  .grid-two,
-  .inline-add,
-  .upload-grid,
-  .sector-add {
+  .grid-two {
     grid-template-columns: 1fr;
+  }
+
+  .entry-add--inline,
+  .entry-remove {
+    width: 2.15rem;
   }
 
   .form-grid,
@@ -3932,21 +4612,8 @@ button:disabled {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .steps {
-    display: flex;
-    gap: 0.75rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-  }
-
-  .steps::-webkit-scrollbar {
-    display: none;
-  }
-
-  .step {
-    min-width: 12.5rem;
-    scroll-snap-align: start;
+  .form-grid--fixed-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .footer-actions,
@@ -3955,16 +4622,9 @@ button:disabled {
     align-items: stretch;
   }
 
-  .main-card,
-  .side-card,
-  .hero {
-    padding: 1rem;
-  }
-
-  .ghost-button,
   .btn-light,
   .btn-primary,
-  .sector-dropdown {
+  .btn-danger {
     width: 100%;
   }
 
@@ -4004,6 +4664,164 @@ button:disabled {
 
   .cv-sector-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 40rem) {
+  .cv-builder-overlay {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  .main-card {
+    width: 100%;
+    max-height: 100vh;
+    min-height: 100vh;
+    border-radius: 0;
+  }
+
+  .main-card__scroll {
+    max-height: 100vh;
+  }
+
+  .entry-card__body--work {
+    gap: 0.8rem;
+  }
+
+  .entry-card__body--education {
+    gap: 0.8rem;
+  }
+
+  .work-period,
+  .education-period {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .work-period > .entry-select,
+  .work-period > .current-field,
+  .education-period > .entry-select {
+    grid-column: 1 / -1;
+  }
+
+  .work-checkboxes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 24rem) {
+  .entry-card__head {
+    gap: 0.4rem;
+  }
+
+  .entry-card__toggle {
+    grid-template-columns: 1.9rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .entry-card__toggle--static {
+    grid-template-columns: 1.9rem minmax(0, 1fr);
+  }
+
+  .entry-index {
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-basis: 1.9rem;
+  }
+
+  .entry-card__actions {
+    gap: 0.3rem;
+  }
+
+  .entry-add--inline,
+  .entry-remove {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+  }
+
+  .work-period,
+  .education-period {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .work-period > label,
+  .education-period > label {
+    font-size: var(--cv-ui-text-size);
+  }
+
+  .work-period input,
+  .work-period :deep(.dropdown__trigger),
+  .education-period input,
+  .education-period :deep(.dropdown__trigger) {
+    padding-inline: 0.65rem;
+    font-size: var(--cv-ui-text-size);
+  }
+
+  .form-grid--identity .field-label {
+    font-size: var(--cv-ui-text-size);
+  }
+
+  .form-grid--personal .field-label {
+    font-size: var(--cv-ui-text-size);
+  }
+
+  .form-grid--personal .checkbox-field {
+    padding-top: 0.3rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .license-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .language-add-row {
+    grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 0.62fr) 3.3rem;
+    gap: 0.45rem;
+  }
+
+  .language-row {
+    grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 0.58fr) 2.15rem;
+    gap: 0.45rem;
+  }
+
+  .pdf-preview-trigger .cv-preview-shell {
+    height: 27rem;
+    padding: 0;
+  }
+
+  .cv-preview-scale {
+    top: 0.75rem;
+    transform: translateX(-50%) scale(0.48);
+  }
+}
+
+@media (max-width: 24rem) {
+  .license-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .language-add-row {
+    grid-template-columns: minmax(0, 1fr) 5.4rem 3.3rem;
+  }
+
+  .language-row {
+    grid-template-columns: minmax(0, 1fr) 5.4rem 2rem;
+    padding-left: 0.6rem;
+  }
+
+  .pdf-preview-heading {
+    align-items: flex-start;
+  }
+
+  .pdf-preview-trigger .cv-preview-shell {
+    height: 24rem;
+  }
+
+  .cv-preview-scale {
+    transform: translateX(-50%) scale(0.4);
   }
 }
 
@@ -4107,11 +4925,14 @@ button:disabled {
     flex-wrap: nowrap !important;
   }
 
-  .cv-brand__logo,
-  .cv-brand__logo svg {
+  .cv-header .cv-brand__logo,
+  .cv-header .cv-brand__logo svg {
     width: 34mm !important;
     max-width: 34mm !important;
     max-height: 9mm !important;
+    height: 9mm !important;
+    object-fit: contain !important;
+    object-position: left center !important;
   }
 
   .cv-brand--small .cv-brand__logo,

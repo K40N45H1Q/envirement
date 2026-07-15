@@ -276,7 +276,7 @@ watch(isOpen, async (value) => {
         <span v-if="showSelectedHint && selectedOption?.hint" class="dropdown__hint">{{ selectedOption.hint }}</span>
       </span>
 
-      <span class="dropdown__chevron">
+      <span class="dropdown__chevron" aria-hidden="true">
         <i class="fas fa-chevron-down"></i>
       </span>
     </button>
@@ -380,9 +380,18 @@ watch(isOpen, async (value) => {
   flex: 0 0 auto;
 }
 
-.dropdown__lead,
+.dropdown__lead {
+  color: var(--brand-strong);
+}
+
 .dropdown__chevron {
   color: var(--brand-strong);
+  font-size: 0.72rem;
+  transition: transform 0.2s ease;
+}
+
+.dropdown--open .dropdown__chevron {
+  transform: rotate(180deg);
 }
 
 .dropdown__content,
@@ -408,14 +417,6 @@ watch(isOpen, async (value) => {
   color: var(--text-muted);
   font-size: 0.82rem;
   line-height: 1.35;
-}
-
-.dropdown__chevron {
-  transition: transform 0.2s ease;
-}
-
-.dropdown--open .dropdown__chevron {
-  transform: rotate(180deg);
 }
 
 .dropdown__menu {

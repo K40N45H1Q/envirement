@@ -9,7 +9,7 @@ export const isEmployerAccount = (accountType) => ['employer', 'admin'].includes
 export const defaultRouteForAccount = (accountType) => {
   if (accountType === 'admin') return '/admin'
   if (isEmployerAccount(accountType)) return '/dashboard?section=jobs'
-  return '/dashboard'
+  return '/dashboard?section=profile'
 }
 
 export const canAccessRoute = (accountType, allowedTypes = []) => {

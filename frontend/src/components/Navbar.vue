@@ -54,6 +54,16 @@
           <span>{{ item.label }}</span>
         </button>
 
+        <button
+          v-else-if="item.action === 'cv-builder'"
+          type="button"
+          class="nav-link nav-link--button"
+          @click="openCvBuilder"
+        >
+          <i :class="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </button>
+
         <RouterLink
           v-else
           :to="item.to"
@@ -162,6 +172,16 @@
                 <span>{{ item.label }}</span>
               </button>
 
+              <button
+                v-else-if="item.action === 'cv-builder'"
+                type="button"
+                class="mobile-nav-link nav-link--button"
+                @click="openCvBuilderFromMenu"
+              >
+                <i :class="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </button>
+
               <RouterLink
                 v-else
                 :to="item.to"
@@ -202,6 +222,7 @@
 <script>
 import { useAuth } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useCvBuilderStore } from '@/stores/cvBuilder'
 import { useI18n } from '@/i18n'
 import { localizeFullPath } from '@/router/locale'
 import BaseDropdown from './BaseDropdown.vue'
@@ -215,7 +236,7 @@ function normalizeAccountType(accountType) {
 function routeForAccount(accountType) {
   const normalizedType = normalizeAccountType(accountType)
 
-  if (normalizedType === 'candidate') return '/dashboard'
+  if (normalizedType === 'candidate') return '/dashboard?section=profile'
   if (normalizedType === 'employer') return '/dashboard?section=jobs'
   if (normalizedType === 'admin') return '/admin'
 
@@ -232,12 +253,14 @@ export default {
   setup() {
     const { state, logout: logoutAuth } = useAuth()
     const uiStore = useUiStore()
+    const cvBuilder = useCvBuilderStore()
     const { t } = useI18n()
 
     return {
       authState: state,
       logoutAuth,
       uiStore,
+      cvBuilder,
       t,
     }
   },
@@ -282,7 +305,7 @@ export default {
       if (!this.user || this.normalizedAccountType === 'candidate') {
         items.push({
           label: this.t('navbar.resume'),
-          ...(this.user ? { to: '/createcv' } : { action: 'login' }),
+          ...(this.user ? { action: 'cv-builder' } : { action: 'login' }),
           icon: 'fas fa-file-lines',
         })
       }
@@ -392,6 +415,16 @@ export default {
   },
 
   methods: {
+    openCvBuilder() {
+      this.closeAllMenus()
+      this.cvBuilder.open()
+    },
+
+    openCvBuilderFromMenu() {
+      this.closeMenu()
+      this.cvBuilder.open()
+    },
+
     isNavItemActive(item) {
       if (item.menu === 'jobs') {
         return this.$route.path === '/' || this.$route.path === '/jobs'

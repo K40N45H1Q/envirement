@@ -20,25 +20,32 @@ def hash_password(password: str) -> str:
     return sha256(password.encode()).hexdigest()
 
 
-def _delete_user_dependencies(session: Session, user: User) -> None:
+def delete_user_dependencies(session: Session, user: User) -> set[str]:
+    upload_urls = {user.company_logo_url}
+
     profile = session.exec(
         select(CandidateProfile).where(CandidateProfile.user_id == user.id)
     ).first()
     if profile:
+        upload_urls.update({profile.avatar_url, profile.resume_url})
         session.delete(profile)
 
     user_applications = session.exec(
         select(JobApplication).where(JobApplication.applicant_user_id == user.id)
     ).all()
+    upload_urls.update(application.resume_url for application in user_applications)
     application_ids = {application.id for application in user_applications if application.id is not None}
 
     user_jobs = session.exec(select(Job).where(Job.user_id == user.id)).all()
+    for job in user_jobs:
+        upload_urls.update({job.logo, job.banner_url})
     job_ids = {job.id for job in user_jobs if job.id is not None}
 
     if job_ids:
         related_job_applications = session.exec(
             select(JobApplication).where(JobApplication.job_id.in_(job_ids))
         ).all()
+        upload_urls.update(application.resume_url for application in related_job_applications)
         application_ids.update(
             application.id for application in related_job_applications if application.id is not None
         )
@@ -66,12 +73,14 @@ def _delete_user_dependencies(session: Session, user: User) -> None:
     for job in user_jobs:
         session.delete(job)
 
+    return {url for url in upload_urls if url}
+
 
 def _delete_user(session: Session, user: User | None) -> None:
     if not user:
         return
 
-    _delete_user_dependencies(session, user)
+    delete_user_dependencies(session, user)
     session.delete(user)
 
 

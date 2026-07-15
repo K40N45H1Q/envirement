@@ -5,18 +5,21 @@ import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import Profile from '@/components/Profile.vue'
+import { deleteAccount as deleteAccountRequest } from '@/api/auth'
 import { getJobs, getMyApplications } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useMessagingStore } from '@/stores/messaging'
 import { normalizeJob } from '@/utils/jobs'
+import { localizeFullPath } from '@/router/locale'
 
 const route = useRoute()
 const router = useRouter()
-const { state } = useAuth()
+const auth = useAuth()
+const { state } = auth
 const messaging = useMessagingStore()
-const { language } = useI18n()
+const { language, t } = useI18n()
 
 const copy = computed(() => translate('candidateDashboardPage', {}, language.value))
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
@@ -27,16 +30,19 @@ const profile = ref(null)
 const isLoading = ref(false)
 const isRefreshingApplications = ref(false)
 const notice = ref('')
+const showDeleteAccountConfirm = ref(false)
+const isDeletingAccount = ref(false)
+const deleteAccountError = ref('')
 const applicationsRefreshTimer = ref(null)
-const validSectionIds = ['dashboard', 'messages', 'profile']
-const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'dashboard')
-const activeSection = ref(normalizeSection(typeof route.query.section === 'string' ? route.query.section : 'dashboard'))
+const validSectionIds = ['dashboard', 'messages', 'profile', 'settings']
+const normalizeSection = (section) => (validSectionIds.includes(section) ? section : 'profile')
+const activeSection = ref(normalizeSection(typeof route.query.section === 'string' ? route.query.section : 'profile'))
 
 const shellSections = computed(() => ([
   { id: 'messages', label: copy.value.sections.messages, icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/dashboard?section=profile' },
-  { id: 'jobs', label: copy.value.sections.jobs, icon: 'fas fa-briefcase', to: '/jobs' },
-  { id: 'resume', label: copy.value.sections.resume, icon: 'fas fa-file-lines', to: '/createcv' },
+  { id: 'settings', label: copy.value.sections.settings, icon: 'fas fa-gear', to: '/dashboard?section=settings', divider: true },
+  { id: 'logout', label: t('common.logout'), icon: 'fas fa-right-from-bracket', danger: true },
 ]))
 
 const normalizeAccountType = (accountType) => {
@@ -75,17 +81,42 @@ const dashboardTitle = computed(() => (
     ? copy.value.titleMessages
     : activeSection.value === 'profile'
       ? copy.value.sections.profile
-      : interpolate(copy.value.titleGreeting, { name: userName.value })
+      : activeSection.value === 'settings'
+        ? copy.value.settingsTitle
+        : interpolate(copy.value.titleGreeting, { name: userName.value })
 ))
 
 const getSettledValue = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback)
 
 const setSection = async (sectionId) => {
+  if (sectionId === 'logout') {
+    auth.logout()
+    await router.replace(localizeFullPath('/', language.value))
+    return
+  }
+
   activeSection.value = sectionId
   await router.replace({
     path: '/dashboard',
-    query: sectionId === 'dashboard' ? {} : { section: sectionId },
+    query: { section: sectionId },
   })
+}
+
+const deleteAccount = async () => {
+  if (isDeletingAccount.value) return
+
+  isDeletingAccount.value = true
+  deleteAccountError.value = ''
+
+  try {
+    await deleteAccountRequest()
+    auth.logout()
+    await router.replace(localizeFullPath('/', language.value))
+  } catch {
+    deleteAccountError.value = copy.value.deleteAccountError
+  } finally {
+    isDeletingAccount.value = false
+  }
 }
 
 const openDashboardConversation = async (applicationId) => {
@@ -178,7 +209,7 @@ const stopApplicationsRealtime = () => {
 }
 
 watch(() => route.query.section, (section) => {
-  activeSection.value = normalizeSection(typeof section === 'string' ? section : 'dashboard')
+  activeSection.value = normalizeSection(typeof section === 'string' ? section : 'profile')
 })
 
 watch(() => route.query.application, async (application) => {
@@ -300,6 +331,71 @@ onBeforeUnmount(() => {
         <Profile embedded />
       </section>
 
+      <section v-else-if="activeSection === 'settings'" class="message-shell">
+        <article class="panel settings-panel">
+          <div class="settings-panel__heading">
+            <span class="settings-panel__icon" aria-hidden="true">
+              <i class="fas fa-gear"></i>
+            </span>
+            <div>
+              <h2>{{ copy.settingsTitle }}</h2>
+              <p>{{ copy.settingsDescription }}</p>
+            </div>
+          </div>
+
+          <div class="settings-panel__row">
+            <span>{{ copy.accountEmail }}</span>
+            <strong>{{ state.user?.email }}</strong>
+          </div>
+
+          <section class="settings-danger-zone">
+            <div class="settings-danger-zone__copy">
+              <h3>{{ copy.deleteAccountTitle }}</h3>
+              <p>{{ copy.deleteAccountDescription }}</p>
+            </div>
+
+            <button
+              v-if="!showDeleteAccountConfirm"
+              type="button"
+              class="delete-account-button"
+              @click="showDeleteAccountConfirm = true; deleteAccountError = ''"
+            >
+              <i class="fas fa-user-xmark"></i>
+              {{ copy.deleteAccount }}
+            </button>
+
+            <div v-else class="delete-account-confirmation">
+              <strong>{{ copy.deleteAccountConfirm }}</strong>
+              <p>{{ copy.deleteAccountWarning }}</p>
+
+              <p v-if="deleteAccountError" class="delete-account-error" role="alert">
+                {{ deleteAccountError }}
+              </p>
+
+              <div class="delete-account-confirmation__actions">
+                <button
+                  type="button"
+                  class="cancel-delete-button"
+                  :disabled="isDeletingAccount"
+                  @click="showDeleteAccountConfirm = false; deleteAccountError = ''"
+                >
+                  {{ copy.cancel }}
+                </button>
+                <button
+                  type="button"
+                  class="confirm-delete-button"
+                  :disabled="isDeletingAccount"
+                  @click="deleteAccount"
+                >
+                  <i :class="isDeletingAccount ? 'fas fa-spinner fa-spin' : 'fas fa-trash-can'"></i>
+                  {{ isDeletingAccount ? copy.deletingAccount : copy.deletePermanently }}
+                </button>
+              </div>
+            </div>
+          </section>
+        </article>
+      </section>
+
       <section v-else class="message-shell">
         <MessagesPanel embedded :hint="copy.messagesHint" @open="openDashboardConversation" />
       </section>
@@ -405,6 +501,161 @@ h2 {
 .message-shell {
   display: grid;
   gap: 0.85rem;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1.1rem, 2.5vw, 1.5rem);
+}
+
+.settings-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.settings-panel__heading h2,
+.settings-panel__heading p {
+  margin: 0;
+}
+
+.settings-panel__heading p {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+}
+
+.settings-panel__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 28%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand-base) 10%, transparent);
+  color: var(--brand-strong);
+}
+
+.settings-panel__row {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
+  background: var(--surface-muted);
+}
+
+.settings-panel__row span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.settings-danger-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid color-mix(in srgb, #dc2626 28%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, #dc2626 5%, var(--surface-primary));
+}
+
+.settings-danger-zone__copy h3,
+.settings-danger-zone__copy p,
+.delete-account-confirmation p {
+  margin: 0;
+}
+
+.settings-danger-zone__copy h3 {
+  color: #b91c1c;
+  font-size: 1rem;
+}
+
+.settings-danger-zone__copy p,
+.delete-account-confirmation p {
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.delete-account-button,
+.confirm-delete-button,
+.cancel-delete-button {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-account-button,
+.confirm-delete-button {
+  border: 0.0625rem solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.delete-account-button:hover,
+.delete-account-button:focus-visible,
+.confirm-delete-button:hover,
+.confirm-delete-button:focus-visible {
+  background: #b91c1c;
+}
+
+.delete-account-confirmation {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 0.0625rem solid color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.delete-account-confirmation__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.cancel-delete-button {
+  border: 0.0625rem solid var(--border-subtle);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.delete-account-error {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
+.delete-account-button:disabled,
+.confirm-delete-button:disabled,
+.cancel-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 32rem) {
+  .settings-danger-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-account-button,
+  .delete-account-confirmation__actions,
+  .delete-account-confirmation__actions button {
+    width: 100%;
+  }
+
+  .delete-account-confirmation__actions {
+    display: grid;
+  }
 }
 
 .job-row {

@@ -182,6 +182,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
   border: 0.0625rem solid var(--border-subtle);
   border-radius: 0.95rem;
   background: var(--surface-secondary, #fff);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -203,6 +206,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
   border-radius: 0.9rem 0 0 0.9rem;
   background: color-mix(in srgb, var(--brand-soft) 28%, white);
   color: var(--text-primary);
+  font: inherit;
   cursor: pointer;
 }
 
@@ -214,8 +218,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 }
 
 .phone-input__dial {
-  font-size: 0.86rem;
-  font-weight: 800;
+  font: inherit;
+  font-weight: 700;
 }
 
 .phone-input__chevron {
@@ -268,6 +272,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
   border-radius: 0.7rem;
   background: transparent;
   color: var(--text-primary);
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }

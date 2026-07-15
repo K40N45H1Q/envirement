@@ -12,7 +12,7 @@
         <div class="footer-column">
           <h2>{{ t('footer.platform') }}</h2>
           <RouterLink to="/">{{ t('footer.jobs') }}</RouterLink>
-          <RouterLink to="/createcv">{{ t('footer.resume') }}</RouterLink>
+          <button type="button" class="footer-link-button" @click="cvBuilder.open">{{ t('footer.resume') }}</button>
           <RouterLink to="/about">{{ t('footer.aboutUs') }}</RouterLink>
         </div>
 
@@ -43,8 +43,10 @@
 import { RouterLink } from 'vue-router'
 import { useI18n } from '@/i18n'
 import Logo from '@/components/Logo.vue'
+import { useCvBuilderStore } from '@/stores/cvBuilder'
 
 const { t } = useI18n()
+const cvBuilder = useCvBuilderStore()
 const currentYear = new Date().getFullYear()
 </script>
 
@@ -95,7 +97,8 @@ const currentYear = new Date().getFullYear()
 
 .brand-block p,
 .footer-meta,
-.footer-column a {
+.footer-column a,
+.footer-link-button {
   color: var(--text-muted);
 }
 
@@ -128,13 +131,25 @@ const currentYear = new Date().getFullYear()
   color: var(--text-primary);
 }
 
-.footer-column a {
+.footer-column a,
+.footer-link-button {
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
+.footer-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .footer-column a:hover,
-.footer-column a:focus-visible {
+.footer-column a:focus-visible,
+.footer-link-button:hover,
+.footer-link-button:focus-visible {
   color: var(--brand-strong);
 }
 
@@ -150,7 +165,8 @@ const currentYear = new Date().getFullYear()
 
 @media (prefers-reduced-motion: no-preference) {
   .brand-link,
-  .footer-column a {
+  .footer-column a,
+  .footer-link-button {
     transition: transform 0.2s ease, color 0.2s ease;
   }
 
@@ -202,7 +218,8 @@ const currentYear = new Date().getFullYear()
     overflow-wrap: anywhere;
   }
 
-  .footer-column a {
+  .footer-column a,
+  .footer-link-button {
     font-size: 0.76rem;
     line-height: 1.3;
     overflow-wrap: anywhere;

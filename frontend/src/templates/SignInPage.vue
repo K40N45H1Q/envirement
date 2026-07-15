@@ -14,7 +14,6 @@ const destinationLabel = computed(() => {
   if (redirect.startsWith('/responses')) return t('signInPage.destinations.responses')
   if (redirect.startsWith('/messages')) return t('signInPage.destinations.messages')
   if (redirect.startsWith('/profile')) return t('signInPage.destinations.profile')
-  if (redirect.startsWith('/createcv') || redirect.startsWith('/resume-builder')) return t('signInPage.destinations.resume')
   return t('signInPage.destinations.dashboard')
 })
 </script>

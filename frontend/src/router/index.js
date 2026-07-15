@@ -5,7 +5,6 @@ import JobsPage from '@/templates/JobsPage.vue'
 import JobDetailPage from '@/templates/JobDetailPage.vue'
 import JobDirectoryPage from '@/templates/JobDirectoryPage.vue'
 import PricingPage from '@/templates/PricingPage.vue'
-import ResumeBuilderPage from '@/templates/ResumeBuilderPage.vue'
 import DashboardPage from '@/templates/DashboardPage.vue'
 import ResponsesPage from '@/templates/ResponsesPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
@@ -76,7 +75,7 @@ const canAccessRoute = (accountType, allowedTypes = []) => {
 const defaultRouteForAccount = (accountType) => {
   const normalizedType = normalizeAccountType(accountType)
 
-  if (normalizedType === 'candidate') return '/dashboard'
+  if (normalizedType === 'candidate') return '/dashboard?section=profile'
   if (normalizedType === 'employer') return '/dashboard?section=jobs'
   if (normalizedType === 'admin') return '/admin'
 
@@ -113,15 +112,6 @@ const localizedChildren = [
   { path: 'jobs/:id', component: JobDetailPage, meta: { logicalPath: '/jobs/:id' } },
   { path: 'employers', component: HomePage, meta: { logicalPath: '/employers' } },
   { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
-  { path: 'createcv', component: ResumeBuilderPage, meta: { logicalPath: '/createcv' } },
-  {
-    path: 'resume-builder',
-    redirect: (to) => ({
-      path: '/createcv',
-      query: to.query,
-      hash: to.hash,
-    }),
-  },
   { path: 'beta-access', component: BLogin, meta: { logicalPath: '/beta-access' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
@@ -272,6 +262,16 @@ router.beforeEach(async (to) => {
     }
 
     const normalizedType = normalizeAccountType(auth.state.user.account_type)
+
+    if (routeLogicalPath === '/dashboard' && normalizedType === 'candidate' && !to.query.section) {
+      return localizeRouteLocation({
+        path: '/dashboard',
+        query: {
+          ...to.query,
+          section: 'profile',
+        },
+      }, locale)
+    }
 
     if (routeLogicalPath === '/profile') {
       const target = normalizedType === 'candidate'

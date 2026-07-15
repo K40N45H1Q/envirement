@@ -92,6 +92,11 @@ export const login = async ({ email, password }) => {
 
 export const getMe = () => apiRequest('/api/get_me', { requireAuth: true })
 
+export const deleteAccount = () => apiRequest('/api/account', {
+  method: 'DELETE',
+  requireAuth: true,
+})
+
 export const logout = () => {
   clearAuthToken()
   apiRequest('/api/logout', {

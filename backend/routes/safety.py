@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from os import getenv
+from pathlib import Path
 from secrets import randbelow, token_hex
 
 import jwt
@@ -18,7 +19,9 @@ from app.services.auth_email import (
     send_password_reset_code_email,
     send_registration_code_email,
 )
+from app.services.default_accounts import delete_user_dependencies
 from database.models import (
+    BetaAccessToken,
     CandidateProfile,
     PasswordResetVerification,
     RegistrationVerification,
@@ -718,3 +721,57 @@ def logout_session():
 @router.get("/get_me")
 def get_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
+
+
+@router.delete("/account")
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    if current_user.account_type == "admin":
+        error("admin_account_deletion_forbidden", 403)
+
+    beta_tokens = session.exec(
+        select(BetaAccessToken).where(
+            (BetaAccessToken.assigned_user_id == current_user.id)
+            | (BetaAccessToken.created_by_user_id == current_user.id)
+        )
+    ).all()
+    for beta_token in beta_tokens:
+        if beta_token.assigned_user_id == current_user.id:
+            beta_token.assigned_user_id = 0
+        if beta_token.created_by_user_id == current_user.id:
+            beta_token.created_by_user_id = None
+        session.add(beta_token)
+
+    registration = session.exec(
+        select(RegistrationVerification).where(RegistrationVerification.email == current_user.email)
+    ).first()
+    if registration:
+        session.delete(registration)
+
+    password_reset = session.exec(
+        select(PasswordResetVerification).where(PasswordResetVerification.email == current_user.email)
+    ).first()
+    if password_reset:
+        session.delete(password_reset)
+
+    upload_urls = delete_user_dependencies(session, current_user)
+    session.delete(current_user)
+    session.commit()
+
+    uploads_root = settings.uploads_dir.resolve()
+    for upload_url in upload_urls:
+        if not upload_url.startswith("/uploads/"):
+            continue
+        upload_path = (uploads_root / Path(upload_url).name).resolve()
+        if upload_path.parent != uploads_root:
+            continue
+        try:
+            upload_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    response = JSONResponse({"status": "ok", "deleted": True})
+    clear_refresh_cookie(response)
+    return response

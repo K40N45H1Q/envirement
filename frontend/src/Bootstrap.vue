@@ -1,5 +1,6 @@
 <template>
   <router-view />
+  <CVBuilder v-if="cvBuilder.isOpen" @close="cvBuilder.close" />
 </template>
 
 <script setup>
@@ -7,12 +8,15 @@ import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useAuth } from '@/stores/auth'
 import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
+import { useCvBuilderStore } from '@/stores/cvBuilder'
+import CVBuilder from '@/components/CVBuilder.vue'
 import router from './router'
 import { getLocaleFromPath, stripLocaleFromPath, withLocale } from './router/locale'
 
 const auth = useAuth()
 const betaAccess = useBetaAccess()
 const uiStore = useUiStore()
+const cvBuilder = useCvBuilderStore()
 let isBetaRedirecting = false
 
 const handleUnauthorized = () => {
