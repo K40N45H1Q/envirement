@@ -365,6 +365,29 @@ textarea {
   font: inherit;
 }
 
+.form-panel :deep(.autocomplete__input-wrap input) {
+  width: 100%;
+  min-height: 3.15rem;
+  padding: 0.9rem 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.95rem;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.form-panel :deep(.autocomplete__input-wrap input:focus) {
+  border-color: var(--border-strong);
+  outline: none;
+  background: var(--surface-primary);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-base) 12%, transparent);
+}
+
+.form-panel :deep(.autocomplete__input-wrap input::placeholder) {
+  color: var(--text-muted);
+}
+
 input[readonly],
 input:disabled {
   cursor: not-allowed;
@@ -613,7 +636,7 @@ textarea {
   border-radius: 0.72rem;
   color: #fff;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .job-icon-button--edit {
@@ -627,8 +650,7 @@ textarea {
 }
 
 .job-icon-button:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
-  filter: brightness(1.06);
+  box-shadow: none;
 }
 
 .job-icon-button:focus-visible {
@@ -745,8 +767,8 @@ textarea {
 }
 
 .response-summary__pill--good {
-  background: #e8f0fe;
-  color: #4a90e2;
+  background: rgba(29, 168, 107, 0.12);
+  color: rgba(22, 155, 97, 0.92);
 }
 
 .response-summary__pill--partial {
@@ -853,8 +875,8 @@ textarea {
 
 .response-candidate-pill--good,
 .response-score-chip--good {
-  background: #e8f0fe;
-  color: #4a90e2;
+  background: rgba(29, 168, 107, 0.12);
+  color: rgba(22, 155, 97, 0.92);
 }
 
 .response-candidate-pill--partial,
@@ -1102,8 +1124,8 @@ textarea {
 }
 
 .response-breakdown-card--good .response-breakdown-card__head strong {
-  background: #e8f0fe;
-  color: #4a90e2;
+  background: rgba(29, 168, 107, 0.12);
+  color: rgba(22, 155, 97, 0.92);
 }
 
 .response-breakdown-card--partial .response-breakdown-card__head strong {

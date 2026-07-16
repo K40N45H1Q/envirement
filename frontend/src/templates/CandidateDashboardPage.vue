@@ -11,7 +11,7 @@ import { getProfile } from '@/api/profile'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useMessagingStore } from '@/stores/messaging'
-import { normalizeJob } from '@/utils/jobs'
+import { localizeJobTitle, normalizeJob } from '@/utils/jobs'
 import { localizeFullPath } from '@/router/locale'
 
 const route = useRoute()
@@ -23,6 +23,7 @@ const { language, t } = useI18n()
 
 const copy = computed(() => translate('candidateDashboardPage', {}, language.value))
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
+const displayJobTitle = (job) => localizeJobTitle(job, language.value)
 
 const jobs = ref([])
 const applications = ref([])
@@ -41,7 +42,7 @@ const activeSection = ref(normalizeSection(typeof route.query.section === 'strin
 const shellSections = computed(() => ([
   { id: 'messages', label: copy.value.sections.messages, icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'profile', label: copy.value.sections.profile, icon: 'fas fa-user', to: '/dashboard?section=profile' },
-  { id: 'settings', label: copy.value.sections.settings, icon: 'fas fa-gear', to: '/dashboard?section=settings', divider: true },
+  { id: 'settings', label: copy.value.sections.settings, icon: 'fas fa-gear', to: '/dashboard?section=settings' },
   { id: 'logout', label: t('common.logout'), icon: 'fas fa-right-from-bracket', danger: true },
 ]))
 
@@ -65,7 +66,23 @@ const availableJobs = computed(() => jobs.value.filter((job) => !appliedJobIds.v
 const recommendedJobs = computed(() => availableJobs.value.slice(0, 3))
 
 const profileScore = computed(() => {
-  const fields = [profile.value?.first_name, profile.value?.last_name, profile.value?.phone, profile.value?.resume_name]
+  const resume = profile.value?.resume_data || {}
+  const workExperience = resume.work_experiences?.[0] || {}
+  const education = resume.educations?.[0] || {}
+  const fields = [
+    resume.cv_language,
+    state.user?.email,
+    profile.value?.first_name,
+    profile.value?.last_name,
+    profile.value?.phone,
+    resume.birth_date,
+    resume.gender,
+    workExperience.position,
+    workExperience.company_name,
+    education.level,
+    education.institution,
+  ]
+
   return Math.round((fields.filter(Boolean).length / fields.length) * 100)
 })
 
@@ -281,7 +298,7 @@ onBeforeUnmount(() => {
               </div>
 
               <div class="job-info">
-                <h3>{{ job.title }}</h3>
+                <h3>{{ displayJobTitle(job) }}</h3>
                 <p>{{ job.company }} · {{ job.displayLocation || job.location }}</p>
                 <strong>{{ job.salary }}</strong>
               </div>
@@ -312,7 +329,7 @@ onBeforeUnmount(() => {
               <i class="fas fa-message"></i>
 
               <div class="activity-info">
-                <span class="activity-title">{{ application.job_title }}</span>
+                <span class="activity-title">{{ displayJobTitle(application) }}</span>
                 <span class="activity-company">
                   {{ application.job_company }}{{ application.chat_approved ? '' : ` · ${copy.chatPending}` }}
                 </span>
@@ -670,16 +687,15 @@ h2 {
   color: inherit;
   text-decoration: none;
   background: color-mix(in srgb, var(--surface-secondary) 84%, transparent);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .job-row:hover,
 .job-row:focus-visible,
 .activity-item:hover,
 .activity-item:focus-visible {
-  transform: translateY(-0.125rem);
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .job-logo {

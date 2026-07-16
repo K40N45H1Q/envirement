@@ -1,14 +1,27 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { getProfile } from '@/api/profile'
+import { getResponseCv } from '@/api/jobs'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useCvBuilderStore } from '@/stores/cvBuilder'
+import { limitText } from '@/utils/cvBuilderHelpers'
+import { createPaginatedCvPdf } from '@/utils/cvPdf'
 
-defineProps({
+const MAX_PRINT_WORK_EXPERIENCES = 3
+const MAX_PRINT_EDUCATIONS = 3
+const MAX_SUMMARY_LENGTH = 560
+const MAX_WORK_DESCRIPTION_LENGTH = 420
+const MAX_SHORT_FIELD_LENGTH = 120
+
+const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
+  },
+  applicationId: {
+    type: [Number, String],
+    default: null,
   },
 })
 
@@ -22,7 +35,6 @@ const cvDocument = ref(null)
 const isLoading = ref(false)
 const isPrinting = ref(false)
 const errorMessage = ref('')
-let printFrame = null
 
 const user = computed(() => state.user)
 const resume = computed(() => (
@@ -39,7 +51,13 @@ const cvLocale = computed(() => {
 })
 const cvCopy = computed(() => translate('resumeBuilderPage', {}, cvLocale.value))
 const cvSectionTitle = (key) => translate(`resumeBuilderPage.${key}`, {}, cvLocale.value)
+const displayLanguageLevel = (value) => (
+  value === 'Native'
+    ? translate('resumeBuilderPage.nativeLanguageLevel', {}, cvLocale.value)
+    : value
+)
 const hasCv = computed(() => Object.keys(resume.value).length > 0)
+const isResponseCv = computed(() => Boolean(props.applicationId))
 const fullName = computed(() => (
   `${profile.value.first_name || ''} ${profile.value.last_name || ''}`.trim()
   || user.value?.email
@@ -166,15 +184,30 @@ const avatarPreview = computed(() => profile.value.avatar_url || '')
 const displayCvName = fullName
 const avatarInitials = initials
 const displayCvRole = mainRole
-const cvWorkExperiences = workEntries
-const cvEducations = educationEntries
+const cvWorkExperiences = computed(() => workEntries.value.slice(0, MAX_PRINT_WORK_EXPERIENCES).map((entry) => ({
+  ...entry,
+  position: limitText(entry.position, MAX_SHORT_FIELD_LENGTH),
+  company_name: limitText(entry.company_name, MAX_SHORT_FIELD_LENGTH),
+  description: limitText(entry.description, MAX_WORK_DESCRIPTION_LENGTH, { preserveLineBreaks: true }),
+})))
+const cvMoreWorkExperiencesCount = computed(() => Math.max(0, workEntries.value.length - MAX_PRINT_WORK_EXPERIENCES))
+const cvEducations = computed(() => educationEntries.value.slice(0, MAX_PRINT_EDUCATIONS).map((entry) => ({
+  ...entry,
+  institution: limitText(entry.institution, MAX_SHORT_FIELD_LENGTH),
+  speciality: limitText(entry.speciality, MAX_SHORT_FIELD_LENGTH),
+  second_speciality: limitText(entry.second_speciality, MAX_SHORT_FIELD_LENGTH),
+  additional_information: limitText(entry.additional_information, MAX_WORK_DESCRIPTION_LENGTH, { preserveLineBreaks: true }),
+})))
+const cvMoreEducationsCount = computed(() => Math.max(0, educationEntries.value.length - MAX_PRINT_EDUCATIONS))
 const cvContactItems = computed(() => contacts.value.map((value) => ({
   value,
   icon: String(value).includes('@') ? 'far fa-envelope' : 'fas fa-phone',
 })))
 const cvSummaryParagraphs = computed(() => {
-  const text = String(workEntries.value[0]?.description || profile.value.summary || '').trim()
-  return text ? text.split(/\n{2,}/).filter(Boolean).slice(0, 2) : [cvCopy.value.summaryFallback]
+  const text = String(profile.value.summary || '').trim()
+  return text
+    ? text.split(/\n{2,}/).filter(Boolean).slice(0, 2).map((paragraph) => limitText(paragraph, MAX_SUMMARY_LENGTH / 2, { preserveLineBreaks: true }))
+    : [cvCopy.value.summaryFallback]
 })
 const cvVisibleSectors = computed(() => (
   Array.isArray(profile.value.sectors) ? profile.value.sectors : []
@@ -217,7 +250,9 @@ async function loadProfile() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    profile.value = await getProfile()
+    profile.value = props.applicationId
+      ? await getResponseCv(props.applicationId)
+      : await getProfile()
   } catch {
     errorMessage.value = profileCopy.value.loadProfileError
   } finally {
@@ -225,59 +260,47 @@ async function loadProfile() {
   }
 }
 
-function cleanupPrintFrame() {
-  if (!printFrame) return
-  printFrame.remove()
-  printFrame = null
-}
-
 async function downloadCv() {
   if (!cvDocument.value || isPrinting.value) return
   isPrinting.value = true
   await nextTick()
-  cleanupPrintFrame()
 
-  const iframe = document.createElement('iframe')
-  iframe.setAttribute('aria-hidden', 'true')
-  iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;opacity:0;pointer-events:none;background:#fff;'
-  document.body.appendChild(iframe)
-  printFrame = iframe
-
-  const printWindow = iframe.contentWindow
-  const printDocument = printWindow?.document
-  if (!printWindow || !printDocument) {
-    cleanupPrintFrame()
-    isPrinting.value = false
-    return
-  }
-
-  printDocument.open()
-  printDocument.write('<!doctype html><html><head><title>CV</title></head><body></body></html>')
-  printDocument.close()
-  document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
-    printDocument.head.appendChild(node.cloneNode(true))
-  })
-  const printStyle = printDocument.createElement('style')
-  printStyle.textContent = '@page{size:A4;margin:0}html,body{margin:0!important;padding:0!important;background:#fff!important}.cv-document{width:210mm!important;min-width:210mm!important;height:auto!important;min-height:0!important;margin:0!important;padding:1.45rem 1.7rem 1.15rem!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}.cv-header,.cv-top,.cv-footer{display:flex!important;flex-direction:row!important;justify-content:space-between!important}.cv-header,.cv-footer{align-items:center!important}.cv-top{align-items:flex-start!important}.cv-brand{flex-direction:row!important;flex-wrap:nowrap!important}.cv-header .cv-brand__logo{width:34mm!important;max-width:34mm!important;height:9mm!important;max-height:9mm!important;object-fit:contain!important;object-position:left center!important}.cv-footer .cv-brand__logo{width:24mm!important;max-width:24mm!important;height:6mm!important;max-height:6mm!important;object-fit:contain!important;object-position:left center!important}.cv-person{grid-template-columns:4.25rem minmax(0,1fr)!important}.cv-id{justify-items:center!important}.cv-body{grid-template-columns:minmax(0,1.34fr) minmax(12.5rem,.82fr)!important;overflow:visible!important}.cv-main{padding-right:1.25rem!important;border-right:.0625rem solid #d9dee7!important;overflow:visible!important}.cv-aside{overflow:visible!important}.cv-sector-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}'
-  printDocument.head.appendChild(printStyle)
-  printDocument.body.appendChild(cvDocument.value.cloneNode(true))
+  const renderHost = document.createElement('div')
+  renderHost.style.cssText = 'position:fixed;left:-10000px;top:0;width:49.625rem;background:#fff;pointer-events:none;'
+  const printableClone = cvDocument.value.cloneNode(true)
+  printableClone.style.transform = 'none'
+  printableClone.style.margin = '0'
+  renderHost.appendChild(printableClone)
+  document.body.appendChild(renderHost)
 
   try {
-    await printDocument.fonts?.ready
-  } catch {
-    // The browser can still print with its fallback font.
-  }
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+    const images = Array.from(printableClone.querySelectorAll('img'))
+    await Promise.all(images.map(async (image) => {
+      try {
+        await image.decode?.()
+      } catch {
+        // html2canvas will use the image state available in the document.
+      }
+    }))
+    await document.fonts?.ready
 
-  const finish = () => {
-    window.setTimeout(cleanupPrintFrame, 250)
+    const canvas = await html2canvas(printableClone, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: 1280,
+    })
+    const pdf = createPaginatedCvPdf(canvas, printableClone, jsPDF)
+    pdf.save('CVHOLD-CV.pdf')
+  } finally {
+    renderHost.remove()
     isPrinting.value = false
   }
-  printWindow.addEventListener('afterprint', finish, { once: true })
-  printWindow.focus()
-  printWindow.print()
-  window.setTimeout(() => {
-    if (isPrinting.value) finish()
-  }, 1500)
 }
 
 onMounted(loadProfile)
@@ -307,7 +330,7 @@ onMounted(loadProfile)
       <i class="far fa-file-lines"></i>
       <h1>{{ profileCopy.cvMissing }}</h1>
       <p>{{ profileCopy.cvMissingDescription }}</p>
-      <button type="button" class="primary-button" @click="cvBuilder.open">
+      <button v-if="!isResponseCv" type="button" class="primary-button" @click="cvBuilder.open">
         <i class="fas fa-plus"></i>{{ profileCopy.createCv }}
       </button>
     </div>
@@ -316,7 +339,7 @@ onMounted(loadProfile)
       <div class="cv-toolbar">
         <div>
           <span><i class="fas fa-circle-check"></i>{{ profileCopy.cvReady }}</span>
-          <h1>{{ profileCopy.myCv }}</h1>
+          <h1>{{ isResponseCv ? fullName : profileCopy.myCv }}</h1>
         </div>
         <button type="button" class="primary-button" :disabled="isPrinting" @click="downloadCv">
           <i :class="isPrinting ? 'fas fa-spinner fa-spin' : 'fas fa-download'"></i>
@@ -380,6 +403,7 @@ onMounted(loadProfile)
                 </p>
                 <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
               </div>
+              <p v-if="cvMoreWorkExperiencesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreWorkExperiencesCount) }}</p>
             </section>
 
             <section v-if="cvEducations.length" class="cv-section">
@@ -395,6 +419,7 @@ onMounted(loadProfile)
                 </p>
                 <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
               </div>
+              <p v-if="cvMoreEducationsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreEducationsCount) }}</p>
             </section>
 
             <section v-if="cvVisibleSectors.length" class="cv-section">
@@ -421,7 +446,7 @@ onMounted(loadProfile)
             <section v-if="cvVisibleLanguages.length" class="cv-section">
               <h2>{{ cvSectionTitle('languages') }}</h2>
               <ul class="cv-list">
-                <li v-for="item in cvVisibleLanguages" :key="`${item.name}-${item.level}`">{{ displayLanguageName(item.name) }} — {{ item.level }}</li>
+                <li v-for="item in cvVisibleLanguages" :key="`${item.name}-${item.level}`">{{ displayLanguageName(item.name) }} — {{ displayLanguageLevel(item.level) }}</li>
                 <li v-if="cvMoreLanguagesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreLanguagesCount) }}</li>
               </ul>
             </section>
@@ -504,10 +529,10 @@ onMounted(loadProfile)
   font-weight: 750;
   text-decoration: none;
   cursor: pointer;
-  transition: transform .18s ease, box-shadow .18s ease;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
 
-.primary-button:hover { transform: translateY(-1px); box-shadow: 0 13px 28px rgba(10, 153, 78, .28); }
+.primary-button:hover { box-shadow: none; }
 .primary-button:disabled { opacity: .7; cursor: wait; transform: none; }
 
 .state-card {
@@ -600,7 +625,7 @@ onMounted(loadProfile)
 .cv-main, .cv-aside { min-width: 0; }
 .cv-aside { padding-left: 7mm; border-left: 1px solid #dfe6e1; }
 .cv-section + .cv-section { margin-top: 7mm; }
-.cv-section h2 { margin: 0 0 3.5mm; padding-bottom: 2mm; border-bottom: 2px solid #1aa35a; color: var(--ink); font-size: 13px; line-height: 1.2; text-transform: uppercase; letter-spacing: .045em; }
+.cv-section h2 { margin: 0 0 3.5mm; padding-bottom: 2mm; border-bottom: 2px solid #1aa35a; color: var(--green); font-size: 13px; line-height: 1.2; font-weight: 800; text-transform: uppercase; letter-spacing: .045em; }
 .cv-entry + .cv-entry { margin-top: 5mm; padding-top: 5mm; border-top: 1px solid #e6ebe8; }
 .cv-entry__heading { display: flex; align-items: start; justify-content: space-between; gap: 4mm; }
 .cv-entry h3 { margin: 0; font-size: 12px; line-height: 1.3; }
@@ -608,7 +633,7 @@ onMounted(loadProfile)
 .cv-entry time { flex: 0 0 auto; color: var(--green-dark); font-size: 9px; font-weight: 700; white-space: nowrap; }
 .cv-entry__meta { margin: 2mm 0 0; display: flex; gap: 2mm; color: var(--green-dark); font-size: 9px; font-weight: 700; }
 .cv-entry__meta span + span::before { content: '·'; margin-right: 2mm; }
-.cv-paragraph { margin: 2.5mm 0 0; color: #465149; font-size: 10px; line-height: 1.55; white-space: pre-line; }
+.cv-paragraph { margin: 2.5mm 0 0; color: #465149; font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
 .cv-muted { color: #7a847e; font-size: 10px; }
 .cv-section dl { margin: 0; }
 .cv-section dt { margin-top: 3mm; color: #7a847e; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
@@ -689,7 +714,7 @@ onMounted(loadProfile)
 .cv-contact-list, .cv-list, .cv-extra-list { margin: 0; padding: 0; list-style: none; }
 .cv-contact-list { display: grid; gap: .3rem; }
 .cv-contact-list li { display: flex; align-items: center; gap: .45rem; color: var(--cv-ink); font-size: .74rem; line-height: 1.22; min-width: 0; }
-.cv-contact-list span, .cv-extra-list span, .cv-list li, .cv-sector span { overflow-wrap: anywhere; }
+.cv-contact-list span, .cv-extra-list span, .cv-list li, .cv-sector span { overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
 .cv-contact-list i, .cv-extra-list i { width: .95rem; color: var(--cv-green); text-align: center; flex: 0 0 auto; }
 .cv-id { display: grid; justify-items: center; gap: .18rem; color: var(--cv-ink); flex: 0 0 auto; }
 .cv-id small { margin-top: .18rem; color: var(--cv-green); font-size: .6rem; line-height: 1; font-weight: 900; text-transform: uppercase; }
@@ -698,14 +723,14 @@ onMounted(loadProfile)
 .cv-qr-cell { background: transparent; border-radius: .035rem; }
 .cv-qr-cell--active { background: #111; }
 .cv-qr strong { position: absolute; inset: 50% auto auto 50%; width: 1.48rem; height: 1.48rem; display: grid; place-items: center; transform: translate(-50%, -50%); border-radius: .22rem; background: #111; color: var(--cv-green); font-size: .5rem; line-height: 1; font-weight: 900; }
-.cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, .82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: 0; overflow: visible; }
-.cv-main { min-height: 0; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }
+.cv-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 1rem; flex: 1 1 auto; min-height: 0; overflow: visible; }
+.cv-main { min-height: 0; overflow: visible; padding-right: 0; border-right: 0; }
 .cv-aside { min-height: 0; overflow: visible; padding: 0; border: 0; }
 .cv-section { padding-bottom: .72rem; margin: 0 0 .72rem; border-bottom: .0625rem solid var(--cv-line); break-inside: avoid; page-break-inside: avoid; }
 .cv-section:last-child { margin-bottom: 0; }
-.cv-section h2 { margin: 0 0 .48rem; padding: 0; border: 0; color: var(--cv-ink); font-size: .78rem; line-height: 1.1; text-transform: uppercase; letter-spacing: .04em; }
+.cv-section h2 { margin: 0 0 .48rem; padding: 0; border: 0; color: var(--cv-green); font-size: .78rem; line-height: 1.1; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .cv-section p { margin: 0; color: var(--cv-ink); font-size: .72rem; line-height: 1.42; }
-.cv-summary-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: visible; white-space: pre-line; }
+.cv-summary-text { display: block; overflow: visible; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
 .cv-section p + p { margin-top: .42rem; }
 .cv-entry + .cv-entry { margin-top: .55rem; padding-top: .55rem; border-top: .0625rem solid var(--cv-line); }
 .cv-list { display: grid; gap: .3rem; }

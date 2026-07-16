@@ -8,6 +8,7 @@ import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { resolveApiUrl } from '@/api/client'
+import { deleteAccount as deleteAccountRequest } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
@@ -35,10 +36,11 @@ import {
 } from '@/utils/countries'
 import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
 import { presentMatchAnalysis } from '@/utils/matchPresentation'
-import { normalizeJob } from '@/utils/jobs'
+import { localizeJobTitle, normalizeJob } from '@/utils/jobs'
 import { findOccupationSuggestions } from '@/utils/occupations'
 import { findSkillSuggestions, localizeSkill } from '@/utils/skills'
 import { formatDateInput, isValidDateValue, normalizeDateInput } from '@/utils/cvBuilderHelpers'
+import { localizeFullPath } from '@/router/locale'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,12 +79,15 @@ const plans = [
 const copy = computed(() => translate('employerDashboardPage', {}, currentLanguage.value))
 
 const interpolate = (template, params = {}) => String(template).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''))
+const displayJobTitle = (job) => localizeJobTitle(job, currentLanguage.value)
 
 const sections = [
   { id: 'jobs', icon: 'fas fa-briefcase', to: '/dashboard?section=jobs' },
   { id: 'responses', icon: 'fas fa-user-check', to: '/dashboard?section=responses' },
   { id: 'messages', icon: 'fas fa-message', to: '/dashboard?section=messages' },
   { id: 'pricing', icon: 'fas fa-credit-card', to: '/dashboard?section=pricing' },
+  { id: 'settings', icon: 'fas fa-gear', to: '/dashboard?section=settings' },
+  { id: 'logout', icon: 'fas fa-right-from-bracket', label: t('common.logout'), danger: true },
 ]
 
 const localizedPlans = computed(() => plans.map((plan) => ({
@@ -97,7 +102,7 @@ const localizedSections = computed(() => sections
     ...section,
     label: copy.value.sections[section.id] || section.label,
     to: `${route.path}?section=${section.id}`,
-    disabled: section.id !== 'pricing' && !hasActiveSubscription.value,
+    disabled: ['jobs', 'responses', 'messages'].includes(section.id) && !hasActiveSubscription.value,
   })))
 
 const localizedLanguageOptions = computed(() => getLanguageOptions())
@@ -173,6 +178,9 @@ const isLoading = ref(false)
 const isRefreshing = ref(false)
 const isSaving = ref(false)
 const isJobModalOpen = ref(false)
+const showDeleteAccountConfirm = ref(false)
+const isDeletingAccount = ref(false)
+const deleteAccountError = ref('')
 const deletingId = ref(null)
 const approvingId = ref(null)
 const editingId = ref(null)
@@ -303,7 +311,8 @@ const groupedResponses = computed(() => {
     if (!groups.has(key)) {
       groups.set(key, {
         job_id: item.job_id,
-        job_title: item.job_title,
+        job_title: displayJobTitle(item),
+        job_occupation_id: item.job_occupation_id,
         job_company: item.job_company,
         job_location: item.job_location,
         job_salary: item.job_salary,
@@ -454,6 +463,10 @@ function responseResumeUrl(item) {
   return resolveApiUrl(item.candidate_resume_url || '')
 }
 
+function responseSiteCvUrl(item) {
+  return localizeFullPath(`/responses/${item.id}/cv`, currentLanguage.value)
+}
+
 function jobLogoKey(job) {
   return `${job.id || ''}:${job.logo || ''}`
 }
@@ -469,7 +482,13 @@ function markJobLogoBroken(job) {
 }
 
 async function setSection(sectionId) {
-  if (sectionId !== 'pricing' && !hasActiveSubscription.value) {
+  if (sectionId === 'logout') {
+    auth.logout()
+    await router.replace(localizeFullPath('/', currentLanguage.value))
+    return
+  }
+
+  if (['jobs', 'responses', 'messages'].includes(sectionId) && !hasActiveSubscription.value) {
     sectionId = 'pricing'
   }
   activeSection.value = normalizeSection(sectionId)
@@ -477,6 +496,23 @@ async function setSection(sectionId) {
     path: route.path,
     query: { section: activeSection.value },
   })
+}
+
+async function deleteAccount() {
+  if (isDeletingAccount.value) return
+
+  isDeletingAccount.value = true
+  deleteAccountError.value = ''
+
+  try {
+    await deleteAccountRequest()
+    auth.logout()
+    await router.replace(localizeFullPath('/', currentLanguage.value))
+  } catch {
+    deleteAccountError.value = copy.value.deleteAccountError
+  } finally {
+    isDeletingAccount.value = false
+  }
 }
 
 async function fetchDashboardData({ silent = false } = {}) {
@@ -664,7 +700,7 @@ async function editJob(job) {
   const salaryParts = parseSalaryParts(job.salary)
   editingId.value = job.id
   form.value = {
-    title: job.title,
+    title: job.raw_title || job.title,
     occupation_id: job.occupation_id || '',
     company: employerCompanyName.value || job.company,
     salary: salaryParts.amount,
@@ -712,6 +748,10 @@ async function submitJob() {
     } = form.value
     if (!selectedCountry.value) {
       error.value = copy.value.chooseCountryError
+      return
+    }
+    if (!String(form.value.location || '').trim()) {
+      error.value = copy.value.chooseCityError
       return
     }
     if (!form.value.occupation_id) {
@@ -789,7 +829,7 @@ async function removeJob(job) {
     return
   }
 
-  if (!window.confirm(interpolate(copy.value.deleteConfirm, { title: job.title }))) return
+  if (!window.confirm(interpolate(copy.value.deleteConfirm, { title: displayJobTitle(job) }))) return
 
   deletingId.value = job.id
   status.value = ''
@@ -994,6 +1034,7 @@ onBeforeUnmount(() => {
                   :suggestions="titleSuggestions"
                   :placeholder="copy.titlePlaceholder"
                   :aria-label="copy.title"
+                  required
                   @update:model-value="handleTitleInput"
                   @select="selectOccupation"
                 />
@@ -1269,7 +1310,7 @@ onBeforeUnmount(() => {
               <div class="job-body">
                 <div class="job-top">
                   <div class="job-heading">
-                    <h3>{{ job.title }}</h3>
+                    <h3>{{ displayJobTitle(job) }}</h3>
                     <div class="job-company">{{ job.company }} · {{ job.location }}</div>
                   </div>
                   <span
@@ -1472,6 +1513,16 @@ onBeforeUnmount(() => {
                           <i class="fas fa-download"></i>
                           {{ copy.downloadResumePdf }}
                         </a>
+                        <a
+                          v-if="item.candidate_has_site_cv"
+                          class="response-detail response-resume-link"
+                          :href="responseSiteCvUrl(item)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <i class="fas fa-file-lines"></i>
+                          {{ copy.openSiteCv }}
+                        </a>
                       </div>
 
                       <div v-if="item.matchAnalysis.failedGates.length" class="response-failed-gates">
@@ -1544,6 +1595,66 @@ onBeforeUnmount(() => {
           <MessagesPanel embedded @open="openDashboardConversation" />
         </section>
 
+        <section v-else-if="activeSection === 'settings'" class="panel settings-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow compact">{{ copy.settingsTitle }}</p>
+              <h2>{{ copy.settingsDescription }}</h2>
+            </div>
+          </div>
+
+          <div class="settings-panel__row">
+            <span>{{ copy.accountEmail }}</span>
+            <strong>{{ auth.user?.email }}</strong>
+          </div>
+
+          <section class="settings-danger-zone">
+            <div class="settings-danger-zone__copy">
+              <h3>{{ copy.deleteAccountTitle }}</h3>
+              <p>{{ copy.deleteAccountDescription }}</p>
+            </div>
+
+            <button
+              v-if="!showDeleteAccountConfirm"
+              type="button"
+              class="delete-account-button"
+              @click="showDeleteAccountConfirm = true; deleteAccountError = ''"
+            >
+              <i class="fas fa-user-xmark"></i>
+              {{ copy.deleteAccount }}
+            </button>
+
+            <div v-else class="delete-account-confirmation">
+              <strong>{{ copy.deleteAccountConfirm }}</strong>
+              <p>{{ copy.deleteAccountWarning }}</p>
+
+              <p v-if="deleteAccountError" class="delete-account-error" role="alert">
+                {{ deleteAccountError }}
+              </p>
+
+              <div class="delete-account-confirmation__actions">
+                <button
+                  type="button"
+                  class="cancel-delete-button"
+                  :disabled="isDeletingAccount"
+                  @click="showDeleteAccountConfirm = false; deleteAccountError = ''"
+                >
+                  {{ copy.cancel }}
+                </button>
+                <button
+                  type="button"
+                  class="confirm-delete-button"
+                  :disabled="isDeletingAccount"
+                  @click="deleteAccount"
+                >
+                  <i :class="isDeletingAccount ? 'fas fa-spinner fa-spin' : 'fas fa-trash-can'"></i>
+                  {{ isDeletingAccount ? copy.deletingAccount : copy.deletePermanently }}
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+
         <section v-if="activeSection === 'pricing'" class="pricing-layout">
           <article class="panel current-plan">
             <div class="panel-heading">
@@ -1608,3 +1719,131 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped src="../styles/pages/employer-dashboard.css"></style>
+
+<style scoped>
+.settings-panel {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.settings-panel__row {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.875rem;
+  background: var(--surface-muted);
+}
+
+.settings-panel__row span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.settings-danger-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid color-mix(in srgb, #dc2626 28%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, #dc2626 5%, var(--surface-primary));
+}
+
+.settings-danger-zone__copy h3,
+.settings-danger-zone__copy p,
+.delete-account-confirmation p {
+  margin: 0;
+}
+
+.settings-danger-zone__copy h3 {
+  color: #b91c1c;
+  font-size: 1rem;
+}
+
+.settings-danger-zone__copy p,
+.delete-account-confirmation p {
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.delete-account-button,
+.confirm-delete-button,
+.cancel-delete-button {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-account-button,
+.confirm-delete-button {
+  border: 0.0625rem solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.delete-account-button:hover,
+.delete-account-button:focus-visible,
+.confirm-delete-button:hover,
+.confirm-delete-button:focus-visible {
+  background: #b91c1c;
+}
+
+.delete-account-confirmation {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 0.0625rem solid color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.delete-account-confirmation__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.cancel-delete-button {
+  border: 0.0625rem solid var(--border-subtle);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.delete-account-error {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
+.delete-account-button:disabled,
+.confirm-delete-button:disabled,
+.cancel-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 32rem) {
+  .settings-danger-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-account-button,
+  .delete-account-confirmation__actions,
+  .delete-account-confirmation__actions button {
+    width: 100%;
+  }
+
+  .delete-account-confirmation__actions {
+    display: grid;
+  }
+}
+</style>

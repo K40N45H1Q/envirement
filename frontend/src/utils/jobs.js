@@ -1,8 +1,9 @@
 import { translate } from '@/i18n'
 import { getLocaleFromPath } from '@/router/locale'
 import { formatJobLocation, resolveCountryMeta } from './countries'
+import { resolveOccupation } from './occupations'
 
-const colors = ['#19785a', '#1e2326', '#2563eb', '#9333ea', '#0f766e', '#b45309']
+const colors = ['#19785a', '#1e2326', 'rgba(29, 168, 107, 0.78)', '#9333ea', '#0f766e', '#b45309']
 
 const parseJsonArray = (value) => {
   if (Array.isArray(value)) return value
@@ -23,6 +24,15 @@ const getLanguage = () => {
 
 const t = (key) => translate(`jobsUtil.${key}`, {}, getLanguage())
 
+export const localizeJobTitle = (job = {}, locale = getLanguage()) => {
+  const sourceTitle = job.raw_title || job.title || job.job_title || ''
+  return resolveOccupation(
+    job.occupation_id || job.job_occupation_id || '',
+    sourceTitle,
+    locale,
+  )?.label || sourceTitle || translate('jobsUtil.vacancy', {}, locale)
+}
+
 export const initialsFor = (value = '') => {
   const words = value.trim().split(/\s+/).filter(Boolean)
   return (words.length ? words : ['CV'])
@@ -34,11 +44,13 @@ export const initialsFor = (value = '') => {
 
 export const normalizeJob = (job, index = 0) => {
   const country = resolveCountryMeta(job)
+  const rawTitle = job.raw_title || job.title || ''
 
   return {
     id: job.id ?? job.slug ?? index,
     user_id: job.user_id ?? job.userId ?? null,
-    title: job.title || t('vacancy'),
+    raw_title: rawTitle,
+    title: localizeJobTitle({ ...job, raw_title: rawTitle }),
     occupation_id: job.occupation_id || '',
     company: job.company || t('company'),
     location: job.location || t('locationMissing'),

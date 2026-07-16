@@ -195,7 +195,6 @@ defineEmits(['select-section', 'stat-click'])
 .dashboard-sidebar__item:focus-visible {
   background: color-mix(in srgb, var(--brand-soft) 60%, transparent);
   color: var(--brand-strong);
-  transform: translateX(0.12rem);
 }
 
 .dashboard-sidebar__item:hover i,
@@ -380,8 +379,7 @@ h1 {
 }
 
 .dashboard-stats__item--clickable:hover {
-  transform: translateY(-0.2rem);
-  box-shadow: 0 0.75rem 1.5rem rgba(16, 185, 129, 0.15);
+  box-shadow: none;
 }
 
 .dashboard-stats__item--clickable:active {

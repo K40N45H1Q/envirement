@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { translate, useI18n } from '@/i18n'
 import { useMessagingStore } from '@/stores/messaging'
 import { useAuth } from '@/stores/auth'
+import { localizeJobTitle } from '@/utils/jobs'
 
 const accountType = computed(
   () => useAuth().accountType
@@ -43,9 +44,10 @@ const panelTitle = computed(() => props.title || copy.value.title)
 const panelHint = computed(() => props.hint || copy.value.hint)
 const dateLocale = computed(() => (language.value === 'lv' ? 'lv-LV' : language.value === 'en' ? 'en-US' : 'ru-RU'))
 const activeTitle = computed(() => activeConversation.value?.counterparty_name || copy.value.fallbackTitle)
+const displayJobTitle = (job) => localizeJobTitle(job, language.value)
 const activeSubtitle = computed(() => {
   if (!activeConversation.value) return copy.value.fallbackSubtitle
-  return `${activeConversation.value.job_title} · ${activeConversation.value.job_company}`
+  return `${displayJobTitle(activeConversation.value)} · ${activeConversation.value.job_company}`
 })
 
 const emit = defineEmits(['open'])
@@ -87,7 +89,7 @@ const send = async () => {
           <strong>{{ conversation.counterparty_name }}</strong>
           <span>{{ new Date(conversation.last_message_at).toLocaleDateString(dateLocale) }}</span>
         </div>
-        <span class="chat-list__job">{{ conversation.job_title }}</span>
+        <span class="chat-list__job">{{ displayJobTitle(conversation) }}</span>
         <span class="chat-list__message">{{ conversation.last_message }}</span>
       </button>
 
@@ -211,7 +213,7 @@ const send = async () => {
   text-align: left;
   cursor: pointer;
   color: var(--text-primary);
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .chat-list__item:hover,
@@ -294,14 +296,12 @@ const send = async () => {
   font-weight: 800;
   cursor: pointer;
   transition:
-    transform 0.2s ease,
     background 0.2s ease,
     border-color 0.2s ease,
     opacity 0.2s ease;
 }
 
 .delete-button:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
   background: rgba(220, 38, 38, 0.12);
   border-color: rgba(220, 38, 38, 0.2);
 }

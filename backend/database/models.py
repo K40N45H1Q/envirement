@@ -94,6 +94,7 @@ class CandidateProfile(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    residence: Optional[str] = None
     phone: Optional[str] = None
     summary: Optional[str] = None
     current_role: Optional[str] = None
@@ -442,6 +443,7 @@ def ensure_candidate_profile_columns():
             "desired_occupation_id": "ALTER TABLE candidateprofile ADD COLUMN desired_occupation_id VARCHAR",
             "desired_occupation_label": "ALTER TABLE candidateprofile ADD COLUMN desired_occupation_label VARCHAR",
             "skill_ids_json": "ALTER TABLE candidateprofile ADD COLUMN skill_ids_json VARCHAR",
+            "residence": "ALTER TABLE candidateprofile ADD COLUMN residence VARCHAR",
         }
 
         for column, statement in additions.items():

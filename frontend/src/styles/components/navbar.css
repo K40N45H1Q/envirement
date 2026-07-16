@@ -159,13 +159,12 @@
   color: var(--text-primary);
   text-decoration: none;
   border-radius: 0.7rem;
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .jobs-menu__link:hover,
 .jobs-menu__link:focus-visible {
   color: var(--brand-strong);
-  transform: translateX(0.15rem);
 }
 
 .actions {

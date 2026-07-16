@@ -635,6 +635,9 @@ def get_my_job_responses(
             "message": app.message,
             "candidate_resume_name": app.resume_name or (profile.resume_name if profile else ""),
             "candidate_resume_url": app.resume_url or (profile.resume_url if profile else ""),
+            "candidate_has_site_cv": bool(
+                profile and parse_json_field(profile.resume_data_json, {})
+            ),
             "chat_approved": app.chat_approved,
             "candidate_current_role": profile.current_role if profile else "",
             "candidate_summary": profile.summary if profile else "",
@@ -656,6 +659,41 @@ def get_my_job_responses(
             "created_at": app.created_at,
         })
     return sorted(result, key=lambda item: item["match_score"], reverse=True)
+
+
+@router.get("/responses/{response_id}/cv")
+def get_response_cv(
+    response_id: int,
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    require_account_types(current_user, "employer", "admin")
+    ensure_active_employer_subscription(current_user)
+    application, _, _, _ = get_application_context(response_id, current_user, session)
+    profile = session.exec(
+        select(CandidateProfile).where(
+            CandidateProfile.user_id == application.applicant_user_id
+        )
+    ).first()
+    resume_data = parse_json_field(profile.resume_data_json, {}) if profile else {}
+    if not profile or not resume_data:
+        raise HTTPException(status_code=404, detail={"key": "candidate_cv_not_found"})
+
+    return {
+        "first_name": profile.first_name or application.name or "",
+        "last_name": profile.last_name or application.surname or "",
+        "email": application.email or "",
+        "residence": profile.residence or "",
+        "phone": profile.phone or application.phone or "",
+        "summary": profile.summary or "",
+        "current_role": profile.current_role or "",
+        "skills": profile.skills or "",
+        "sectors": parse_json_field(profile.sectors_json, []),
+        "languages": parse_json_field(profile.languages_json, []),
+        "licenses": parse_json_field(profile.licenses_json, []),
+        "avatar_url": profile.avatar_url or "",
+        "resume_data": resume_data,
+    }
 
 
 @router.patch("/responses/{response_id}/approve-chat")
@@ -756,6 +794,7 @@ def get_message_conversations(
             "application_id": application.id,
             "job_id": application.job_id,
             "job_title": job.title,
+            "job_occupation_id": job.occupation_id or "",
             "job_company": job.company,
             "job_location": job.location,
             "counterparty_name": (

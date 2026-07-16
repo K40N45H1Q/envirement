@@ -7,6 +7,7 @@ import JobDirectoryPage from '@/templates/JobDirectoryPage.vue'
 import PricingPage from '@/templates/PricingPage.vue'
 import DashboardPage from '@/templates/DashboardPage.vue'
 import ResponsesPage from '@/templates/ResponsesPage.vue'
+import ResponseCvPage from '@/templates/ResponseCvPage.vue'
 import MessagesPage from '@/templates/MessagesPage.vue'
 import AboutPage from '@/templates/AboutPage.vue'
 import InfoPage from '@/templates/InfoPage.vue'
@@ -125,6 +126,7 @@ const localizedChildren = [
     }),
   },
   { path: 'responses', component: ResponsesPage, meta: { logicalPath: '/responses', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
+  { path: 'responses/:id/cv', component: ResponseCvPage, meta: { logicalPath: '/responses/:id/cv', requiresAuth: true, accountTypes: ['employer', 'admin'] } },
   { path: 'messages', component: MessagesPage, meta: { logicalPath: '/messages', requiresAuth: true } },
   { path: 'blog', component: InfoPage, meta: { logicalPath: '/blog', page: 'blog' } },
   { path: 'about', component: AboutPage, meta: { logicalPath: '/about' } },

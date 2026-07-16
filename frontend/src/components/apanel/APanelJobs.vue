@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
+import { localizeJobTitle } from '@/utils/jobs'
 
 const props = defineProps({
   jobs: {
@@ -28,6 +29,7 @@ const rejectionReason = ref('')
 const rejectionError = ref('')
 const currentPage = ref(1)
 const JOBS_PER_PAGE = 5
+const displayJobTitle = (job) => localizeJobTitle(job, language.value)
 
 const buildPaginationItems = (page, total) => {
   if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
@@ -144,7 +146,7 @@ const submitRejection = () => {
           >
             <td>
               <div class="apanel-job-title">
-                <span>{{ job.title }}</span>
+                <span>{{ displayJobTitle(job) }}</span>
                 <small>{{ job.location || t('aPanelJobs.locationMissing') }}</small>
               </div>
             </td>
@@ -164,18 +166,20 @@ const submitRejection = () => {
             <td>{{ job.salary || '-' }}</td>
             <td>{{ formatDate(job.created_at) }}</td>
             <td class="apanel-actions">
-              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--preview" :title="t('aPanelJobs.preview')" :aria-label="t('aPanelJobs.preview')" @click.stop="previewJob = job">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--approve" :title="t('aPanelJobs.approve')" :aria-label="t('aPanelJobs.approve')" @click.stop="emit('approve', job)">
-                <i class="fas fa-check"></i>
-              </button>
-              <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--reject" :title="t('aPanelJobs.reject')" :aria-label="t('aPanelJobs.reject')" @click.stop="openRejectionModal(job)">
-                <i class="fas fa-xmark"></i>
-              </button>
-              <button v-if="!moderation" type="button" class="apanel-icon-button apanel-icon-button--danger" :title="t('aPanelJobs.delete')" :aria-label="t('aPanelJobs.delete')" @click.stop="emit('delete', job)">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="apanel-actions__group">
+                <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--preview" :title="t('aPanelJobs.preview')" :aria-label="t('aPanelJobs.preview')" @click.stop="previewJob = job">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--approve" :title="t('aPanelJobs.approve')" :aria-label="t('aPanelJobs.approve')" @click.stop="emit('approve', job)">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button v-if="moderation" type="button" class="apanel-icon-button apanel-icon-button--reject" :title="t('aPanelJobs.reject')" :aria-label="t('aPanelJobs.reject')" @click.stop="openRejectionModal(job)">
+                  <i class="fas fa-xmark"></i>
+                </button>
+                <button v-if="!moderation" type="button" class="apanel-icon-button apanel-icon-button--danger" :title="t('aPanelJobs.delete')" :aria-label="t('aPanelJobs.delete')" @click.stop="emit('delete', job)">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -423,13 +427,21 @@ const submitRejection = () => {
 }
 
 .apanel-actions {
-  width: 7rem;
+  width: 9.5rem;
   text-align: right !important;
   white-space: nowrap;
 }
 
+.apanel-actions__group {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
 .apanel-table th:last-child {
-  width: 7rem;
+  width: 9.5rem;
   text-align: right;
 }
 
@@ -445,16 +457,11 @@ const submitRejection = () => {
   color: #fff;
   box-shadow: 0 0.55rem 1rem rgba(71, 85, 105, 0.16);
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .apanel-icon-button:hover {
-  transform: translateY(-0.0625rem);
-  filter: brightness(1.06);
-}
-
-.apanel-icon-button:active {
-  transform: translateY(0);
+  box-shadow: none;
 }
 
 .apanel-icon-button:focus-visible {
@@ -463,8 +470,8 @@ const submitRejection = () => {
 }
 
 .apanel-icon-button--preview {
-  background: linear-gradient(180deg, #22a6f2, #1684c7);
-  box-shadow: 0 0.55rem 1rem rgba(22, 132, 199, 0.18);
+  background: linear-gradient(180deg, rgba(29, 168, 107, 0.92), rgba(22, 155, 97, 0.92));
+  box-shadow: 0 0.55rem 1rem rgba(29, 168, 107, 0.18);
 }
 
 .apanel-icon-button--approve {
@@ -691,7 +698,7 @@ const submitRejection = () => {
   align-items: center;
   padding: 1rem;
   border-radius: 1rem;
-  background: linear-gradient(135deg, rgba(25, 120, 90, 0.08), rgba(37, 99, 235, 0.06));
+  background: linear-gradient(135deg, rgba(25, 120, 90, 0.08), rgba(29, 168, 107, 0.06));
 }
 
 .job-preview-logo {

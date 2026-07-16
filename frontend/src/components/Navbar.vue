@@ -310,10 +310,11 @@ export default {
         })
       }
 
-      items.push(
-        { label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' },
-        { label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' },
-      )
+      items.push({ label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' })
+
+      if (this.normalizedAccountType !== 'candidate') {
+        items.push({ label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' })
+      }
 
       if (this.user) {
         items.push({

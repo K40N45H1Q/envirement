@@ -167,12 +167,12 @@ const currentYear = new Date().getFullYear()
   .brand-link,
   .footer-column a,
   .footer-link-button {
-    transition: transform 0.2s ease, color 0.2s ease;
+    transition: color 0.2s ease, background-color 0.2s ease;
   }
 
   .brand-link:hover,
   .brand-link:focus-visible {
-    transform: translateY(-0.0625rem);
+    box-shadow: none;
   }
 }
 

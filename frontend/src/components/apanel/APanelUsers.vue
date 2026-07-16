@@ -443,21 +443,16 @@ const revokeSubscription = (user) => {
   color: #fff;
   box-shadow: 0 0.625rem 1.2rem rgba(21, 149, 93, 0.18);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .apanel-icon-button:hover {
-  transform: translateY(-0.0625rem);
-  filter: brightness(1.03);
+  box-shadow: none;
 }
 
 .apanel-icon-button:focus-visible {
   outline: 0.1875rem solid rgba(21, 149, 93, 0.18);
   outline-offset: 0.125rem;
-}
-
-.apanel-icon-button:active {
-  transform: translateY(0);
 }
 
 .apanel-icon-button--danger {

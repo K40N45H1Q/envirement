@@ -26,7 +26,7 @@ const COPY = {
 
 const META = {
   strong: { key: 'strong', textColor: '#19785a', badgeBackground: '#e6f0ec' },
-  good: { key: 'good', textColor: '#3b82f6', badgeBackground: '#e8f0fe' },
+  good: { key: 'good', textColor: 'rgba(22, 155, 97, 0.92)', badgeBackground: 'rgba(29, 168, 107, 0.12)' },
   partial: { key: 'partial', textColor: '#d68a12', badgeBackground: '#fef3e2' },
   weak: { key: 'weak', textColor: '#6b7280', badgeBackground: '#f3f4f6' },
   fail: { key: 'fail', textColor: '#dc2626', badgeBackground: '#fee2e2' },

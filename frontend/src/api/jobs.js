@@ -19,6 +19,7 @@ export const getMyJobs = () => apiRequest('/api/my_jobs', { requireAuth: true })
 export const getMyApplications = () => apiRequest('/api/my_applications', { requireAuth: true })
 
 export const getResponses = () => apiRequest('/api/responses', { requireAuth: true })
+export const getResponseCv = (id) => apiRequest(`/api/responses/${id}/cv`, { requireAuth: true })
 
 export const approveResponseChat = (id) => apiRequest(`/api/responses/${id}/approve-chat`, {
   method: 'PATCH',

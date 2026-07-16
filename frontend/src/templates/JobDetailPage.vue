@@ -7,7 +7,7 @@ import { applyToJob, getJob, getJobMatch, getResponses } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
 import { useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
-import { normalizeJob } from '@/utils/jobs'
+import { localizeJobTitle, normalizeJob } from '@/utils/jobs'
 import { presentMatchAnalysis } from '@/utils/matchPresentation'
 
 const route = useRoute()
@@ -25,8 +25,6 @@ const brokenLogo = ref(false)
 const brokenBanner = ref(false)
 const applyModal = ref(null)
 const bannerModal = ref(null)
-const resume = ref(null)
-const resumeInput = ref(null)
 const previousOverflow = ref('')
 const form = ref({ name: '', surname: '', phone: '', email: '', nationality: '', message: '' })
 
@@ -49,6 +47,7 @@ const licenses = computed(() => job.value?.licenses?.map((item) => (
 const jobResponses = computed(() => responses.value.filter((item) => Number(item.job_id) === Number(job.value?.id || 0)))
 const approvedResponsesCount = computed(() => jobResponses.value.filter((item) => item.chat_approved).length)
 const pendingResponsesCount = computed(() => Math.max(jobResponses.value.length - approvedResponsesCount.value, 0))
+const localizedJobTitle = computed(() => localizeJobTitle(job.value || {}, language.value))
 
 const localizeLanguage = (value = '') => {
   const name = String(value).trim().toLowerCase()
@@ -76,13 +75,6 @@ const openModal = (modal) => {
 const closeModal = (modal) => {
   modal?.close()
   document.body.style.overflow = previousOverflow.value
-}
-
-const resetApplicationForm = () => {
-  resume.value = null
-  if (resumeInput.value) {
-    resumeInput.value.value = ''
-  }
 }
 
 const openResponses = () => {
@@ -147,20 +139,16 @@ const submitApplication = async () => {
       username: user.value.email,
       email: form.value.email || user.value.email,
       job_id: Number(job.value.id),
-      ...(resume.value && { resume: resume.value }),
     })
 
     applyStatus.value = t(result?.application_id ? 'jobDetailPage.apply.sentWithChat' : 'jobDetailPage.apply.sent')
     matchResult.value = result?.match_analysis || matchResult.value
-    resetApplicationForm()
   } catch (err) {
     applyStatus.value = t(
       err?.key === 'duplicate_application'
         ? 'jobDetailPage.apply.duplicate'
         : err?.key === 'forbidden'
           ? 'jobDetailPage.apply.candidateOnly'
-        : err?.key === 'resume_must_be_pdf'
-          ? 'jobDetailPage.apply.resumeMustBePdf'
           : err?.key === 'job_not_available'
             ? 'jobDetailPage.apply.jobUnavailable'
             : err?.key === 'missing_fields'
@@ -223,7 +211,7 @@ watch(() => route.params.id, async () => {
           </div>
           <div>
             <p class="brand">{{ t('jobDetailPage.eyebrow') }}</p>
-            <h1>{{ job.title }}</h1>
+            <h1>{{ localizedJobTitle }}</h1>
             <p class="muted">{{ job.company }}</p>
           </div>
         </section>
@@ -240,7 +228,7 @@ watch(() => route.params.id, async () => {
               >
                 <img
                   :src="job.banner_url"
-                  :alt="job.title"
+                  :alt="localizedJobTitle"
                   @error="brokenBanner = true"
                 >
               </button>
@@ -328,7 +316,7 @@ watch(() => route.params.id, async () => {
             <section v-if="!isEmployer" class="side-section apply">
               <div>
                 <h2>{{ t('jobDetailPage.applyTitle') }}</h2>
-                <p class="muted">{{ job.title }}</p>
+                <p class="muted">{{ localizedJobTitle }}</p>
               </div>
               <button
                 class="primary"
@@ -384,16 +372,6 @@ watch(() => route.params.id, async () => {
           <label class="wide">
             <span>{{ t('jobDetailPage.form.message') }}</span>
             <textarea v-model="form.message" rows="5" />
-          </label>
-          <label class="wide upload">
-            <input
-              ref="resumeInput"
-              type="file"
-              accept="application/pdf,.pdf"
-              @change="resume = $event.target.files?.[0] || null"
-            >
-            <strong>{{ t('jobDetailExtra.uploadResume') }}</strong>
-            <span>{{ resume?.name || t('jobDetailExtra.pdfFile') }}</span>
           </label>
         </div>
         <p v-if="applyStatus" class="status">{{ applyStatus }}</p>
@@ -828,39 +806,6 @@ a {
 
 .form-grid textarea {
   resize: vertical;
-}
-
-.upload {
-  place-items: center;
-  padding: 1.25rem;
-  border: 2px dashed var(--brand-strong);
-  border-radius: 0.9rem;
-  background: var(--surface-secondary);
-  text-align: center;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.upload:hover {
-  background: color-mix(in srgb, var(--brand-soft) 35%, var(--surface-secondary));
-}
-
-.upload input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.upload strong {
-  color: var(--brand-strong);
-}
-
-.upload span {
-  color: var(--text-muted);
-  font-weight: 400;
-  overflow-wrap: anywhere;
 }
 
 .status {

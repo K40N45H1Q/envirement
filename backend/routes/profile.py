@@ -45,6 +45,7 @@ def serialize_profile(profile: Optional[CandidateProfile]):
         return {
             "first_name": "",
             "last_name": "",
+            "residence": "",
             "phone": "",
             "summary": "",
             "current_role": "",
@@ -72,6 +73,7 @@ def serialize_profile(profile: Optional[CandidateProfile]):
     return {
         "first_name": profile.first_name or "",
         "last_name": profile.last_name or "",
+        "residence": profile.residence or "",
         "phone": profile.phone or "",
         "summary": profile.summary or "",
         "current_role": profile.current_role or "",
@@ -109,6 +111,7 @@ def get_profile(current_user=Depends(get_current_user), session=Depends(get_sess
 async def update_profile(
     first_name: Optional[str] = Form(None),
     last_name: Optional[str] = Form(None),
+    residence: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     summary: Optional[str] = Form(None),
     current_role: Optional[str] = Form(None),
@@ -151,6 +154,7 @@ async def update_profile(
 
     profile.first_name = first_name
     profile.last_name = last_name
+    profile.residence = residence
     profile.phone = phone
     profile.summary = summary
     profile.current_role = current_role
@@ -215,6 +219,7 @@ def get_my_applications(current_user=Depends(get_current_user), session=Depends(
             "id": application.id,
             "job_id": application.job_id,
             "job_title": job.title,
+            "job_occupation_id": job.occupation_id or "",
             "job_company": job.company,
             "job_location": job.location,
             "job_salary": job.salary,

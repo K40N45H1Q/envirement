@@ -122,13 +122,12 @@ h2 {
   text-align: center;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .category-card:hover {
-  transform: translateY(-0.125rem);
   border-color: var(--border-strong);
-  box-shadow: 0 1rem 2rem rgba(16, 24, 40, 0.08);
+  box-shadow: none;
 }
 
 .card-icon-wrapper {

@@ -7,6 +7,7 @@ import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import APanelJobs from './APanelJobs.vue'
 import APanelSettings from './APanelSettings.vue'
 import APanelUsers from './APanelUsers.vue'
+import { useAuth } from '@/stores/auth'
 import {
   approveAdminJob,
   createAdminBetaToken,
@@ -22,10 +23,12 @@ import {
   updateAdminBetaSettings,
   updateAdminUserSubscription,
 } from './api'
+import { localizeFullPath } from '@/router/locale'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { language, t } = useI18n()
+const auth = useAuth()
 
 const sections = computed(() => [
   { id: 'users', label: t('adminPanel.sections.users'), icon: 'fas fa-users' },
@@ -33,6 +36,7 @@ const sections = computed(() => [
   { id: 'moderation', label: t('adminPanel.sections.moderation'), icon: 'fas fa-shield-halved' },
   { id: 'vacancies', label: t('adminPanel.sections.vacancies'), icon: 'fas fa-briefcase' },
   { id: 'settings', label: t('adminPanel.sections.settings'), icon: 'fas fa-gear' },
+  { id: 'logout', label: t('common.logout'), icon: 'fas fa-right-from-bracket', danger: true },
 ])
 
 const validSections = computed(() => sections.value.map((section) => section.id))
@@ -64,6 +68,12 @@ const stats = computed(() => [
 const activeTitle = computed(() => sections.value.find((section) => section.id === activeSection.value)?.label || t('adminPanel.fallbackTitle'))
 
 const setSection = async (sectionId) => {
+  if (sectionId === 'logout') {
+    auth.logout()
+    await router.replace(localizeFullPath('/', language.value))
+    return
+  }
+
   activeSection.value = normalizeSection(sectionId)
   await router.replace({
     path: route.path,

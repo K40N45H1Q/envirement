@@ -5,6 +5,8 @@ import { resolveApiUrl } from '@/api/client'
 import { useI18n } from '@/i18n'
 import AppLayout from '@/components/AppLayout.vue'
 import { approveResponseChat, deleteResponse, getResponses } from '@/api/jobs'
+import { localizeFullPath } from '@/router/locale'
+import { localizeJobTitle } from '@/utils/jobs'
 
 const router = useRouter()
 const { language, t } = useI18n()
@@ -20,6 +22,8 @@ const formatDate = (value) => {
 }
 
 const resolveResumeUrl = (value) => resolveApiUrl(value)
+const resolveSiteCvUrl = (id) => localizeFullPath(`/responses/${id}/cv`, language.value)
+const displayJobTitle = (job) => localizeJobTitle(job, language.value)
 
 const loadResponses = async () => {
   isLoading.value = true
@@ -77,7 +81,7 @@ onMounted(loadResponses)
 
           <div class="main">
             <h2>{{ item.name }} {{ item.surname }}</h2>
-            <p>{{ item.job_title }} · {{ item.job_company }}</p>
+            <p>{{ displayJobTitle(item) }} · {{ item.job_company }}</p>
             <span>{{ item.phone }} · {{ item.email }} · {{ t('responsesPage.appliedOn', { date: formatDate(item.created_at) }) }}</span>
             <p v-if="item.message" class="message">{{ item.message }}</p>
             <div v-if="item.candidate_resume_url" class="resume-actions">
@@ -95,6 +99,11 @@ onMounted(loadResponses)
                 rel="noopener noreferrer"
               >
                 {{ t('responsesPage.downloadResume') }}
+              </a>
+            </div>
+            <div v-if="item.candidate_has_site_cv" class="resume-actions">
+              <a :href="resolveSiteCvUrl(item.id)" target="_blank" rel="noopener noreferrer">
+                {{ t('responsesPage.openSiteCv') }}
               </a>
             </div>
           </div>

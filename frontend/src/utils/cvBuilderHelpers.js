@@ -76,6 +76,7 @@ export const createEmptyProfile = () => ({
   email: '',
   first_name: '',
   last_name: '',
+  residence: '',
   phone: '',
   summary: '',
   current_role: '',

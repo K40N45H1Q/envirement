@@ -22,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  required: {
+    type: Boolean,
+    default: false,
+  },
   iconClass: {
     type: String,
     default: '',
@@ -215,6 +219,7 @@ watch(() => props.suggestions, () => {
         :placeholder="placeholder"
         :aria-label="ariaLabel"
         :disabled="disabled"
+        :required="required"
         autocomplete="off"
         @input="onInput"
         @focus="onFocus"

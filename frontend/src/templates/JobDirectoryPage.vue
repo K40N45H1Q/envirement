@@ -180,7 +180,7 @@ onMounted(async () => {
   padding: 3.6rem var(--shell-gutter);
   background:
     radial-gradient(circle at top right, rgba(52, 211, 153, 0.12), transparent 28%),
-    linear-gradient(90deg, rgba(221, 246, 255, 0.92), rgba(191, 229, 255, 0.94));
+    linear-gradient(90deg, rgba(29, 168, 107, 0.12), rgba(22, 155, 97, 0.22));
 }
 
 .directory-eyebrow {
@@ -230,7 +230,7 @@ h1 {
   border-bottom: 0.0625rem solid color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
   color: var(--text-primary);
   text-decoration: none;
-  transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .directory-card strong {
@@ -252,7 +252,6 @@ h1 {
 .directory-card:hover,
 .directory-card:focus-visible {
   color: var(--brand-strong);
-  transform: translateY(-0.0625rem);
   border-color: color-mix(in srgb, var(--brand-base) 42%, var(--border-subtle));
 }
 

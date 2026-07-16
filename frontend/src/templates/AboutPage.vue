@@ -490,7 +490,7 @@ h2 {
   text-decoration: none;
   display: grid;
   gap: 0.35rem;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
 }
 
 .contact-card strong {
@@ -503,9 +503,8 @@ h2 {
 }
 
 .contact-card:hover {
-  transform: translateY(-0.125rem);
   border-color: color-mix(in srgb, var(--brand-strong) 34%, white);
-  box-shadow: 0 1rem 2rem rgba(21, 32, 27, 0.08);
+  box-shadow: none;
 }
 
 @media (max-width: 72rem) {

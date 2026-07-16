@@ -4,7 +4,7 @@ import { translate } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
 import { formatJobLocation, getJobLocationSearchValues, normalizeText, resolveCountryMeta } from '@/utils/countries'
 import { inferJobCategory, localizeCategoryConfigs } from '@/utils/jobCategories'
-import { normalizeJob } from '@/utils/jobs'
+import { localizeJobTitle, normalizeJob } from '@/utils/jobs'
 
 const BOOKMARKS_STORAGE_KEY = 'cvhold-job-bookmarks'
 
@@ -186,6 +186,7 @@ export const useJobsStore = defineStore('jobs', {
 
         return {
           ...job,
+          title: localizeJobTitle(job, getLanguage()),
           category,
           countryKey,
           countryLabel: country?.label || resolvedCountry.countryLabel || t('jobsStore.europe'),

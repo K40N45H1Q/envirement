@@ -1,6 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
+import { deleteAccount as deleteAccountRequest } from '@/api/auth'
+import { useAuth } from '@/stores/auth'
+import { localizeFullPath } from '@/router/locale'
 
 const props = defineProps({
   tokens: {
@@ -27,8 +31,13 @@ const props = defineProps({
 
 const emit = defineEmits(['create-token', 'delete-token', 'update-beta-access'])
 const { language, t } = useI18n()
+const router = useRouter()
+const auth = useAuth()
 const note = ref('')
 const currentPage = ref(1)
+const showDeleteAccountConfirm = ref(false)
+const isDeletingAccount = ref(false)
+const deleteAccountError = ref('')
 const ITEMS_PER_PAGE = 5
 
 const buildPaginationItems = (page, total) => {
@@ -84,6 +93,25 @@ const formatDate = (value) => {
 }
 
 const tokenStateLabel = (token) => (token.used ? t('aPanelSettings.active') : t('aPanelSettings.inactive'))
+
+const accountEmail = computed(() => auth.user?.email || '')
+
+const deleteAccount = async () => {
+  if (isDeletingAccount.value) return
+
+  isDeletingAccount.value = true
+  deleteAccountError.value = ''
+
+  try {
+    await deleteAccountRequest()
+    auth.logout()
+    await router.replace(localizeFullPath('/', language.value))
+  } catch {
+    deleteAccountError.value = t('aPanelSettings.deleteAccountError')
+  } finally {
+    isDeletingAccount.value = false
+  }
+}
 </script>
 
 <template>
@@ -220,6 +248,66 @@ const tokenStateLabel = (token) => (token.used ? t('aPanelSettings.active') : t(
           </button>
         </div>
       </nav>
+    </section>
+
+    <section class="apanel-card apanel-account-card">
+      <div class="apanel-card__head">
+        <div>
+          <p class="apanel-eyebrow">{{ t('aPanelSettings.accountEyebrow') }}</p>
+          <h2>{{ t('aPanelSettings.accountSettings') }}</h2>
+        </div>
+      </div>
+
+      <div class="apanel-account-row">
+        <span>{{ t('aPanelSettings.accountEmail') }}</span>
+        <strong>{{ accountEmail || '-' }}</strong>
+      </div>
+
+      <section class="apanel-danger-zone">
+        <div class="apanel-danger-zone__copy">
+          <h3>{{ t('aPanelSettings.deleteAccountTitle') }}</h3>
+          <p>{{ t('aPanelSettings.deleteAccountDescription') }}</p>
+        </div>
+
+        <button
+          v-if="!showDeleteAccountConfirm"
+          type="button"
+          class="apanel-delete-button"
+          @click="showDeleteAccountConfirm = true; deleteAccountError = ''"
+        >
+          <i class="fas fa-user-xmark" aria-hidden="true"></i>
+          {{ t('aPanelSettings.deleteAccount') }}
+        </button>
+
+        <div v-else class="apanel-delete-confirmation">
+          <strong>{{ t('aPanelSettings.deleteAccountConfirm') }}</strong>
+          <p>{{ t('aPanelSettings.deleteAccountWarning') }}</p>
+
+          <p v-if="deleteAccountError" class="apanel-delete-error" role="alert">
+            {{ deleteAccountError }}
+          </p>
+
+          <div class="apanel-delete-confirmation__actions">
+            <button
+              type="button"
+              class="apanel-cancel-button"
+              :disabled="isDeletingAccount"
+              @click="showDeleteAccountConfirm = false; deleteAccountError = ''"
+            >
+              {{ t('aPanelSettings.cancel') }}
+            </button>
+            <button
+              type="button"
+              class="apanel-confirm-button"
+              :disabled="isDeletingAccount"
+              @click="deleteAccount"
+            >
+              <i :class="isDeletingAccount ? 'fas fa-spinner fa-spin' : 'fas fa-trash-can'" aria-hidden="true"></i>
+              {{ isDeletingAccount ? t('aPanelSettings.deletingAccount') : t('aPanelSettings.deletePermanently') }}
+            </button>
+          </div>
+        </div>
+      </section>
     </section>
   </section>
 </template>
@@ -429,7 +517,7 @@ label {
   padding-inline: 1.35rem;
   white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .visually-hidden {
@@ -442,9 +530,7 @@ label {
 }
 
 .apanel-create-button:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
-  filter: brightness(1.04);
-  box-shadow: 0 0.8rem 1.5rem rgba(21, 149, 93, 0.2);
+  box-shadow: none;
 }
 
 .apanel-create-button:disabled {
@@ -531,7 +617,7 @@ label {
   border-radius: 0.72rem;
   color: #fff;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .apanel-action-button span {
@@ -543,8 +629,7 @@ label {
 }
 
 .apanel-action-button:hover {
-  transform: translateY(-0.0625rem);
-  filter: brightness(1.05);
+  box-shadow: none;
 }
 
 .apanel-action-button:focus-visible {
@@ -553,8 +638,8 @@ label {
 }
 
 .apanel-copy-button {
-  background: linear-gradient(180deg, #22a6f2, #1684c7);
-  box-shadow: 0 0.55rem 1rem rgba(22, 132, 199, 0.18);
+  background: linear-gradient(180deg, rgba(29, 168, 107, 0.92), rgba(22, 155, 97, 0.92));
+  box-shadow: 0 0.55rem 1rem rgba(29, 168, 107, 0.18);
 }
 
 .btn-token-delete {
@@ -649,6 +734,118 @@ label {
   letter-spacing: 0.12em;
 }
 
+.apanel-account-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.apanel-account-row {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 1.25rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 0.85rem;
+  background: var(--surface-muted);
+}
+
+.apanel-account-row span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.apanel-danger-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin: 0 1.25rem 1.25rem;
+  padding: 1rem;
+  border: 0.0625rem solid color-mix(in srgb, #dc2626 28%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, #dc2626 5%, var(--surface-primary));
+}
+
+.apanel-danger-zone__copy h3,
+.apanel-danger-zone__copy p,
+.apanel-delete-confirmation p {
+  margin: 0;
+}
+
+.apanel-danger-zone__copy h3 {
+  color: #b91c1c;
+  font-size: 1rem;
+}
+
+.apanel-danger-zone__copy p,
+.apanel-delete-confirmation p {
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.apanel-delete-button,
+.apanel-confirm-button,
+.apanel-cancel-button {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.apanel-delete-button,
+.apanel-confirm-button {
+  border: 0.0625rem solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.apanel-delete-button:hover,
+.apanel-delete-button:focus-visible,
+.apanel-confirm-button:hover,
+.apanel-confirm-button:focus-visible {
+  background: #b91c1c;
+}
+
+.apanel-delete-confirmation {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 0.0625rem solid color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.apanel-delete-confirmation__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.apanel-cancel-button {
+  border: 0.0625rem solid var(--border-subtle);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.apanel-delete-error {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
+.apanel-delete-button:disabled,
+.apanel-confirm-button:disabled,
+.apanel-cancel-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 @media (max-width: 90rem) {
   .apanel-form {
     grid-template-columns: 1fr;
@@ -662,6 +859,11 @@ label {
 @media (max-width: 52rem) {
   .apanel-form__controls {
     grid-template-columns: 1fr;
+  }
+
+  .apanel-account-row,
+  .apanel-danger-zone {
+    margin-inline: 0;
   }
 }
 </style>

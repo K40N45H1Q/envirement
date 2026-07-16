@@ -53,6 +53,7 @@ import {
 } from '@/utils/cvBuilderOptions'
 import { findOccupationSuggestions, resolveOccupation } from '@/utils/occupations'
 import { findSkillSuggestions, localizeSkill } from '@/utils/skills'
+import { createPaginatedCvPdf } from '@/utils/cvPdf'
 
 const emit = defineEmits(['step-change', 'close'])
 
@@ -68,7 +69,6 @@ const RESUME_TYPES = [
 const MAX_PRINT_SECTORS = 6
 const MAX_PRINT_SKILLS = 10
 const MAX_PRINT_LANGUAGES = 5
-const MAX_PRINT_LICENSES = 5
 
 const languageLevelOptions = languageLevels.map((label) => ({ value: label, label }))
 
@@ -111,7 +111,6 @@ const displayAvailability = (value) => {
 const copy = computed(() => translate('resumeBuilderPage', {}, language.value))
 
 const genderOptions = computed(() => [
-  { value: '', label: copy.value.choose },
   { value: 'female', label: copy.value.female },
   { value: 'male', label: copy.value.male },
   { value: 'other', label: copy.value.otherGender },
@@ -133,6 +132,8 @@ const isGeneratingPdf = ref(false)
 const status = ref('')
 const errors = ref({})
 const savedSnapshot = ref('')
+const firstNameLocked = ref(false)
+const lastNameLocked = ref(false)
 const avatarFile = ref(null)
 const resumeFile = ref(null)
 const avatarObjectUrl = ref('')
@@ -172,6 +173,7 @@ let shouldSaveAgain = false
 let isApplyingServerProfile = false
 let printFrame = null
 let previousBodyOverflow = ''
+const CV_DRAFT_STORAGE_KEY = 'cv-builder-draft'
 
 const profile = ref(createEmptyProfile())
 
@@ -204,12 +206,21 @@ const waitForImages = (root) => {
 
   const images = Array.from(root.querySelectorAll('img'))
 
-  return Promise.all(images.map((image) => {
-    if (image.complete) return Promise.resolve()
+  return Promise.all(images.map(async (image) => {
+    if (typeof image.decode === 'function') {
+      try {
+        await image.decode()
+        return
+      } catch {
+        // Broken images must not block PDF generation.
+      }
+    }
 
-    return new Promise((resolve) => {
-      image.onload = resolve
-      image.onerror = resolve
+    if (image.complete) return
+
+    await new Promise((resolve) => {
+      image.addEventListener('load', resolve, { once: true })
+      image.addEventListener('error', resolve, { once: true })
     })
   }))
 }
@@ -327,13 +338,7 @@ const normalizeCandidateAvailability = (value) => {
   return ''
 }
 
-const isValidAvailabilityDate = (value) => {
-  if (!isValidDateValue(value)) return false
-  const parsed = parseBirthDate(value)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return parsed >= today
-}
+const isValidAvailabilityDate = (value) => isValidDateValue(value)
 
 const avatarInitials = computed(() => {
   if (fullName.value) {
@@ -376,7 +381,7 @@ const jobCategoryOptions = computed(() => {
     }))
 })
 
-const sectorDropdownOptions = computed(() => jobCategoryOptions.value)
+const sectorDropdownOptions = computed(() => jobCategoryOptions.value.map(({ hint, ...option }) => option))
 
 const sectorOptionsByValue = computed(() => new Map(
   jobCategoryOptions.value.map((option) => [option.value, option]),
@@ -429,7 +434,7 @@ const availabilityMode = computed({
   get: () => {
     const currentValue = profile.value.availability.trim()
     if (currentValue === 'Immediate') return 'Immediate'
-    if (currentValue === '__date__' || isDateAvailability(currentValue)) return '__date__'
+    if (currentValue === '__date__' || currentValue) return '__date__'
     return ''
   },
   set: (value) => {
@@ -439,9 +444,11 @@ const availabilityMode = computed({
 })
 
 const availabilityDateInput = computed({
-  get: () => (isDateAvailability(profile.value.availability.trim())
-    ? formatDateInput(profile.value.availability)
-    : ''),
+  get: () => {
+    const currentValue = profile.value.availability.trim()
+    if (!currentValue || currentValue === 'Immediate' || currentValue === '__date__') return ''
+    return formatDateInput(currentValue)
+  },
   set: (value) => {
     const normalized = normalizeDateInput(value)
     profile.value.availability = normalized || '__date__'
@@ -513,7 +520,7 @@ const normalizeResumeData = (value, source = {}) => {
     end_date: toText(entry?.end_date),
     current: Boolean(entry?.current),
     country: normalizeCountryValue(entry?.country || 'latvia'),
-    description: toText(entry?.description || (index === 0 ? source.summary : '')),
+    description: toText(entry?.description),
   }))
   const educations = rawEducations.map((entry, index) => ({
     ...createEmptyEducation(),
@@ -564,6 +571,7 @@ const normalizeProfile = (value = {}) => {
     email: toText(source.email).trim(),
     first_name: toText(source.first_name).trim(),
     last_name: toText(source.last_name).trim(),
+    residence: toText(source.residence).trim(),
     phone: toText(source.phone),
     summary: toText(source.summary),
     current_role: toText(source.current_role),
@@ -610,6 +618,7 @@ const snapshotProfile = () => JSON.stringify({
   email: profile.value.email,
   first_name: profile.value.first_name,
   last_name: profile.value.last_name,
+  residence: profile.value.residence,
   phone: profile.value.phone,
   summary: profile.value.summary,
   current_role: profile.value.current_role,
@@ -661,6 +670,21 @@ const availableLanguageValues = computed(() => {
 })
 
 const canAddLanguage = computed(() => availableLanguageValues.value.includes(newLanguage.value))
+const canAddNextLanguage = computed(() => {
+  if (!profile.value.languages.length) return false
+
+  const lastIndex = profile.value.languages.length - 1
+  const currentValue = toText(profile.value.languages[lastIndex]?.name).trim()
+  if (!currentValue) return false
+
+  const selectedValues = new Set(
+    profile.value.languages
+      .map((item, index) => (index === lastIndex ? '' : toText(item.name).trim()))
+      .filter(Boolean),
+  )
+
+  return !selectedValues.has(currentValue)
+})
 
 const legacyStatusMessage = computed(() => {
   if (isLoading.value) return 'Загрузка профиля...'
@@ -688,28 +712,21 @@ const legacyCvSectors = computed(() => profile.value.sectors
   })
   .filter(Boolean))
 const cvLanguages = computed(() => profile.value.languages.filter((language) => language.name && language.level))
-const cvLicenses = computed(() => [...new Set([
-  ...profile.value.resume_data.driving_licenses,
-  ...profile.value.licenses,
-])].filter(Boolean))
+const cvLicenses = computed(() => [...new Set(profile.value.resume_data.driving_licenses)].filter(Boolean))
 
 const cvVisibleSectors = computed(() => cvSectors.value.slice(0, MAX_PRINT_SECTORS))
 const cvVisibleSkills = computed(() => cvSkills.value.slice(0, MAX_PRINT_SKILLS))
 const cvVisibleLanguages = computed(() => cvLanguages.value.slice(0, MAX_PRINT_LANGUAGES))
-const cvVisibleLicenses = computed(() => cvLicenses.value.slice(0, MAX_PRINT_LICENSES))
 
 const cvMoreSectorsCount = computed(() => Math.max(0, cvSectors.value.length - cvVisibleSectors.value.length))
 const cvMoreSkillsCount = computed(() => Math.max(0, cvSkills.value.length - cvVisibleSkills.value.length))
 const cvMoreLanguagesCount = computed(() => Math.max(0, cvLanguages.value.length - cvVisibleLanguages.value.length))
-const cvMoreLicensesCount = computed(() => Math.max(0, cvLicenses.value.length - cvVisibleLicenses.value.length))
 
 const cvId = computed(() => {
   const source = `${profileEmail.value}-${profile.value.phone}-${displayCvName.value}`
   const number = (hashText(source) % 900000) + 100000
   return `CVH-${number}`
 })
-
-const cvPublicUrl = computed(() => `cvhold.com/profile/${cvId.value}`)
 
 const legacyCvSummaryParagraphs = computed(() => {
   const summary = profile.value.summary.trim()
@@ -740,10 +757,6 @@ const cvContactItems = computed(() => [
     icon: 'fas fa-phone',
     value,
   })),
-  {
-    icon: 'fas fa-globe',
-    value: cvPublicUrl.value,
-  },
 ].filter((item) => item.value))
 
 const legacyCvAdditionalItems = computed(() => [
@@ -772,20 +785,22 @@ const primaryWorkExperience = computed(() => profile.value.resume_data.work_expe
 const primaryEducation = computed(() => profile.value.resume_data.educations[0] || createEmptyEducation())
 const displayCvRole = computed(() => primaryWorkExperience.value.position.trim() || copy.value.candidateRole)
 
-const cvSectors = computed(() => profile.value.sectors
-  .map((sector) => {
-    const option = getSectorOption(sector)
-    if (!option) return null
+const cvSectors = computed(() => {
+  const sectors = new Map()
 
-    return {
-      ...option,
-      experience: displaySectorExperience(sector?.experience || DEFAULT_SECTOR_EXPERIENCE),
-    }
+  profile.value.resume_data.work_experiences.forEach((work) => {
+    const category = toText(work.job_category).trim()
+    if (!category) return
+
+    const option = getSectorOption({ id: category, name: category })
+    if (option) sectors.set(option.value, option)
   })
-  .filter(Boolean))
+
+  return [...sectors.values()]
+})
 
 const cvSummaryParagraphs = computed(() => {
-  const summary = primaryWorkExperience.value.description.trim()
+  const summary = profile.value.summary.trim()
 
   if (summary) {
     return summary
@@ -823,15 +838,10 @@ const cvAdditionalItems = computed(() => [
     label: copy.value.drivingLicenses,
     value: copy.value.noDrivingLicense,
   },
-  {
+  profile.value.residence && {
     icon: 'fas fa-location-dot',
-    label: copy.value.country,
-    value: getLocalizedCountryLabel(primaryWorkExperience.value.country, primaryWorkExperience.value.country) || copy.value.notSpecified,
-  },
-  {
-    icon: 'fas fa-user-graduate',
-    label: copy.value.education,
-    value: displayEducation(primaryEducation.value.level) || copy.value.notSpecified,
+    label: copy.value.residence,
+    value: profile.value.residence,
   },
 ].filter(Boolean))
 
@@ -842,9 +852,20 @@ const cvWorkExperiences = computed(() => (
       entry.position || entry.company_name || entry.description
     ))
 ))
-const cvEducations = computed(() => profile.value.resume_data.educations.filter((entry) => (
-  entry.level || entry.institution || entry.speciality
-)))
+const educationOrder = new Map(
+  educationCatalog.map((entry, index) => [entry.value, index]),
+)
+
+const cvEducations = computed(() => profile.value.resume_data.educations
+  .filter((entry) => (
+    entry.level || entry.institution || entry.speciality
+  ))
+  .slice()
+  .sort((left, right) => {
+    const leftRank = educationOrder.get(left.level) ?? -1
+    const rightRank = educationOrder.get(right.level) ?? -1
+    return rightRank - leftRank
+  }))
 const categoryLabel = (value) => jobCategoryOptions.value.find((option) => option.value === value)?.label || value
 const birthDateInput = computed({
   get: () => {
@@ -976,21 +997,6 @@ const educationEntryMeta = (education) => [
   education.start_date && `${formatDate(education.start_date)} — ${education.current ? copy.value.present : (formatDate(education.end_date) || '…')}`,
 ].filter(Boolean).join(' · ')
 
-const cvQrCells = computed(() => Array.from({ length: 121 }, (_, index) => {
-  const row = Math.floor(index / 11)
-  const column = index % 11
-
-  const topLeft = row < 3 && column < 3
-  const topRight = row < 3 && column > 7
-  const bottomLeft = row > 7 && column < 3
-
-  if (topLeft || topRight || bottomLeft) {
-    return true
-  }
-
-  return hashText(`${cvId.value}-${index}`) % 3 === 0
-}))
-
 const revokeAvatarPreview = () => {
   if (avatarObjectUrl.value) {
     URL.revokeObjectURL(avatarObjectUrl.value)
@@ -1075,6 +1081,38 @@ const getErrorMessage = (error, fallback) => (
   || fallback
 )
 
+const getDraftStorageKey = () => {
+  const identifier = toText(user.value?.id || user.value?.email).trim() || 'guest'
+  return `${CV_DRAFT_STORAGE_KEY}:${identifier}`
+}
+
+const loadDraftProfile = () => {
+  try {
+    const raw = window.localStorage.getItem(getDraftStorageKey())
+    if (!raw) return null
+
+    return normalizeProfile(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+const saveDraftProfile = () => {
+  try {
+    window.localStorage.setItem(getDraftStorageKey(), JSON.stringify(profile.value))
+  } catch {
+    // Черновик не должен ломать форму, если localStorage недоступен.
+  }
+}
+
+const clearDraftProfile = () => {
+  try {
+    window.localStorage.removeItem(getDraftStorageKey())
+  } catch {
+    // Игнорируем ошибки очистки localStorage.
+  }
+}
+
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader()
 
@@ -1086,10 +1124,21 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
 const applyServerProfile = (rawProfile) => {
   isApplyingServerProfile = true
   const normalizedProfile = normalizeProfile(rawProfile)
-  normalizedProfile.resume_data.cv_language = language.value
-  localizeProfileOccupations(normalizedProfile, language.value)
-  profile.value = normalizedProfile
-  savedSnapshot.value = snapshotProfile()
+  const draftProfile = loadDraftProfile()
+  const nextProfile = draftProfile ? normalizeProfile({
+    ...normalizedProfile,
+    ...draftProfile,
+    resume_data: {
+      ...normalizedProfile.resume_data,
+      ...draftProfile.resume_data,
+    },
+  }) : normalizedProfile
+  nextProfile.resume_data.cv_language = language.value
+  localizeProfileOccupations(nextProfile, language.value)
+  profile.value = nextProfile
+  firstNameLocked.value = Boolean(nextProfile.first_name.trim())
+  lastNameLocked.value = Boolean(nextProfile.last_name.trim())
+  savedSnapshot.value = draftProfile ? '' : snapshotProfile()
 
   window.setTimeout(() => {
     isApplyingServerProfile = false
@@ -1101,9 +1150,11 @@ const loadProfile = async () => {
   status.value = ''
 
   if (!isAuthenticated.value) {
-    profile.value = createEmptyProfile()
+    profile.value = loadDraftProfile() || createEmptyProfile()
     profile.value.resume_data.cv_language = language.value
-    savedSnapshot.value = snapshotProfile()
+    firstNameLocked.value = false
+    lastNameLocked.value = false
+    savedSnapshot.value = ''
     status.value = copy.value.guestMode
     isLoading.value = false
     isLoaded.value = true
@@ -1116,6 +1167,8 @@ const loadProfile = async () => {
   } catch (error) {
     profile.value = createEmptyProfile()
     profile.value.resume_data.cv_language = language.value
+    firstNameLocked.value = false
+    lastNameLocked.value = false
     savedSnapshot.value = snapshotProfile()
     status.value = getErrorMessage(error, copy.value.loadProfileError)
   } finally {
@@ -1139,8 +1192,9 @@ const loadInitialData = async () => {
 const buildPayload = () => ({
   first_name: profile.value.first_name.trim(),
   last_name: profile.value.last_name.trim(),
+  residence: profile.value.residence.trim(),
   phone: profile.value.phone.trim(),
-  summary: primaryWorkExperience.value.description.trim(),
+  summary: profile.value.summary.trim(),
   current_role: primaryWorkExperience.value.position.trim(),
   desired_occupation_id: profile.value.desired_occupation_id,
   desired_occupation_label: profile.value.desired_occupation_label.trim(),
@@ -1200,6 +1254,7 @@ const performSave = async ({ silent = false, force = false } = {}) => {
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()
+    clearDraftProfile()
     applyServerProfile(serverProfile)
     clearErrors()
     status.value = silent ? '' : copy.value.saveSuccess
@@ -1476,23 +1531,44 @@ const removeSector = (index) => {
 }
 
 const addLanguage = () => {
-  if (!canAddLanguage.value) return
+  if (!profile.value.languages.length) {
+    if (!canAddLanguage.value) return
 
-  const nextLanguage = newLanguage.value
+    const nextLanguage = newLanguage.value
+    if (!nextLanguage) return
 
-  if (!nextLanguage) return
+    profile.value.languages.push({
+      name: nextLanguage,
+      level: newLanguageLevel.value,
+    })
+    newLanguage.value = ''
+    clearError('languages')
+    return
+  }
+
+  if (!canAddNextLanguage.value) return
 
   profile.value.languages.push({
-    name: nextLanguage,
-    level: newLanguageLevel.value,
+    name: '',
+    level: languageLevelOptions[2].value,
   })
-  newLanguage.value = ''
   clearError('languages')
 }
 
 const removeLanguage = (index) => {
   profile.value.languages.splice(index, 1)
   clearError('languages')
+}
+
+const languageOptionsForIndex = (index) => {
+  const currentValue = toText(profile.value.languages[index]?.name).trim()
+  const selectedValues = new Set(
+    profile.value.languages
+      .map((item, itemIndex) => (itemIndex === index ? '' : toText(item.name).trim()))
+      .filter(Boolean),
+  )
+
+  return languageOptions.value.filter((option) => option.value === currentValue || !selectedValues.has(option.value))
 }
 
 const selectWorkOccupation = (work, option) => {
@@ -1843,6 +1919,12 @@ const getPrintableStyles = () => `
     min-width: 0 !important;
   }
 
+  .cv-top-additional {
+    flex: 1 1 45mm !important;
+    min-width: 35mm !important;
+    padding: 17.5mm 2mm 0 !important;
+  }
+
   .cv-avatar {
     width: 18mm !important;
     height: 18mm !important;
@@ -1910,6 +1992,8 @@ const getPrintableStyles = () => `
   .cv-list li,
   .cv-sector span {
     overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    white-space: pre-wrap !important;
   }
 
   .cv-contact-list i,
@@ -1945,16 +2029,20 @@ const getPrintableStyles = () => `
 
   .cv-qr {
     position: relative !important;
-    width: 24mm !important;
-    height: 24mm !important;
-    display: grid !important;
-    grid-template-columns: repeat(11, 1fr) !important;
-    grid-template-rows: repeat(11, 1fr) !important;
-    gap: 0.32mm !important;
-    padding: 1.4mm !important;
-    border: 0.35mm solid var(--cv-line) !important;
-    border-radius: 1.4mm !important;
+    width: 5.7rem !important;
+    height: 5.7rem !important;
+    display: block !important;
+    padding: 0.32rem !important;
+    border: 0.0625rem solid var(--cv-line) !important;
+    border-radius: 0.32rem !important;
     background: #fff !important;
+  }
+
+  .cv-qr img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+    object-fit: contain !important;
   }
 
   .cv-qr-cell {
@@ -2018,9 +2106,10 @@ const getPrintableStyles = () => `
 
   .cv-section h2 {
     margin: 0 0 2.3mm !important;
-    color: var(--cv-ink) !important;
+    color: var(--cv-green) !important;
     font-size: 8.2pt !important;
     line-height: 1.1 !important;
+    font-weight: 800 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.04em !important;
   }
@@ -2033,11 +2122,11 @@ const getPrintableStyles = () => `
   }
 
   .cv-summary-text {
-    display: -webkit-box !important;
-    -webkit-line-clamp: 5 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
-    white-space: pre-line !important;
+    display: block !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    white-space: pre-wrap !important;
   }
 
   .cv-section p + p {
@@ -2244,26 +2333,7 @@ const openPdfPreview = async () => {
       logging: false,
       windowWidth: 1280,
     })
-    const imageData = canvas.toDataURL('image/jpeg', 0.96)
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-    const pageWidth = 210
-    const pageHeight = 297
-    const imageHeight = (canvas.height * pageWidth) / canvas.width
-    const canFitSinglePage = imageHeight <= pageHeight * 1.2
-
-    if (canFitSinglePage) {
-      const fittedWidth = pageWidth * Math.min(1, pageHeight / imageHeight)
-      const fittedHeight = imageHeight * (fittedWidth / pageWidth)
-      const offsetX = (pageWidth - fittedWidth) / 2
-      const offsetY = (pageHeight - fittedHeight) / 2
-      pdf.addImage(imageData, 'JPEG', offsetX, offsetY, fittedWidth, fittedHeight, undefined, 'FAST')
-    } else {
-      const pageCount = Math.ceil(imageHeight / pageHeight)
-      for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-        if (pageIndex > 0) pdf.addPage('a4', 'portrait')
-        pdf.addImage(imageData, 'JPEG', 0, -(pageIndex * pageHeight), pageWidth, imageHeight, undefined, 'FAST')
-      }
-    }
+    const pdf = createPaginatedCvPdf(canvas, printableClone, jsPDF)
 
     const pdfUrl = URL.createObjectURL(pdf.output('blob'))
     pdfWindow.location.replace(pdfUrl)
@@ -2327,6 +2397,11 @@ watch(step, (value) => {
   emit('step-change', value)
 }, { immediate: true })
 
+watch(profile, () => {
+  if (!isLoaded.value || isApplyingServerProfile) return
+  saveDraftProfile()
+}, { deep: true })
+
 onMounted(() => {
   previousBodyOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
@@ -2373,12 +2448,17 @@ onBeforeUnmount(() => {
 
                   <label>
                     <span class="field-label" :class="{ 'field-label--error': errors.first_name }">{{ copy.firstName }} <b>*</b></span>
-                    <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" @input="clearError('first_name')" />
+                    <input v-model="profile.first_name" :placeholder="copy.firstNamePlaceholder" :disabled="firstNameLocked" @input="clearError('first_name')" />
                   </label>
 
                   <label>
                     <span class="field-label" :class="{ 'field-label--error': errors.last_name }">{{ copy.lastName }} <b>*</b></span>
-                    <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" @input="clearError('last_name')" />
+                    <input v-model="profile.last_name" :placeholder="copy.lastNamePlaceholder" :disabled="lastNameLocked" @input="clearError('last_name')" />
+                  </label>
+
+                  <label class="entry-wide">
+                    <span class="field-label">{{ copy.residence }}</span>
+                    <input v-model="profile.residence" :placeholder="copy.residencePlaceholder" />
                   </label>
 
                   <label class="entry-wide">
@@ -2445,7 +2525,7 @@ onBeforeUnmount(() => {
                   <div class="field-cluster">
                     <label>
                       <span class="field-label" :class="{ 'field-label--error': errors.gender }">{{ copy.gender }} <b>*</b></span>
-                      <BaseDropdown v-model="profile.resume_data.gender" full-width overlay :options="genderOptions" @change="clearError('gender')" />
+                      <BaseDropdown v-model="profile.resume_data.gender" full-width overlay :options="genderOptions" :placeholder="copy.choose" @change="clearError('gender')" />
                     </label>
                     <label class="checkbox-field"><input v-model="profile.resume_data.hide_gender" type="checkbox" /><span>{{ copy.hideInCv }}</span></label>
                   </div>
@@ -2457,6 +2537,18 @@ onBeforeUnmount(() => {
 
           <template v-else-if="step === 2">
             <div class="form-stack">
+              <section class="form-panel">
+                <div class="form-panel__head">
+                  <span><i class="fas fa-user-pen"></i></span>
+                  <div><h3>{{ copy.aboutMe }}</h3></div>
+                </div>
+
+                <label>
+                  <span class="field-label">{{ copy.aboutMe }}</span>
+                  <textarea v-model="profile.summary" rows="5" :placeholder="copy.aboutMePlaceholder"></textarea>
+                </label>
+              </section>
+
               <section
                   v-for="(work, index) in profile.resume_data.work_experiences"
                   :key="`work-${index}`"
@@ -2582,15 +2674,12 @@ onBeforeUnmount(() => {
                   <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'institution') }">{{ copy.institution }} <b>*</b></span><input v-model="education.institution" /></label>
                   <template v-if="shouldShowEducationSpecialities(education)">
                     <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'speciality') }">{{ copy.speciality }} <b v-if="isEducationSpecialityRequired(education)">*</b></span><input v-model="education.speciality" /></label>
-                    <label><span class="field-label">{{ copy.secondSpeciality }}</span><input v-model="education.second_speciality" /></label>
                   </template>
+                  <label :class="{ 'entry-wide': !shouldShowEducationSpecialities(education) }"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" :placeholder="copy.choose" /></label>
                   <div class="education-period entry-wide">
-                    <label class="entry-select"><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'country') }">{{ copy.country }} <b>*</b></span><BaseDropdown v-model="education.country" full-width overlay :options="countryOptions" :placeholder="copy.choose" /></label>
                     <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'start_date') }">{{ copy.start }} <b>*</b></span><input :value="formatDateInput(education.start_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" @input="education.start_date = normalizeDateInput($event.target.value)" /></label>
                     <label><span class="field-label" :class="{ 'field-label--error': isEducationFieldInvalid(index, 'end_date') }">{{ copy.end }} <b v-if="!education.current">*</b></span><input :value="formatDateInput(education.end_date)" type="text" inputmode="numeric" maxlength="10" placeholder="DD.MM.YYYY" :disabled="education.current" @input="education.end_date = normalizeDateInput($event.target.value)" /></label>
                   </div>
-
-                  <label class="entry-wide"><span class="field-label">{{ copy.additionalInformation }}</span><textarea v-model="education.additional_information" rows="5" :placeholder="copy.educationInfoPlaceholder"></textarea></label>
 
                   <div class="entry-wide work-checkboxes">
                     <label class="checkbox-field current-field"><input v-model="education.current" type="checkbox" @change="toggleCurrentEducation(education)" /><span>{{ copy.currentlyStudying }}</span></label>
@@ -2681,40 +2770,49 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
 
-                <div class="language-add-row" :class="{ 'language-add-row--with-button': !profile.languages.length }">
+                <div class="language-add-row" :class="{ 'language-add-row--with-button': profile.languages.length <= 1 }">
                   <label>
                     <span class="field-label">{{ copy.languageAria }}</span>
-                    <BaseDropdown v-model="newLanguage" full-width overlay :options="languageOptions" :placeholder="copy.notSpecified" />
+                    <BaseDropdown v-if="!profile.languages.length" v-model="newLanguage" full-width overlay :options="languageOptions" :placeholder="copy.notSpecified" />
+                    <BaseDropdown v-else v-model="profile.languages[0].name" full-width overlay :options="languageOptionsForIndex(0)" :placeholder="copy.notSpecified" :disabled="profile.languages.length > 1" />
                   </label>
                   <label>
                     <span class="field-label">{{ copy.languageLevel }}</span>
-                    <BaseDropdown v-model="newLanguageLevel" full-width overlay :options="languageLevelOptions" />
+                    <BaseDropdown v-if="!profile.languages.length" v-model="newLanguageLevel" full-width overlay :options="languageLevelOptions" />
+                    <BaseDropdown v-else v-model="profile.languages[0].level" full-width overlay :options="languageLevelOptions" :disabled="profile.languages.length > 1" />
                   </label>
-                  <button v-if="!profile.languages.length" type="button" class="language-add-button" :disabled="!canAddLanguage" :aria-label="copy.addLanguage" @click="addLanguage">
+                  <button v-if="profile.languages.length <= 1" type="button" class="language-add-button" :disabled="profile.languages.length ? !canAddNextLanguage : !canAddLanguage" :aria-label="copy.addLanguage" @click="addLanguage">
                     <i class="fas fa-plus"></i>
                   </button>
                 </div>
 
-                <div v-if="profile.languages.length" class="language-list">
-                  <div v-for="(item, index) in profile.languages" :key="`${item.name}-${index}`" class="language-row">
-                    <div class="language-row__value">{{ displayLanguageName(item.name) }}</div>
-                    <BaseDropdown v-model="item.level" full-width overlay :options="languageLevelOptions" />
+                <div v-if="profile.languages.length > 1" class="language-list">
+                  <div v-for="(item, index) in profile.languages.slice(1)" :key="`${item.name}-${index + 1}`" class="language-row">
+                    <BaseDropdown
+                      v-model="item.name"
+                      full-width
+                      overlay
+                      :options="languageOptionsForIndex(index + 1)"
+                      :placeholder="copy.notSpecified"
+                      :disabled="index + 1 !== profile.languages.length - 1"
+                    />
+                    <BaseDropdown v-model="item.level" full-width overlay :options="languageLevelOptions" :disabled="index + 1 !== profile.languages.length - 1" />
                     <div class="language-row__actions">
                       <button
-                        v-if="index === profile.languages.length - 1"
+                        v-if="index + 1 === profile.languages.length - 1"
                         type="button"
                         class="language-add-button"
-                        :disabled="!canAddLanguage"
+                        :disabled="!canAddNextLanguage"
                         :aria-label="copy.addLanguage"
                         @click="addLanguage"
                       >
                         <i class="fas fa-plus"></i>
                       </button>
-                      <button type="button" class="entry-remove" :aria-label="copy.removeLanguage" @click="removeLanguage(index)"><i class="far fa-trash-can"></i></button>
+                      <button type="button" class="entry-remove" :disabled="index + 1 !== profile.languages.length - 1" :aria-label="copy.removeLanguage" @click="removeLanguage(index + 1)"><i class="far fa-trash-can"></i></button>
                     </div>
                   </div>
                 </div>
-                <p v-else class="additional-empty">{{ copy.noLanguages }}</p>
+                <p v-if="!profile.languages.length" class="additional-empty">{{ copy.noLanguages }}</p>
               </section>
 
               <section class="form-panel">
@@ -2793,15 +2891,18 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
 
+                  <div v-if="cvAdditionalItems.length" class="cv-top-additional">
+                    <ul class="cv-extra-list">
+                      <li v-for="item in cvAdditionalItems" :key="item.label">
+                        <i :class="item.icon"></i>
+                        <span>{{ item.label }}: {{ item.value }}</span>
+                      </li>
+                    </ul>
+                  </div>
+
                   <div class="cv-id">
-                    <div class="cv-qr" aria-hidden="true">
-                      <span
-                        v-for="(active, index) in cvQrCells"
-                        :key="index"
-                        class="cv-qr-cell"
-                        :class="{ 'cv-qr-cell--active': active }"
-                      ></span>
-                      <strong>CV</strong>
+                    <div class="cv-qr">
+                      <img src="/cvhold-qr.svg" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
                     </div>
 
                     <small>CVHOLD ID</small>
@@ -2847,11 +2948,9 @@ onBeforeUnmount(() => {
                         <p class="cv-summary-text">
                           {{ displayEducation(education.level) }}
                           <span v-if="shouldShowEducationSpecialities(education) && education.speciality"> · {{ education.speciality }}</span>
-                          <span v-if="shouldShowEducationSpecialities(education) && education.second_speciality"> · {{ education.second_speciality }}</span>
                           <span v-if="education.country"> · {{ getLocalizedCountryLabel(education.country, education.country) }}</span>
                           <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? copy.present : formatDate(education.end_date) }}</span>
                         </p>
-                        <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
                       </div>
                     </section>
 
@@ -2862,7 +2961,6 @@ onBeforeUnmount(() => {
                           <i :class="sector.iconClass"></i>
                           <span class="cv-sector__copy">
                             <strong>{{ sector.label }}</strong>
-                            <small>{{ sector.experience }}</small>
                           </span>
                         </div>
                         <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
@@ -2871,15 +2969,6 @@ onBeforeUnmount(() => {
                       </div>
                     </section>
 
-                    <section v-if="cvVisibleSkills.length" class="cv-section">
-                      <h2>{{ copy.skills }}</h2>
-                      <ul class="cv-list">
-                        <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
-                        <li v-if="cvMoreSkillsCount" class="cv-more-item">
-                          {{ formatMore('moreItems', cvMoreSkillsCount) }}
-                        </li>
-                      </ul>
-                    </section>
                   </main>
 
                   <aside class="cv-aside">
@@ -2895,24 +2984,24 @@ onBeforeUnmount(() => {
                       </ul>
                     </section>
 
-                    <section v-if="cvVisibleLicenses.length" class="cv-section">
-                      <h2>{{ copy.certificatesAndLicenses }}</h2>
+                    <section v-if="cvLicenses.length" class="cv-section">
+                      <h2>{{ copy.drivingLicense }}</h2>
+                      <p class="cv-summary-text">{{ cvLicenses.join(', ') }}</p>
+                    </section>
+
+                    <section v-if="cvVisibleSkills.length" class="cv-section">
+                      <h2>{{ copy.skills }}</h2>
                       <ul class="cv-list">
-                        <li v-for="license in cvVisibleLicenses" :key="license">{{ license }}</li>
-                        <li v-if="cvMoreLicensesCount" class="cv-more-item">
-                          {{ formatMore('moreItems', cvMoreLicensesCount) }}
+                        <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
+                        <li v-if="cvMoreSkillsCount" class="cv-more-item">
+                          {{ formatMore('moreItems', cvMoreSkillsCount) }}
                         </li>
                       </ul>
                     </section>
 
-                    <section class="cv-section">
-                      <h2>{{ copy.additionalDetails }}</h2>
-                      <ul class="cv-extra-list">
-                        <li v-for="item in cvAdditionalItems" :key="item.label">
-                          <i :class="item.icon"></i>
-                          <span>{{ item.label }}: {{ item.value }}</span>
-                        </li>
-                      </ul>
+                    <section v-if="profile.licenses.length" class="cv-section">
+                      <h2>{{ copy.certificatesAndLicenses }}</h2>
+                      <p class="cv-summary-text">{{ profile.licenses.join(', ') }}</p>
                     </section>
                   </aside>
                 </section>
@@ -2934,7 +3023,7 @@ onBeforeUnmount(() => {
 
           <div class="footer-actions no-print">
             <button
-              v-if="step === 1"
+              v-if="step === 1 || step === steps.length"
               type="button"
               class="cv-action-button btn-danger"
               :disabled="isSaving"
@@ -2943,7 +3032,7 @@ onBeforeUnmount(() => {
               <i class="fas fa-right-from-bracket"></i>{{ copy.exit }}
             </button>
 
-            <button v-else type="button" class="cv-action-button btn-light" :disabled="isSaving" @click="goPrev">
+            <button v-if="step > 1" type="button" class="cv-action-button btn-light" :disabled="isSaving" @click="goPrev">
               <i class="fas fa-arrow-left"></i>{{ copy.back }}
             </button>
 
@@ -3286,7 +3375,7 @@ onBeforeUnmount(() => {
   font: inherit;
   font-size: var(--cv-ui-text-size);
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .entry-wide {
@@ -3332,7 +3421,7 @@ onBeforeUnmount(() => {
 
 .entry-remove:active,
 .entry-add:active {
-  transform: translateY(0.0625rem) scale(0.97);
+  box-shadow: none;
 }
 
 .entry-remove:disabled,
@@ -3608,6 +3697,42 @@ textarea,
   font-size: var(--cv-ui-text-size);
 }
 
+input:disabled,
+textarea:disabled,
+.main-card :deep(.autocomplete__input-wrap input:disabled) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--text-muted) 30%, var(--border-subtle));
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-secondary) 92%, #eef3ef) 0,
+      color-mix(in srgb, var(--surface-secondary) 92%, #eef3ef) 0.55rem,
+      color-mix(in srgb, var(--text-muted) 5%, var(--surface-secondary)) 0.55rem,
+      color-mix(in srgb, var(--text-muted) 5%, var(--surface-secondary)) 1.1rem
+    );
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+input:disabled::placeholder,
+textarea:disabled::placeholder,
+.main-card :deep(.autocomplete__input-wrap input:disabled::placeholder) {
+  color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+}
+
+label:has(input:disabled),
+label:has(textarea:disabled),
+label:has(.autocomplete__input-wrap input:disabled) {
+  opacity: 0.88;
+}
+
+label:has(input:disabled) .field-label,
+label:has(textarea:disabled) .field-label,
+label:has(.autocomplete__input-wrap input:disabled) .field-label {
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text-primary));
+}
+
 textarea {
   min-height: 5.5rem;
   resize: vertical;
@@ -3805,11 +3930,10 @@ textarea:focus,
   font: inherit;
   font-weight: 750;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .license-chip:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
   border-color: color-mix(in srgb, var(--brand-base) 55%, var(--border-subtle));
   background: color-mix(in srgb, var(--brand-base) 10%, #fff);
 }
@@ -3860,12 +3984,11 @@ textarea:focus,
   color: var(--brand-strong);
   font: inherit;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease, color 0.2s ease;
 }
 
 .language-add-button:hover:not(:disabled),
 .language-add-button:focus-visible {
-  transform: translateY(-0.0625rem);
   border-color: color-mix(in srgb, var(--brand-base) 66%, transparent);
   background: color-mix(in srgb, var(--brand-base) 18%, #fff);
   outline: none;
@@ -3974,7 +4097,7 @@ textarea:focus,
   overflow: hidden;
   background: color-mix(in srgb, var(--brand-base) 5%, #eef3ef);
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .pdf-preview-trigger:hover,
@@ -3982,7 +4105,6 @@ textarea:focus,
   border-color: color-mix(in srgb, var(--brand-base) 68%, transparent);
   box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--brand-base) 12%, transparent);
   outline: none;
-  transform: translateY(-0.0625rem);
 }
 
 .pdf-preview-trigger--loading {
@@ -4095,6 +4217,7 @@ textarea:focus,
 button:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+  filter: grayscale(0.18);
 }
 
 .upload-card--error {
@@ -4229,6 +4352,12 @@ button:disabled {
   min-width: 0;
 }
 
+.cv-top-additional {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  padding: 4.45rem 1rem 0;
+}
+
 .cv-avatar {
   width: 4.25rem;
   height: 4.25rem;
@@ -4295,6 +4424,8 @@ button:disabled {
 .cv-list li,
 .cv-sector span {
   overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .cv-contact-list i,
@@ -4331,14 +4462,18 @@ button:disabled {
   position: relative;
   width: 5.7rem;
   height: 5.7rem;
-  display: grid;
-  grid-template-columns: repeat(11, 1fr);
-  grid-template-rows: repeat(11, 1fr);
-  gap: 0.075rem;
+  display: block;
   padding: 0.32rem;
   border: 0.0625rem solid var(--cv-line);
   border-radius: 0.32rem;
   background: #fff;
+}
+
+.cv-qr img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .cv-qr-cell {
@@ -4402,9 +4537,10 @@ button:disabled {
 
 .cv-section h2 {
   margin: 0 0 0.48rem;
-  color: var(--cv-ink);
+  color: var(--cv-green);
   font-size: 0.78rem;
   line-height: 1.1;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -4417,10 +4553,11 @@ button:disabled {
 }
 
 .cv-summary-text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  white-space: pre-line;
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .cv-section p + p {
@@ -4670,6 +4807,12 @@ button:disabled {
 
   .cv-person {
     grid-template-columns: 1fr;
+  }
+
+  .cv-top-additional {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
   }
 
   .cv-brand {
@@ -5010,6 +5153,12 @@ button:disabled {
 
   .cv-person {
     grid-template-columns: 18mm minmax(0, 1fr) !important;
+  }
+
+  .cv-top-additional {
+    flex: 1 1 45mm !important;
+    min-width: 35mm !important;
+    padding: 17.5mm 2mm 0 !important;
   }
 
   .cv-id {

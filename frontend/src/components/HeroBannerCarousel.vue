@@ -209,13 +209,12 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: rgba(22, 163, 74, 0.25);
   cursor: pointer;
-  transition: transform 0.25s ease, background 0.25s ease;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 
 .hero-banner__dot:hover,
 .hero-banner__dot--active {
   background: var(--brand-strong);
-  transform: scale(1.15);
 }
 
 .hero-banner-fade-enter-active,

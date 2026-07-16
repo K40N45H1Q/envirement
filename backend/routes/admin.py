@@ -59,6 +59,7 @@ def serialize_admin_job(job: Job) -> dict:
     return {
         "id": job.id,
         "title": job.title,
+        "occupation_id": job.occupation_id or "",
         "company": job.company,
         "status": job.status,
         "rejection_reason": job.rejection_reason or "",

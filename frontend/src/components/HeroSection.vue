@@ -101,6 +101,7 @@ h1 span {
   color: var(--brand-strong);
 }
 
+
 .hero-description {
   max-width: 40rem;
   margin: 0;

@@ -733,7 +733,7 @@ watch(filteredJobs, async () => {
   gap: 0.35rem;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .category-pill :is(i, svg.svg-inline--fa) {
@@ -755,7 +755,7 @@ watch(filteredJobs, async () => {
 .category-pill--active {
   border-color: color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
   background: color-mix(in srgb, var(--brand-soft) 62%, white);
-  box-shadow: 0 0.65rem 1.35rem rgba(16, 24, 40, 0.06);
+  box-shadow: none;
 }
 
 .results-banner,
@@ -927,15 +927,14 @@ watch(filteredJobs, async () => {
   gap: 0.55rem;
   cursor: pointer;
   box-shadow: 0 0.55rem 1.35rem rgba(16, 24, 40, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .pagination-button:hover:not(:disabled),
 .pagination-button:focus-visible:not(:disabled) {
   border-color: color-mix(in srgb, var(--brand-base) 44%, var(--border-subtle));
   color: var(--brand-strong);
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0.8rem 1.6rem rgba(16, 24, 40, 0.1);
+  box-shadow: none;
 }
 
 .pagination-button:disabled {
@@ -948,10 +947,13 @@ watch(filteredJobs, async () => {
   background: var(--surface-secondary);
 }
 
-  .pagination-button--number {
-    min-width: 2.85rem;
-    padding-inline: 0.75rem;
-  }
+.pagination-button--number {
+  width: 2.85rem;
+  min-width: 2.85rem;
+  height: 2.85rem;
+  padding: 0;
+  border-radius: 50%;
+}
 
   .pagination-button--prev,
   .pagination-button--next {
@@ -962,7 +964,7 @@ watch(filteredJobs, async () => {
   border-color: color-mix(in srgb, var(--brand-base) 60%, white);
   background: linear-gradient(135deg, color-mix(in srgb, var(--brand-base) 95%, white), color-mix(in srgb, var(--brand-strong) 90%, white));
   color: #fff;
-  box-shadow: 0 0.9rem 1.7rem rgba(20, 184, 87, 0.22);
+  box-shadow: none;
 }
 
 .pagination-ellipsis {
@@ -1195,14 +1197,14 @@ watch(filteredJobs, async () => {
   font: inherit;
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .country-card:hover,
 .country-card--active {
   border-color: color-mix(in srgb, var(--brand-base) 22%, var(--border-subtle));
   background: color-mix(in srgb, var(--brand-soft) 58%, white);
-  box-shadow: 0 0.625rem 1.25rem rgba(16, 24, 40, 0.06);
+  box-shadow: none;
 }
 
 .country-card--active strong {

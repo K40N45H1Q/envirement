@@ -12,10 +12,10 @@ const metrics = computed(() => [
 ])
 
 const metricsTwo = computed(() => [
-  { label: t('match.experience'), width: '75%', color: '#4a90e2' },
-  { label: t('match.language'), width: '80%', color: '#4a90e2' },
-  { label: t('match.skills'), width: '72%', color: '#4a90e2' },
-  { label: t('match.motivation'), width: '78%', color: '#4a90e2' },
+  { label: t('match.experience'), width: '75%', color: 'rgba(29, 168, 107, 0.82)' },
+  { label: t('match.language'), width: '80%', color: 'rgba(29, 168, 107, 0.82)' },
+  { label: t('match.skills'), width: '72%', color: 'rgba(29, 168, 107, 0.82)' },
+  { label: t('match.motivation'), width: '78%', color: 'rgba(29, 168, 107, 0.82)' },
 ])
 
 const metricsThree = computed(() => [
@@ -56,15 +56,15 @@ const metricsThree = computed(() => [
 
     <div class="candidate-row">
       <div class="candidate-main">
-        <div class="avatar" style="background: #4a90e2">MK</div>
+        <div class="avatar" style="background: rgba(29, 168, 107, 0.82)">MK</div>
         <div class="candidate-details">
           <div class="name">{{ t('match.candidate2Name') }}</div>
           <div class="role">{{ t('match.candidate2Role') }}</div>
         </div>
       </div>
       <div class="score-block">
-        <div class="score-value" style="color: #4a90e2">77</div>
-        <div class="score-badge" style="background: #e8f0fe; color: #4a90e2">
+        <div class="score-value" style="color: rgba(22, 155, 97, 0.92)">77</div>
+        <div class="score-badge" style="background: rgba(29, 168, 107, 0.12); color: rgba(22, 155, 97, 0.92)">
           {{ t('match.candidate2Badge') }}
         </div>
       </div>
@@ -105,7 +105,7 @@ const metricsThree = computed(() => [
     <div class="stats">
       <div class="stats-avatars">
         <div class="avatar" style="background: #19785a">AV</div>
-        <div class="avatar" style="background: #4a90e2">MK</div>
+        <div class="avatar" style="background: rgba(29, 168, 107, 0.82)">MK</div>
         <div class="avatar" style="background: #f5a623">DP</div>
       </div>
       <div class="stats-text">
