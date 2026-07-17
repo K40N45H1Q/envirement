@@ -2941,18 +2941,6 @@ onBeforeUnmount(() => {
                       </div>
                     </section>
 
-                    <section v-if="cvEducations.length" class="cv-section">
-                      <h2>{{ copy.education }}</h2>
-                      <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
-                        <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
-                        <p class="cv-summary-text">
-                          {{ displayEducation(education.level) }}
-                          <span v-if="shouldShowEducationSpecialities(education) && education.speciality"> · {{ education.speciality }}</span>
-                          <span v-if="education.country"> · {{ getLocalizedCountryLabel(education.country, education.country) }}</span>
-                          <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? copy.present : formatDate(education.end_date) }}</span>
-                        </p>
-                      </div>
-                    </section>
 
                     <section v-if="cvVisibleSectors.length" class="cv-section">
                       <h2>{{ copy.workAreas }}</h2>
@@ -3002,6 +2990,18 @@ onBeforeUnmount(() => {
                     <section v-if="profile.licenses.length" class="cv-section">
                       <h2>{{ copy.certificatesAndLicenses }}</h2>
                       <p class="cv-summary-text">{{ profile.licenses.join(', ') }}</p>
+                    </section>
+                    <section v-if="cvEducations.length" class="cv-section">
+                      <h2>{{ copy.education }}</h2>
+                      <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
+                        <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
+                        <p class="cv-summary-text">
+                          {{ displayEducation(education.level) }}
+                          <span v-if="shouldShowEducationSpecialities(education) && education.speciality"> · {{ education.speciality }}</span>
+                          <span v-if="education.country"> · {{ getLocalizedCountryLabel(education.country, education.country) }}</span>
+                          <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? copy.present : formatDate(education.end_date) }}</span>
+                        </p>
+                      </div>
                     </section>
                   </aside>
                 </section>
