@@ -2419,6 +2419,9 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div class="cv-builder-overlay">
       <div class="main-card" role="dialog" aria-modal="true" :aria-label="copy.pageTitle">
+        <div class="close-wrapper">
+          <button class="close" @click="exitBuilder">X</button>
+        </div>
         <div class="main-card__scroll">
 
           <template v-if="step === 1">
@@ -3047,6 +3050,25 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+
+.close-wrapper {
+  width: 100%;
+  
+}
+
+.close {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.6rem;
+  padding: 0.6rem;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  border: 0.2rem solid red;
+
+}
+
 .cv-builder-overlay {
   --cv-font-family: Inter, Arial, sans-serif;
   --cv-ui-heading-size: 0.95rem;
@@ -3075,6 +3097,7 @@ onBeforeUnmount(() => {
 }
 
 .main-card {
+  position: relative;
   border: 0.25rem solid color-mix(in srgb, var(--brand-base) 42%, transparent);
   border-radius: 1rem;
   background:

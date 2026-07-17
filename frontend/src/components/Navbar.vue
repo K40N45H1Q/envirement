@@ -1,78 +1,89 @@
 ﻿﻿<template>
   <header class="navbar">
-    <RouterLink to="/" class="logo-link logo-link--header" @click="closeMenu">
+    <RouterLink :to="localizedTo('/')" class="logo-link logo-link--header" @click="closeMenu">
       <Logo />
     </RouterLink>
 
-    <nav class="desktop-nav">
-      <template v-for="item in navItems" :key="item.label">
-        <div
+    <nav ref="desktopNav" class="desktop-nav">
+      <template v-for="item in navItems" :key="item.key">
+        <RouterLink
           v-if="item.menu === 'jobs'"
-          class="jobs-menu"
+          :to="localizedTo(item.to)"
+          custom
+          v-slot
         >
-          <button
-            type="button"
-            class="nav-link nav-link--button"
-            :class="{ 'nav-link--active': isNavItemActive(item) || isJobsMenuOpen }"
-            :aria-expanded="isJobsMenuOpen"
-            :aria-label="t('navbar.jobsMenuOpen')"
-            @click="toggleJobsMenu"
-          >
-            <i :class="item.icon"></i>
-            <span>{{ item.label }}</span>
-          </button>
+          <div class="jobs-menu">
+            <button
+              type="button"
+              class="nav-link nav-link--button"
+              :class="{
+                'nav-link--active': currentActiveNavKey === item.key,
+              }"
+              :aria-expanded="isJobsMenuOpen"
+              :aria-label="t('navbar.jobsMenuOpen')"
+              @click="toggleJobsMenu(item)"
+            >
+              <i :class="item.icon"></i>
+              <span class="nav-link__label">{{ item.label }}</span>
+            </button>
 
-          <transition name="menu-fade">
-            <div v-if="isJobsMenuOpen" class="jobs-menu__dropdown">
-              <div
-                v-for="section in jobsMenuSections"
-                :key="section.title"
-                class="jobs-menu__section"
-              >
-                <p class="jobs-menu__title">{{ section.title }}</p>
-                <RouterLink
-                  v-for="entry in section.items"
-                  :key="entry.label"
-                  :to="entry.to"
-                  class="jobs-menu__link"
-                  @click="closeAllMenus"
+            <transition name="menu-fade">
+              <div v-if="isJobsMenuOpen" class="jobs-menu__dropdown">
+                <div
+                  v-for="section in jobsMenuSections"
+                  :key="section.title"
+                  class="jobs-menu__section"
                 >
-                  {{ entry.label }}
-                </RouterLink>
+                  <p class="jobs-menu__title">{{ section.title }}</p>
+                  <RouterLink
+                    v-for="entry in section.items"
+                    :key="entry.label"
+                    :to="localizedTo(entry.to)"
+                    class="jobs-menu__link"
+                    @click="handleJobsEntryClick"
+                  >
+                    {{ entry.label }}
+                  </RouterLink>
+                </div>
               </div>
-            </div>
-          </transition>
-        </div>
+            </transition>
+          </div>
+        </RouterLink>
 
         <button
           v-else-if="item.action === 'login'"
           type="button"
           class="nav-link nav-link--button"
-          @click="$emit('open-login')"
+          :class="{ 'nav-link--active': currentActiveNavKey === item.key }"
+          @click="openLoginFromNav(item)"
         >
           <i :class="item.icon"></i>
-          <span>{{ item.label }}</span>
+          <span class="nav-link__label">{{ item.label }}</span>
         </button>
 
         <button
           v-else-if="item.action === 'cv-builder'"
           type="button"
           class="nav-link nav-link--button"
-          @click="openCvBuilder"
+          :class="{ 'nav-link--active': currentActiveNavKey === item.key }"
+          @click="openCvBuilder(item)"
         >
           <i :class="item.icon"></i>
-          <span>{{ item.label }}</span>
+          <span class="nav-link__label">{{ item.label }}</span>
         </button>
 
         <RouterLink
           v-else
-          :to="item.to"
+          :to="localizedTo(item.to)"
           class="nav-link"
-          :class="{ 'nav-link--active': isNavItemActive(item), 'nav-link--hash': item.hash }"
-          @click="handleNavClick(item, $event)"
+          :class="{
+            'nav-link--hash': item.hash,
+            'nav-link--active': currentActiveNavKey === item.key,
+          }"
+          @click="handleDesktopNavClick(item, $event)"
         >
           <i :class="item.icon"></i>
-          <span>{{ item.label }}</span>
+          <span class="nav-link__label">{{ item.label }}</span>
         </RouterLink>
       </template>
     </nav>
@@ -98,7 +109,7 @@
           </button>
 
           <div v-if="isUserMenuOpen" class="user-dropdown">
-            <RouterLink class="dropdown-item" :to="dashboardRoute" @click="isUserMenuOpen = false">
+            <RouterLink class="dropdown-item" :to="localizedTo(dashboardRoute)" @click="isUserMenuOpen = false">
               {{ t('navbar.dashboard') }}
             </RouterLink>
             <button class="dropdown-item dropdown-item--danger" type="button" @click="logout">
@@ -132,7 +143,7 @@
       <div v-if="isMenuOpen" class="mobile-menu-overlay" @click="closeMenu">
         <aside class="mobile-menu" @click.stop>
           <div class="mobile-menu-header">
-            <RouterLink to="/" class="logo-link logo-link--mobile-menu" @click="closeMenu">
+            <RouterLink :to="localizedTo('/')" class="logo-link logo-link--mobile-menu" @click="closeMenu">
               <Logo />
             </RouterLink>
 
@@ -161,12 +172,13 @@
           </div>
 
           <div class="mobile-menu-links">
-            <template v-for="item in mobileNavItems" :key="item.label">
+            <template v-for="item in mobileNavItems" :key="item.key">
               <button
                 v-if="item.action === 'login'"
                 type="button"
                 class="mobile-nav-link nav-link--button"
-                @click="openLoginFromMenu"
+                :class="{ 'mobile-nav-link--active': currentActiveNavKey === item.key }"
+                @click="openLoginFromMenu(item)"
               >
                 <i :class="item.icon"></i>
                 <span>{{ item.label }}</span>
@@ -176,7 +188,8 @@
                 v-else-if="item.action === 'cv-builder'"
                 type="button"
                 class="mobile-nav-link nav-link--button"
-                @click="openCvBuilderFromMenu"
+                :class="{ 'mobile-nav-link--active': currentActiveNavKey === item.key }"
+                @click="openCvBuilderFromMenu(item)"
               >
                 <i :class="item.icon"></i>
                 <span>{{ item.label }}</span>
@@ -184,9 +197,12 @@
 
               <RouterLink
                 v-else
-                :to="item.to"
+                :to="localizedTo(item.to)"
                 class="mobile-nav-link"
-                :class="{ 'mobile-nav-link--active': isNavItemActive(item), 'mobile-nav-link--hash': item.hash }"
+                :class="{
+                  'mobile-nav-link--hash': item.hash,
+                  'mobile-nav-link--active': currentActiveNavKey === item.key,
+                }"
                 @click="handleMobileNavClick(item, $event)"
               >
                 <i :class="item.icon"></i>
@@ -198,7 +214,7 @@
 
           <div class="mobile-auth-buttons">
             <template v-if="user">
-              <RouterLink v-if="mobilePrimaryLink" class="btn-primary" :to="mobilePrimaryLink.to" @click="closeMenu">
+              <RouterLink v-if="mobilePrimaryLink" class="btn-primary" :to="localizedTo(mobilePrimaryLink.to)" @click="closeMenu">
                 {{ mobilePrimaryLink.label }}
               </RouterLink>
               <button type="button" class="btn-secondary" @click="logout">{{ t('common.logout') }}</button>
@@ -270,6 +286,7 @@ export default {
       isUserMenuOpen: false,
       isMenuOpen: false,
       isJobsMenuOpen: false,
+      activeNavKey: null,
       languageOptions: [
         { value: 'lv', label: 'LV', hint: 'Latviešu' },
         { value: 'en', label: 'EN', hint: 'English' },
@@ -298,26 +315,28 @@ export default {
 
     navItems() {
       const items = [
-        { label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
-        { label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
+        { key: 'jobs', label: this.t('navbar.jobs'), to: '/', icon: 'fas fa-briefcase', menu: 'jobs' },
+        { key: 'employers', label: this.t('navbar.employers'), to: '/employers', icon: 'fas fa-users' },
       ]
 
       if (!this.user || this.normalizedAccountType === 'candidate') {
         items.push({
+          key: 'resume',
           label: this.t('navbar.resume'),
           ...(this.user ? { action: 'cv-builder' } : { action: 'login' }),
           icon: 'fas fa-file-lines',
         })
       }
 
-      items.push({ label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' })
+      items.push({ key: 'about', label: this.t('navbar.about'), to: '/about', icon: 'fas fa-circle-info' })
 
       if (this.normalizedAccountType !== 'candidate') {
-        items.push({ label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' })
+        items.push({ key: 'pricing', label: this.t('navbar.pricing'), to: '/pricing', icon: 'fas fa-tags' })
       }
 
       if (this.user) {
         items.push({
+          key: 'dashboard',
           label: this.t('navbar.dashboard'),
           to: this.dashboardRoute,
           icon: 'fas fa-table-columns',
@@ -342,6 +361,27 @@ export default {
           to: '/jobs',
         }
       })
+    },
+
+    routeActiveNavKey() {
+      const path = this.unlocalizedPath(this.$route.path)
+
+      if (path === '/' || path === '/jobs' || path.startsWith('/jobs/')) return 'jobs'
+      if (path === '/employers' || path.startsWith('/employers/')) return 'employers'
+      if (path === '/about' || path.startsWith('/about/')) return 'about'
+      if (path === '/pricing' || path.startsWith('/pricing/')) return 'pricing'
+      if (
+        path === '/dashboard' ||
+        path.startsWith('/dashboard/') ||
+        path === '/admin' ||
+        path.startsWith('/admin/')
+      ) return 'dashboard'
+
+      return null
+    },
+
+    currentActiveNavKey() {
+      return this.activeNavKey || this.routeActiveNavKey
     },
 
     jobsMenuSections() {
@@ -416,23 +456,59 @@ export default {
   },
 
   methods: {
-    openCvBuilder() {
+    selectNavItem(itemOrKey) {
+      this.activeNavKey = typeof itemOrKey === 'string'
+        ? itemOrKey
+        : itemOrKey?.key || null
+    },
+
+    openLoginFromNav(item) {
+      this.selectNavItem(item)
+      this.$emit('open-login')
+    },
+
+    openCvBuilder(item) {
+      this.selectNavItem(item)
       this.closeAllMenus()
       this.cvBuilder.open()
     },
 
-    openCvBuilderFromMenu() {
+    openCvBuilderFromMenu(item) {
+      this.selectNavItem(item)
       this.closeMenu()
       this.cvBuilder.open()
     },
 
-    isNavItemActive(item) {
-      if (item.menu === 'jobs') {
-        return this.$route.path === '/' || this.$route.path === '/jobs'
+    localizedTo(to) {
+      if (!to) return to
+
+      if (typeof to === 'string') {
+        return localizeFullPath(to, this.currentLanguage)
       }
 
-      if (item.hash) return false
-      return this.$route.path === item.to
+      if (typeof to === 'object' && to.path) {
+        return {
+          ...to,
+          path: localizeFullPath(to.path, this.currentLanguage),
+        }
+      }
+
+      return to
+    },
+
+    unlocalizedPath(path) {
+      const localeCodes = this.languageOptions
+        .map((option) => option.value)
+        .filter(Boolean)
+        .join('|')
+
+      const localePrefix = new RegExp(`^/(?:${localeCodes})(?=/|$)`, 'i')
+      const normalized = String(path || '/')
+        .replace(localePrefix, '')
+        .replace(/\/{2,}/g, '/')
+
+      if (!normalized || normalized === '/') return '/'
+      return normalized.replace(/\/$/, '')
     },
 
     scrollToHash(hash, duration = 1100) {
@@ -470,13 +546,23 @@ export default {
       window.requestAnimationFrame(step)
     },
 
+    handleDesktopNavClick(item, event) {
+      this.selectNavItem(item)
+      this.handleNavClick(item, event)
+    },
+
     handleNavClick(item, event) {
-      if (!item.hash || this.$route.path !== (item.hashBasePath || '/')) return
+      if (!item.hash) return
+
+      const basePath = item.hashBasePath || '/'
+      const currentPath = this.unlocalizedPath(this.$route.path)
+
+      if (currentPath !== basePath) return
 
       event.preventDefault()
 
       if (this.$route.hash !== item.hash) {
-        this.$router.push({ path: item.hashBasePath || '/', hash: item.hash })
+        this.$router.push(this.localizedTo({ path: basePath, hash: item.hash }))
         return
       }
 
@@ -484,12 +570,19 @@ export default {
     },
 
     handleMobileNavClick(item, event) {
+      this.selectNavItem(item)
       this.closeMenu()
       this.handleNavClick(item, event)
     },
 
-    toggleJobsMenu() {
+    toggleJobsMenu(item) {
+      this.selectNavItem(item)
       this.isJobsMenuOpen = !this.isJobsMenuOpen
+    },
+
+    handleJobsEntryClick() {
+      this.selectNavItem('jobs')
+      this.closeAllMenus()
     },
 
     changeLanguage() {
@@ -516,7 +609,8 @@ export default {
       this.closeMenu()
     },
 
-    openLoginFromMenu() {
+    openLoginFromMenu(item) {
+      this.selectNavItem(item)
       this.closeMenu()
       this.$emit('open-login')
     },
@@ -531,6 +625,7 @@ export default {
       this.logoutAuth()
       this.isUserMenuOpen = false
       this.isJobsMenuOpen = false
+      this.selectNavItem('jobs')
       this.$router.replace(localizeFullPath('/', this.currentLanguage))
     },
 
@@ -557,16 +652,19 @@ export default {
     window.addEventListener('resize', this.handleResize)
     document.addEventListener('click', this.closeDesktopMenusOnOutsideClick)
     this.uiStore.initialize()
+    this.activeNavKey = this.routeActiveNavKey
   },
 
   beforeUnmount() {
     window.removeEventListener('resize', this.handleResize)
     document.removeEventListener('click', this.closeDesktopMenusOnOutsideClick)
+
     document.body.style.overflow = ''
   },
 
   watch: {
     $route() {
+      this.activeNavKey = this.routeActiveNavKey
       this.isJobsMenuOpen = false
       this.isUserMenuOpen = false
     },
