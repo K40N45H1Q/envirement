@@ -13,6 +13,8 @@ npm --prefix ~/www/frontend run build
 
 rm -rf /var/www/app/frontend/*
 cp -a ~/www/frontend/dist/. /var/www/app/frontend/
+find /var/www/app/frontend -type d -exec chmod 755 {} +
+find /var/www/app/frontend -type f -exec chmod 644 {} +
 
 cd ~/www/backend
 
