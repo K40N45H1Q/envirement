@@ -1,3 +1,5 @@
+import { CV_WATERMARK } from '@/cv/cvWatermark'
+
 const PAGE_WIDTH_MM = 210
 const PAGE_HEIGHT_MM = 297
 
@@ -74,6 +76,56 @@ const addCanvasToPdfPage = (pdf, canvas) => {
   )
 }
 
+const loadImage = (src) => new Promise((resolve) => {
+  const image = new Image()
+  image.onload = () => resolve(image)
+  image.onerror = () => resolve(null)
+  image.src = src
+})
+
+const drawPageWatermark = (context, width, height, scale, watermarkImage) => {
+  if (!watermarkImage) return
+
+  const logoWidth = CV_WATERMARK.logoWidthPx * scale
+  const logoHeight = CV_WATERMARK.logoHeightPx * scale
+  const tileWidth = (CV_WATERMARK.logoWidthPx + CV_WATERMARK.gapXPx) * scale
+  const tileHeight = (CV_WATERMARK.logoHeightPx + CV_WATERMARK.gapYPx) * scale
+  const offsetX = CV_WATERMARK.offsetXPx * scale
+  const offsetY = CV_WATERMARK.offsetYPx * scale
+  const staggerX = CV_WATERMARK.staggerXPx * scale
+  const rotationRad = CV_WATERMARK.rotationDeg * Math.PI / 180
+
+  context.save()
+  context.globalAlpha = CV_WATERMARK.opacity
+
+  let row = 0
+  for (let y = offsetY - tileHeight; y < height + tileHeight; y += tileHeight) {
+    const rowOffsetX = row % 2 === 0 ? 0 : staggerX
+
+    for (
+      let x = offsetX - tileWidth + rowOffsetX;
+      x < width + tileWidth;
+      x += tileWidth
+    ) {
+      context.save()
+      context.translate(x + logoWidth / 2, y + logoHeight / 2)
+      context.rotate(rotationRad)
+      context.drawImage(
+        watermarkImage,
+        -logoWidth / 2,
+        -logoHeight / 2,
+        logoWidth,
+        logoHeight,
+      )
+      context.restore()
+    }
+
+    row += 1
+  }
+
+  context.restore()
+}
+
 /**
  * Запасной режим пагинации.
  *
@@ -82,7 +134,7 @@ const addCanvasToPdfPage = (pdf, canvas) => {
  * В отличие от старого варианта, длинный canvas не помещается на одну A4-страницу,
  * а режется на несколько страниц без обрезания нижней части документа.
  */
-const addCanvasAsSimplePages = (pdf, sourceCanvas) => {
+const addCanvasAsSimplePages = (pdf, sourceCanvas, watermarkImage = null, scale = 1) => {
   const pagePixelHeight = Math.max(
     1,
     Math.round(sourceCanvas.width * PAGE_HEIGHT_MM / PAGE_WIDTH_MM),
@@ -115,6 +167,14 @@ const addCanvasAsSimplePages = (pdf, sourceCanvas) => {
       0,
       pageCanvas.width,
       pageCanvas.height,
+    )
+
+    drawPageWatermark(
+      pageContext,
+      pageCanvas.width,
+      pageCanvas.height,
+      scale,
+      watermarkImage,
     )
 
     pageContext.drawImage(
@@ -655,7 +715,7 @@ const findSafeSplitY = (
  * .cv-body   — основное содержимое.
  * .cv-footer — подвал, повторяемый на каждой странице.
  */
-export const createPaginatedCvPdf = (
+export const createPaginatedCvPdf = async (
   sourceCanvas,
   sourceElement,
   JsPdf,
@@ -708,6 +768,7 @@ export const createPaginatedCvPdf = (
   const scale = documentRect.width > 0
     ? sourceCanvas.width / documentRect.width
     : 0
+  const watermarkImage = await loadImage(CV_WATERMARK.src)
 
   const pagePixelHeight = Math.max(
     1,
@@ -775,6 +836,8 @@ export const createPaginatedCvPdf = (
     return addCanvasAsSimplePages(
       pdf,
       sourceCanvas,
+      watermarkImage,
+      scale || 1,
     )
   }
 
@@ -789,6 +852,8 @@ export const createPaginatedCvPdf = (
     return addCanvasAsSimplePages(
       pdf,
       sourceCanvas,
+      watermarkImage,
+      scale || 1,
     )
   }
 
@@ -895,6 +960,14 @@ export const createPaginatedCvPdf = (
       0,
       pageCanvas.width,
       pageCanvas.height,
+    )
+
+    drawPageWatermark(
+      pageContext,
+      pageCanvas.width,
+      pageCanvas.height,
+      scale,
+      watermarkImage,
     )
 
     // Первая страница получает исходную верхнюю часть

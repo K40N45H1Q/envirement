@@ -5,6 +5,8 @@ import { getResponseCv } from '@/api/jobs'
 import { translate, useI18n } from '@/i18n'
 import { useAuth } from '@/stores/auth'
 import { useCvBuilderStore } from '@/stores/cvBuilder'
+import CvDocument from '@/cv/CvDocument.vue'
+import { preparePdfCvDocument } from '@/cv/cvLayout'
 import { limitText } from '@/utils/cvBuilderHelpers'
 import { createPaginatedCvPdf } from '@/utils/cvPdf'
 
@@ -241,96 +243,6 @@ const cvId = computed(() => {
 })
 const formatMore = (_key, count) => `+${count}`
 
-const balancePdfColumns = (root) => {
-  const body = root.querySelector('.cv-body')
-  const main = root.querySelector('.cv-main')
-  const aside = root.querySelector('.cv-aside')
-  const workSection = root.querySelector('.cv-flow-item--work')
-  const sectorsSection = root.querySelector('.cv-flow-item--sectors')
-
-  if (!body || !main || !aside) return
-
-  root.classList.add('cv-document--pdf', 'cv-document--balanced')
-
-  if (!workSection) return
-
-  const entries = Array.from(workSection.querySelectorAll(':scope > .cv-entry'))
-  if (!entries.length) return
-
-  const asideChildren = Array.from(aside.children)
-  const asideBottom = asideChildren.length
-    ? Math.max(...asideChildren.map((child) => child.getBoundingClientRect().bottom))
-    : aside.getBoundingClientRect().top
-  const flowText = workSection.querySelector('.cv-summary-text')
-  const flowLineHeight = flowText ? parseFloat(window.getComputedStyle(flowText).lineHeight) || 16 : 16
-  const columnBottom = asideBottom + flowLineHeight
-  const splitIndex = entries.findIndex((entry) => (
-    entry.getBoundingClientRect().bottom > columnBottom
-  ))
-
-  if (splitIndex < 0) return
-
-  const continuation = workSection.cloneNode(false)
-  continuation.classList.add('cv-flow-item--full', 'cv-flow-item--work-continuation')
-  continuation.classList.remove('cv-flow-item--main')
-  continuation.removeAttribute('id')
-
-  const crossingEntry = entries[splitIndex]
-  const description = crossingEntry.querySelector(':scope > .cv-summary-text:last-child')
-  const paragraphs = crossingEntry.querySelectorAll(':scope > .cv-summary-text')
-  const words = description && paragraphs.length > 2
-    ? description.textContent.trim().split(/\s+/).filter(Boolean)
-    : []
-  let continuationEntry = null
-
-  if (words.length > 1 && crossingEntry.getBoundingClientRect().top < columnBottom) {
-    let low = 1
-    let high = words.length
-    let fitCount = 0
-
-    while (low <= high) {
-      const middle = Math.floor((low + high) / 2)
-      description.textContent = words.slice(0, middle).join(' ')
-
-      if (crossingEntry.getBoundingClientRect().bottom <= columnBottom) {
-        fitCount = middle
-        low = middle + 1
-      } else {
-        high = middle - 1
-      }
-    }
-
-    if (fitCount > 0 && fitCount < words.length) {
-      description.textContent = words.slice(0, fitCount).join(' ')
-      continuationEntry = crossingEntry.cloneNode(false)
-      continuationEntry.classList.add('cv-entry--continued')
-      const continuedDescription = description.cloneNode(false)
-      continuedDescription.textContent = words.slice(fitCount).join(' ')
-      continuationEntry.appendChild(continuedDescription)
-      continuation.appendChild(continuationEntry)
-    } else {
-      description.textContent = words.join(' ')
-    }
-  }
-
-  const moveFromIndex = continuationEntry ? splitIndex + 1 : splitIndex
-  entries.slice(moveFromIndex).forEach((entry) => {
-    continuation.appendChild(entry)
-  })
-
-  const moreItem = workSection.querySelector(':scope > .cv-more-item')
-  if (moreItem) continuation.appendChild(moreItem)
-
-  if (continuation.children.length) {
-    workSection.classList.add('cv-flow-item--work-split')
-    body.insertBefore(continuation, sectorsSection?.parentElement === body ? sectorsSection : null)
-  }
-
-  if (!workSection.querySelector(':scope > .cv-entry')) {
-    workSection.remove()
-  }
-}
-
 async function loadProfile() {
   if (!user.value) return
   isLoading.value = true
@@ -347,19 +259,20 @@ async function loadProfile() {
 }
 
 async function downloadCv() {
-  if (!cvDocument.value || isPrinting.value) return
+  const sourceDocument = cvDocument.value?.$el || cvDocument.value
+  if (!sourceDocument || isPrinting.value) return
   isPrinting.value = true
   await nextTick()
 
   const renderHost = document.createElement('div')
   renderHost.style.cssText = 'position:fixed;left:-10000px;top:0;width:49.625rem;background:#fff;pointer-events:none;'
-  const printableClone = cvDocument.value.cloneNode(true)
-  printableClone.classList.add('cv-document--pdf')
+  const printableClone = sourceDocument.cloneNode(true)
   printableClone.style.transform = 'none'
   printableClone.style.margin = '0'
   renderHost.appendChild(printableClone)
   document.body.appendChild(renderHost)
-  balancePdfColumns(printableClone)
+  // Keep PDF-specific DOM mutations centralized in the CV layout module.
+  preparePdfCvDocument(printableClone)
 
   try {
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -379,11 +292,11 @@ async function downloadCv() {
     const canvas = await html2canvas(printableClone, {
       scale: 2,
       useCORS: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: null,
       logging: false,
       windowWidth: 1280,
     })
-    const pdf = createPaginatedCvPdf(canvas, printableClone, jsPDF)
+    const pdf = await createPaginatedCvPdf(canvas, printableClone, jsPDF)
     pdf.save('CVHOLD-CV.pdf')
   } finally {
     renderHost.remove()
@@ -435,455 +348,39 @@ onMounted(loadProfile)
         </button>
       </div>
 
-      <article ref="cvDocument" class="cv-document">
-        <div class="cv-watermark" aria-hidden="true"></div>
-        <header class="cv-header">
-          <div class="cv-brand" aria-label="CVHOLD">
-            <img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" />
-          </div>
-          <div class="cv-verified">
-            <i class="fas fa-circle-check" aria-hidden="true"></i>
-            <span><strong>{{ cvCopy.cvDocument }}</strong></span>
-          </div>
-        </header>
-
-        <section class="cv-top">
-          <div class="cv-person">
-            <div class="cv-avatar">
-              <img v-if="avatarPreview" :src="avatarPreview" :alt="displayCvName" />
-              <span v-else>{{ avatarInitials }}</span>
-            </div>
-            <div>
-              <h1>{{ displayCvName }}</h1>
-              <p>{{ displayCvRole }}</p>
-              <ul class="cv-contact-list">
-                <li v-for="(item, index) in cvContactItems" :key="`${item.icon}-${index}`">
-                  <i :class="item.icon"></i><span>{{ item.value }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div v-if="cvAdditionalItems.length" class="cv-top-additional">
-            <ul class="cv-extra-list">
-              <li v-for="item in cvAdditionalItems" :key="item.label">
-                <i :class="item.icon"></i>
-                <span>{{ item.label }}: {{ item.value }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="cv-id">
-            <div class="cv-qr">
-              <img src="/cvhold-qr-custom.png?v=2" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
-            </div>
-            <small>CVHOLD ID</small>
-            <strong>{{ cvId }}</strong>
-          </div>
-        </section>
-
-        <section class="cv-body">
-          <main class="cv-main">
-            <section class="cv-section cv-section--summary cv-flow-item cv-flow-item--main">
-              <h2>{{ cvSectionTitle('aboutMe') }}</h2>
-              <p v-for="paragraph in cvSummaryParagraphs" :key="paragraph" class="cv-summary-text">{{ paragraph }}</p>
-            </section>
-
-            <section v-if="cvWorkExperiences.length" class="cv-section cv-flow-item cv-flow-item--main cv-flow-item--work">
-              <h2>{{ cvSectionTitle('workExperience') }}</h2>
-              <div v-for="(work, index) in cvWorkExperiences" :key="`cv-work-${index}`" class="cv-entry">
-                <p class="cv-summary-text"><strong>{{ work.position }}</strong><span v-if="work.company_name"> · {{ work.company_name }}</span></p>
-                <p class="cv-summary-text">
-                  {{ formatDate(work.start_date) }} — {{ work.current ? cvCopy.present : formatDate(work.end_date) }}
-                  <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
-                  <span v-if="work.country"> · {{ work.country }}</span>
-                </p>
-                <p v-if="work.description" class="cv-summary-text cv-entry__description">{{ work.description }}</p>
-              </div>
-              <p v-if="cvMoreWorkExperiencesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreWorkExperiencesCount) }}</p>
-            </section>
-
-
-          </main>
-
-          <aside class="cv-aside">
-            <section v-if="cvVisibleLanguages.length" class="cv-section cv-flow-item cv-flow-item--aside">
-              <h2>{{ cvSectionTitle('languages') }}</h2>
-              <ul class="cv-list">
-                <li v-for="item in cvVisibleLanguages" :key="`${item.name}-${item.level}`">{{ displayLanguageName(item.name) }} — {{ displayLanguageLevel(item.level) }}</li>
-                <li v-if="cvMoreLanguagesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreLanguagesCount) }}</li>
-              </ul>
-            </section>
-
-            <section v-if="cvLicenses.length" class="cv-section cv-flow-item cv-flow-item--aside">
-              <h2>{{ cvSectionTitle('drivingLicense') }}</h2>
-              <p class="cv-summary-text">{{ cvLicenses.join(', ') }}</p>
-            </section>
-
-            <section v-if="cvVisibleSkills.length" class="cv-section cv-flow-item cv-flow-item--aside">
-              <h2>{{ cvSectionTitle('skills') }}</h2>
-              <ul class="cv-list">
-                <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
-                <li v-if="cvMoreSkillsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreSkillsCount) }}</li>
-              </ul>
-            </section>
-
-            <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--aside cv-flow-item--sectors">
-              <h2>{{ cvSectionTitle('workAreas') }}</h2>
-              <div class="cv-sector-grid">
-                <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
-                  <i :class="sector.iconClass"></i>
-                  <span class="cv-sector__copy"><strong>{{ sector.label }}</strong><small>{{ sector.experience }}</small></span>
-                </div>
-                <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item"><span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span></div>
-              </div>
-            </section>
-
-            <section v-if="certificates.length" class="cv-section cv-flow-item cv-flow-item--aside">
-              <h2>{{ cvSectionTitle('certificatesAndLicenses') }}</h2>
-              <p class="cv-summary-text">{{ certificates.join(', ') }}</p>
-            </section>
-
-            <section v-if="cvEducations.length" class="cv-section cv-flow-item cv-flow-item--aside">
-              <h2>{{ cvSectionTitle('education') }}</h2>
-              <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
-                <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
-                <p class="cv-summary-text">
-                  {{ displayEducation(education.level) }}
-                  <span v-if="education.speciality"> &middot; {{ education.speciality }}</span>
-                  <span v-if="education.second_speciality"> &middot; {{ education.second_speciality }}</span>
-                  <span v-if="education.country"> &middot; {{ education.country }}</span>
-                  <span v-if="education.start_date || education.end_date"> &middot; {{ formatDate(education.start_date) }}&mdash;{{ education.current ? cvCopy.present : formatDate(education.end_date) }}</span>
-                </p>
-                <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
-              </div>
-              <p v-if="cvMoreEducationsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreEducationsCount) }}</p>
-            </section>
-          </aside>
-        </section>
-
-        <footer class="cv-footer">
-          <div class="cv-brand cv-brand--small" aria-label="CVHOLD"><img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" /></div>
-          <span>{{ cvCopy.cvFooterTagline }}</span><span>www.cvhold.com</span>
-        </footer>
-      </article>
+      <CvDocument
+        ref="cvDocument"
+        :avatar-preview="avatarPreview"
+        :avatar-initials="avatarInitials"
+        :display-name="displayCvName"
+        :display-role="displayCvRole"
+        :contact-items="cvContactItems"
+        :additional-items="cvAdditionalItems"
+        :summary-paragraphs="cvSummaryParagraphs"
+        :work-experiences="cvWorkExperiences"
+        :more-work-experiences-count="cvMoreWorkExperiencesCount"
+        :languages="cvVisibleLanguages"
+        :more-languages-count="cvMoreLanguagesCount"
+        :licenses="cvLicenses"
+        :skills="cvVisibleSkills"
+        :more-skills-count="cvMoreSkillsCount"
+        :sectors="cvVisibleSectors"
+        :more-sectors-count="cvMoreSectorsCount"
+        :certificates="certificates"
+        :educations="cvEducations"
+        :more-educations-count="cvMoreEducationsCount"
+        :cv-id="cvId"
+        :copy="cvCopy"
+        :section-title="cvSectionTitle"
+        :format-date="formatDate"
+        :format-more="formatMore"
+        :category-label="categoryLabel"
+        :display-language-name="displayLanguageName"
+        :display-language-level="displayLanguageLevel"
+        :display-education="displayEducation"
+      />
     </template>
   </main>
 </template>
 
-<style scoped>
-.cv-profile-page {
-  --green: #10a558;
-  --green-dark: #087c40;
-  --ink: #17211c;
-  --muted: #68736d;
-  min-height: 100vh;
-  padding: clamp(1rem, 3vw, 2.5rem);
-  background: #eef2ef;
-  color: var(--ink);
-  font-family: inherit;
-}
-
-.cv-toolbar {
-  width: min(210mm, 100%);
-  margin: 0 auto 1rem;
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.cv-toolbar span {
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  color: var(--green-dark);
-  font-size: .82rem;
-  font-weight: 700;
-}
-
-.cv-toolbar h1 {
-  margin: .2rem 0 0;
-  font-size: clamp(1.45rem, 3vw, 2rem);
-}
-
-.primary-button {
-  min-height: 3.3rem;
-  padding: 0 1.35rem;
-  border: 0;
-  border-radius: .8rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .55rem;
-  background: linear-gradient(135deg, #16b864, #0a994e);
-  box-shadow: 0 10px 24px rgba(10, 153, 78, .2);
-  color: #fff;
-  font: inherit;
-  font-weight: 750;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background .18s ease, border-color .18s ease, color .18s ease;
-}
-
-.primary-button:hover { box-shadow: none; }
-.primary-button:disabled { opacity: .7; cursor: wait; transform: none; }
-
-.state-card {
-  width: min(36rem, 100%);
-  min-height: 22rem;
-  margin: clamp(2rem, 10vh, 7rem) auto;
-  padding: 2.5rem;
-  border: 1px solid #dde5e0;
-  border-radius: 1.35rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  background: #fff;
-  box-shadow: 0 22px 55px rgba(29, 49, 38, .1);
-  text-align: center;
-}
-
-.state-card > i { color: var(--green); font-size: 2.5rem; }
-.state-card h1 { margin: 0; font-size: 1.5rem; }
-.state-card p { max-width: 27rem; margin: 0; color: var(--muted); line-height: 1.55; }
-.state-card--error > i { color: #dc2f2f; }
-.loader { width: 2.25rem; height: 2.25rem; border: 3px solid #dce9e1; border-top-color: var(--green); border-radius: 50%; animation: spin .75s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.cv-sheet {
-  width: min(210mm, 100%);
-  min-height: 297mm;
-  margin: 0 auto;
-  padding: 11mm 12mm 8mm;
-  border: 1px solid #dce2de;
-  border-radius: .4rem;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(24, 43, 32, .14);
-  overflow: hidden;
-}
-
-.cv-sheet__header,
-.cv-sheet__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  color: #7a847e;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.cv-logo { width: 92px; height: auto; color: var(--green); }
-.cv-logo--small { width: 68px; }
-
-.cv-hero {
-  margin: 8mm 0 7mm;
-  padding: 7mm;
-  border-radius: 5mm;
-  display: flex;
-  align-items: center;
-  gap: 6mm;
-  background: linear-gradient(135deg, #effaf3, #f8fcf9);
-}
-
-.cv-avatar {
-  width: 29mm;
-  height: 29mm;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: var(--green);
-  box-shadow: 0 6px 20px rgba(12, 135, 68, .18);
-  color: #fff;
-  font-size: 25px;
-  font-weight: 800;
-}
-
-.cv-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.cv-identity { min-width: 0; }
-.cv-identity > p { margin: 0 0 1mm; color: var(--green-dark); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .07em; }
-.cv-identity h1 { margin: 0; font-size: 28px; line-height: 1.1; }
-.cv-identity ul { margin: 3mm 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 1.5mm 5mm; list-style: none; color: #56625b; font-size: 10px; }
-
-.cv-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(48mm, .8fr); gap: 9mm; flex: 1; }
-.cv-main, .cv-aside { min-width: 0; }
-.cv-aside { padding-left: 7mm; border-left: 1px solid #dfe6e1; }
-.cv-section + .cv-section { margin-top: 7mm; }
-.cv-section h2 { margin: 0 0 3.5mm; padding-bottom: 2mm; border-bottom: 2px solid #1aa35a; color: var(--green); font-size: 13px; line-height: 1.2; font-weight: 800; text-transform: uppercase; letter-spacing: .045em; }
-.cv-entry + .cv-entry { margin-top: 5mm; padding-top: 5mm; border-top: 1px solid #e6ebe8; }
-.cv-entry__heading { display: flex; align-items: start; justify-content: space-between; gap: 4mm; }
-.cv-entry h3 { margin: 0; font-size: 12px; line-height: 1.3; }
-.cv-entry__heading p { margin: 1mm 0 0; color: #4e5b53; font-size: 10px; }
-.cv-entry time { flex: 0 0 auto; color: var(--green-dark); font-size: 9px; font-weight: 700; white-space: nowrap; }
-.cv-entry__meta { margin: 2mm 0 0; display: flex; gap: 2mm; color: var(--green-dark); font-size: 9px; font-weight: 700; }
-.cv-entry__meta span + span::before { content: '·'; margin-right: 2mm; }
-.cv-paragraph { margin: 2.5mm 0 0; color: #465149; font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
-.cv-muted { color: #7a847e; font-size: 10px; }
-.cv-section dl { margin: 0; }
-.cv-section dt { margin-top: 3mm; color: #7a847e; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-.cv-section dt:first-child { margin-top: 0; }
-.cv-section dd { margin: .7mm 0 0; font-size: 10px; font-weight: 650; }
-.cv-simple-list, .cv-bullets { margin: 0; padding: 0; list-style: none; font-size: 10px; }
-.cv-simple-list li { padding: 1.5mm 0; display: flex; justify-content: space-between; gap: 2mm; border-bottom: 1px solid #edf0ee; }
-.cv-simple-list strong { color: var(--green-dark); }
-.cv-bullets li { position: relative; padding: 1.2mm 0 1.2mm 4mm; line-height: 1.35; }
-.cv-bullets li::before { content: ''; position: absolute; left: 0; top: 2.4mm; width: 1.5mm; height: 1.5mm; border-radius: 50%; background: var(--green); }
-.cv-tags { display: flex; flex-wrap: wrap; gap: 1.5mm; }
-.cv-tags span { padding: 1.2mm 2mm; border-radius: 2mm; background: #eff8f2; color: #17653c; font-size: 8px; font-weight: 650; }
-.cv-sheet__footer { margin-top: 8mm; padding-top: 4mm; border-top: 1px solid #dfe6e1; }
-
-@media (max-width: 600px) {
-  .cv-profile-page { padding: .75rem; }
-  .cv-toolbar { align-items: stretch; }
-  .cv-toolbar .primary-button { min-width: 3.3rem; padding: 0 1rem; }
-  .cv-toolbar .primary-button { font-size: 0; }
-  .cv-toolbar .primary-button i { font-size: 1rem; }
-  .cv-sheet { min-height: 0; padding: 5mm; }
-  .cv-hero { margin: 4mm 0; padding: 4mm; gap: 3mm; }
-  .cv-avatar { width: 20mm; height: 20mm; font-size: 18px; }
-  .cv-identity h1 { font-size: 18px; }
-  .cv-layout { grid-template-columns: 1fr; gap: 5mm; }
-  .cv-aside { padding: 5mm 0 0; border: 0; border-top: 1px solid #dfe6e1; }
-  .cv-entry__heading { display: block; }
-  .cv-entry time { display: block; margin-top: 1mm; white-space: normal; }
-  .cv-sheet__header > span, .cv-sheet__footer span:first-of-type { display: none; }
-}
-
-/* The original CVBuilder document design. Only its fixed A4 height was removed. */
-.cv-document {
-  --cv-green: #149447;
-  --cv-green-dark: #0f7f3c;
-  --cv-ink: #101828;
-  --cv-muted: #667085;
-  --cv-line: #d9dee7;
-  --cv-soft: #f3fbf6;
-  width: min(100%, 49.625rem);
-  height: auto;
-  min-height: 0;
-  margin: 0 auto;
-  padding: 1.45rem 1.7rem 1.15rem;
-  background: #fff;
-  color: var(--cv-ink);
-  position: relative;
-  isolation: isolate;
-  border-radius: .8rem;
-  box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, .12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  font-family: Inter, Arial, sans-serif;
-}
-
-.cv-watermark {
-  content: "";
-  position: absolute;
-  inset: -18%;
-  z-index: 0;
-  background-image: url("/watermark-tile.png");
-  background-repeat: repeat;
-  background-size: 9.375rem 6.5625rem;
-  background-position: center;
-  opacity: .06;
-  pointer-events: none;
-  transform: rotate(-28deg);
-  transform-origin: center;
-}
-
-.cv-document > :not(.cv-watermark) {
-  position: relative;
-  z-index: 1;
-}
-
-.cv-header, .cv-top, .cv-footer {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-.cv-header { min-height: 3.65rem; padding-bottom: .85rem; border-bottom: .0625rem solid var(--cv-line); }
-.cv-brand { display: inline-flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: .55rem; min-width: 0; color: var(--cv-ink); background: transparent; }
-.cv-brand__logo, .cv-brand__logo svg { width: 8.2rem; max-width: 8.2rem; height: 2.15rem; max-height: 2.15rem; object-fit: contain; object-position: left center; display: block; flex: 0 0 auto; background: transparent; }
-.cv-verified { display: inline-flex; align-items: center; gap: .55rem; flex: 0 0 auto; color: var(--cv-green); background: transparent; }
-.cv-verified > i { font-size: 1.25rem; }
-.cv-verified > span { display: grid; gap: .12rem; text-align: right; background: transparent; }
-.cv-verified strong { color: var(--cv-ink); font-size: .72rem; line-height: 1; }
-.cv-verified small { color: var(--cv-green-dark); font-size: .55rem; line-height: 1; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.cv-top { padding: 1rem 0 .95rem; border-bottom: .0625rem solid var(--cv-line); align-items: flex-start; }
-.cv-person { display: grid; grid-template-columns: 4.25rem minmax(0, 1fr); gap: .85rem; align-items: start; min-width: 0; }
-.cv-top-additional { flex: 1 1 12rem; min-width: 10rem; padding: 4.45rem 1rem 0; }
-.cv-avatar { width: 4.25rem; height: 4.25rem; display: grid; place-items: center; overflow: hidden; border: 0; border-radius: 50%; background: linear-gradient(180deg, #16b85b 0%, #139e4f 100%); box-shadow: none; color: #fff; font-size: 1.05rem; line-height: 1; font-weight: 900; }
-.cv-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cv-person h1 { margin: 0; color: #05070a; font-size: clamp(2rem, 4vw, 2.45rem); line-height: .95; letter-spacing: -.055em; overflow-wrap: anywhere; }
-.cv-person p { margin: .4rem 0 .7rem; color: var(--cv-green); font-size: .95rem; line-height: 1.1; font-weight: 800; }
-.cv-contact-list, .cv-list, .cv-extra-list { margin: 0; padding: 0; list-style: none; }
-.cv-contact-list { display: grid; gap: .3rem; }
-.cv-contact-list li { display: flex; align-items: center; gap: .45rem; color: var(--cv-ink); font-size: .74rem; line-height: 1.22; min-width: 0; }
-.cv-contact-list span, .cv-extra-list span, .cv-list li, .cv-sector span { overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
-.cv-contact-list i, .cv-extra-list i { width: .95rem; color: var(--cv-green); text-align: center; flex: 0 0 auto; }
-.cv-id { display: grid; justify-items: center; gap: .18rem; color: var(--cv-ink); flex: 0 0 auto; }
-.cv-id small { margin-top: .18rem; color: var(--cv-green); font-size: .6rem; line-height: 1; font-weight: 900; text-transform: uppercase; }
-.cv-id > strong { font-size: .72rem; line-height: 1; }
-.cv-qr { position: relative; width: 5.5rem; height: 5.5rem; display: block; padding: .24rem; border: .0625rem solid var(--cv-line); border-radius: .32rem; background: #fff; overflow: hidden; }
-.cv-qr img { width: 100%; height: 100%; display: block; object-fit: contain; }
-.cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: auto; overflow: visible; }
-.cv-main { min-height: auto; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }
-.cv-aside { min-height: auto; overflow: visible; }
-.cv-body > .cv-flow-item--full { grid-column: 1 / -1; }
-.cv-document--balanced .cv-body { row-gap: 0; grid-auto-rows: max-content; align-content: start; }
-.cv-document--balanced .cv-flow-item--work-split { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
-.cv-document--pdf .cv-flow-item--work-continuation { padding-right: 0; }
-.cv-document--pdf .cv-flow-item--work-continuation .cv-summary-text { text-align: justify; text-align-last: left; hyphens: auto; }
-.cv-document--pdf .cv-entry__description { text-align: justify; text-align-last: left; hyphens: auto; }
-.cv-section { padding-bottom: .72rem; margin: 0 0 .72rem; border-bottom: .0625rem solid var(--cv-line); break-inside: avoid; page-break-inside: avoid; }
-.cv-section:last-child { margin-bottom: 0; }
-.cv-section h2 { margin: 0 0 .48rem; padding: 0; border: 0; color: var(--cv-green); font-size: .78rem; line-height: 1.1; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
-.cv-section p { margin: 0; color: var(--cv-ink); font-size: .72rem; line-height: 1.42; }
-.cv-summary-text { display: block; overflow: visible; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
-.cv-entry__description { text-align: justify; text-align-last: left; hyphens: auto; }
-.cv-section p + p { margin-top: .42rem; }
-.cv-entry + .cv-entry { margin-top: .55rem; padding-top: .55rem; border-top: .0625rem solid var(--cv-line); }
-.cv-list { display: grid; gap: .3rem; }
-.cv-list li { position: relative; padding-left: .78rem; color: var(--cv-ink); font-size: .7rem; line-height: 1.24; }
-.cv-list li::before { content: ''; position: absolute; top: .42rem; left: .12rem; width: .22rem; height: .22rem; border-radius: 50%; background: var(--cv-green); }
-.cv-sector-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .36rem; }
-.cv-sector { display: flex; align-items: center; gap: .36rem; min-height: 1.95rem; padding: .38rem .45rem; border: .0625rem solid #d9f2e2; border-radius: .5rem; background: var(--cv-soft); color: var(--cv-ink); font-size: .66rem; line-height: 1.16; font-weight: 800; break-inside: avoid; page-break-inside: avoid; }
-.cv-sector i { color: var(--cv-green); flex: 0 0 auto; }
-.cv-sector__copy { display: grid; gap: .08rem; }
-.cv-sector__copy strong, .cv-sector__copy small { line-height: 1.12; }
-.cv-sector__copy small { color: #557567; font-size: .58rem; font-weight: 700; }
-.cv-extra-list { display: grid; gap: .38rem; }
-.cv-extra-list li { display: grid; grid-template-columns: .95rem minmax(0, 1fr); gap: .34rem; align-items: start; color: var(--cv-ink); font-size: .69rem; line-height: 1.25; }
-.cv-more-item { color: var(--cv-muted) !important; font-weight: 800 !important; }
-.cv-footer { margin-top: auto; padding-top: .55rem; border-top: .0625rem solid var(--cv-line); color: var(--cv-muted); font-size: .63rem; line-height: 1.1; break-inside: avoid; page-break-inside: avoid; }
-.cv-brand--small .cv-brand__logo { width: 5.8rem; max-width: 5.8rem; height: 1.45rem; max-height: 1.45rem; }
-
-@media (max-width: 40rem) {
-  .cv-body { grid-template-columns: 1fr; }
-  .cv-main { padding-right: 0; border-right: 0; }
-}
-
-@media (max-width: 56rem) {
-  .cv-document { padding: 1.35rem; border-radius: 1rem; }
-  .cv-header, .cv-top, .cv-footer { flex-direction: column; align-items: flex-start; }
-  .cv-person { grid-template-columns: 1fr; }
-  .cv-brand { flex-wrap: wrap; }
-  .cv-brand__logo { width: 7.4rem; }
-  .cv-id { justify-items: start; }
-  .cv-sector-grid { grid-template-columns: 1fr; }
-}
-
-.cv-flow-item--sectors .cv-sector-grid { grid-template-columns: 1fr !important; }
-</style>
+<style scoped src="./Profile.css"></style>
