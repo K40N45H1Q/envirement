@@ -345,13 +345,14 @@ onMounted(loadProfile)
       </div>
 
       <article ref="cvDocument" class="cv-document">
+        <div class="cv-watermark" aria-hidden="true"></div>
         <header class="cv-header">
           <div class="cv-brand" aria-label="CVHOLD">
-            <img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" />
+            <img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" />
           </div>
           <div class="cv-verified">
             <i class="fas fa-circle-check" aria-hidden="true"></i>
-            <span><strong>{{ cvCopy.cvDocument }}</strong><small>{{ cvCopy.verifiedCv }}</small></span>
+            <span><strong>{{ cvCopy.cvDocument }}</strong></span>
           </div>
         </header>
 
@@ -383,7 +384,7 @@ onMounted(loadProfile)
 
           <div class="cv-id">
             <div class="cv-qr">
-              <img src="/cvhold-qr.svg" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
+              <img src="/cvhold-qr-custom.png?v=2" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
             </div>
             <small>CVHOLD ID</small>
             <strong>{{ cvId }}</strong>
@@ -471,7 +472,7 @@ onMounted(loadProfile)
         </section>
 
         <footer class="cv-footer">
-          <div class="cv-brand cv-brand--small" aria-label="CVHOLD"><img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" /></div>
+          <div class="cv-brand cv-brand--small" aria-label="CVHOLD"><img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" /></div>
           <span>{{ cvCopy.cvFooterTagline }}</span><span>www.cvhold.com</span>
         </footer>
       </article>
@@ -688,24 +689,26 @@ onMounted(loadProfile)
   box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, .12);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   font-family: Inter, Arial, sans-serif;
 }
 
-.cv-document::before {
+.cv-watermark {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -18%;
   z-index: 0;
-  background-image: url("/watermark.png");
+  background-image: url("/watermark-tile.png");
   background-repeat: repeat;
-  background-size: 5rem auto;
-  background-position: 0 0;
-  opacity: .032;
+  background-size: 9.375rem 6.5625rem;
+  background-position: center;
+  opacity: .06;
   pointer-events: none;
+  transform: rotate(-28deg);
+  transform-origin: center;
 }
 
-.cv-document > * {
+.cv-document > :not(.cv-watermark) {
   position: relative;
   z-index: 1;
 }
@@ -720,11 +723,11 @@ onMounted(loadProfile)
   min-width: 0;
 }
 .cv-header { min-height: 3.65rem; padding-bottom: .85rem; border-bottom: .0625rem solid var(--cv-line); }
-.cv-brand { display: inline-flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: .55rem; min-width: 0; color: var(--cv-ink); }
-.cv-brand__logo, .cv-brand__logo svg { width: 8.2rem; max-width: 8.2rem; height: 2.15rem; max-height: 2.15rem; object-fit: contain; object-position: left center; display: block; flex: 0 0 auto; }
-.cv-verified { display: inline-flex; align-items: center; gap: .55rem; flex: 0 0 auto; color: var(--cv-green); }
+.cv-brand { display: inline-flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: .55rem; min-width: 0; color: var(--cv-ink); background: transparent; }
+.cv-brand__logo, .cv-brand__logo svg { width: 8.2rem; max-width: 8.2rem; height: 2.15rem; max-height: 2.15rem; object-fit: contain; object-position: left center; display: block; flex: 0 0 auto; background: transparent; }
+.cv-verified { display: inline-flex; align-items: center; gap: .55rem; flex: 0 0 auto; color: var(--cv-green); background: transparent; }
 .cv-verified > i { font-size: 1.25rem; }
-.cv-verified > span { display: grid; gap: .12rem; text-align: right; }
+.cv-verified > span { display: grid; gap: .12rem; text-align: right; background: transparent; }
 .cv-verified strong { color: var(--cv-ink); font-size: .72rem; line-height: 1; }
 .cv-verified small { color: var(--cv-green-dark); font-size: .55rem; line-height: 1; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .cv-top { padding: 1rem 0 .95rem; border-bottom: .0625rem solid var(--cv-line); align-items: flex-start; }
@@ -742,7 +745,7 @@ onMounted(loadProfile)
 .cv-id { display: grid; justify-items: center; gap: .18rem; color: var(--cv-ink); flex: 0 0 auto; }
 .cv-id small { margin-top: .18rem; color: var(--cv-green); font-size: .6rem; line-height: 1; font-weight: 900; text-transform: uppercase; }
 .cv-id > strong { font-size: .72rem; line-height: 1; }
-.cv-qr { position: relative; width: 5.7rem; height: 5.7rem; display: block; padding: .32rem; border: .0625rem solid var(--cv-line); border-radius: .32rem; background: #fff; }
+.cv-qr { position: relative; width: 5.5rem; height: 5.5rem; display: block; padding: .24rem; border: .0625rem solid var(--cv-line); border-radius: .32rem; background: #fff; overflow: hidden; }
 .cv-qr img { width: 100%; height: 100%; display: block; object-fit: contain; }
 .cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: auto; overflow: visible; }
 .cv-main { min-height: auto; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }

@@ -4,7 +4,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
-import Profile from '@/components/Profile.vue'
 import { deleteAccount as deleteAccountRequest } from '@/api/auth'
 import { getJobs, getMyApplications } from '@/api/jobs'
 import { getProfile } from '@/api/profile'
@@ -345,8 +344,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section v-else-if="activeSection === 'profile'" class="message-shell">
-        <Profile embedded />
+      <section v-else-if="activeSection === 'profile'" class="profile-workspace" aria-label="Profile workspace">
       </section>
 
       <section v-else-if="activeSection === 'settings'" class="message-shell">
@@ -519,6 +517,14 @@ h2 {
 .message-shell {
   display: grid;
   gap: 0.85rem;
+}
+
+.profile-workspace {
+  min-height: clamp(24rem, 52vh, 38rem);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-soft);
 }
 
 .settings-panel {

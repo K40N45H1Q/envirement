@@ -1785,20 +1785,22 @@ const getPrintableStyles = () => `
     print-color-adjust: exact !important;
   }
 
-  .cv-document::before {
+  .cv-watermark {
     content: "" !important;
     position: absolute !important;
-    inset: 0 !important;
+    inset: -18% !important;
     z-index: 0 !important;
-    background-image: url("/watermark.png") !important;
+    background-image: url("/watermark-tile.png") !important;
     background-repeat: repeat !important;
-    background-size: 20mm auto !important;
-    background-position: 0 0 !important;
-    opacity: 0.028 !important;
+    background-size: 37.5mm 26.25mm !important;
+    background-position: center !important;
+    opacity: 0.052 !important;
     pointer-events: none !important;
+    transform: rotate(-28deg) !important;
+    transform-origin: center !important;
   }
 
-  .cv-document > * {
+  .cv-document > :not(.cv-watermark) {
     position: relative !important;
     z-index: 1 !important;
   }
@@ -1835,6 +1837,7 @@ const getPrintableStyles = () => `
     gap: 3mm !important;
     min-width: 0 !important;
     color: var(--cv-ink) !important;
+    background: transparent !important;
   }
 
   .cv-header .cv-brand__logo,
@@ -1847,6 +1850,7 @@ const getPrintableStyles = () => `
     object-position: left center !important;
     display: block !important;
     flex: 0 0 auto !important;
+    background: transparent !important;
   }
 
   .cv-brand small {
@@ -1866,6 +1870,7 @@ const getPrintableStyles = () => `
     gap: 2.5mm !important;
     color: var(--cv-green) !important;
     flex: 0 0 auto !important;
+    background: transparent !important;
   }
 
   .cv-verified > i {
@@ -1876,6 +1881,7 @@ const getPrintableStyles = () => `
     display: grid !important;
     gap: 0.8mm !important;
     text-align: right !important;
+    background: transparent !important;
   }
 
   .cv-verified strong {
@@ -2019,10 +2025,10 @@ const getPrintableStyles = () => `
 
   .cv-qr {
     position: relative !important;
-    width: 5.7rem !important;
-    height: 5.7rem !important;
+    width: 5.5rem !important;
+    height: 5.5rem !important;
     display: block !important;
-    padding: 0.32rem !important;
+    padding: 0.24rem !important;
     border: 0.0625rem solid var(--cv-line) !important;
     border-radius: 0.32rem !important;
     background: #fff !important;
@@ -2030,11 +2036,11 @@ const getPrintableStyles = () => `
   }
 
   .cv-qr img {
-    width: 128% !important;
-    height: 128% !important;
-    max-width: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
     display: block !important;
-    margin: -14% !important;
+    margin: 0 !important;
     object-fit: contain !important;
     object-position: center !important;
   }
@@ -2293,14 +2299,17 @@ const normalizePdfQr = (root) => {
   qr.style.position = 'relative'
   qr.style.display = 'block'
   qr.style.overflow = 'hidden'
+  qr.style.width = '5.5rem'
+  qr.style.height = '5.5rem'
+  qr.style.padding = '0.24rem'
 
   qrImage.style.position = ''
   qrImage.style.top = ''
   qrImage.style.left = ''
-  qrImage.style.width = '128%'
-  qrImage.style.height = '128%'
-  qrImage.style.maxWidth = 'none'
-  qrImage.style.margin = '-14%'
+  qrImage.style.width = '100%'
+  qrImage.style.height = '100%'
+  qrImage.style.maxWidth = '100%'
+  qrImage.style.margin = '0'
   qrImage.style.objectFit = 'contain'
   qrImage.style.objectPosition = 'center'
   qrImage.style.transform = ''
@@ -2877,13 +2886,14 @@ onBeforeUnmount(() => {
                 <section class="cv-preview-shell">
                   <div class="cv-preview-scale">
                     <article ref="cvDocumentRef" class="cv-document">
+                      <div class="cv-watermark" aria-hidden="true"></div>
                 <header class="cv-header">
                   <div class="cv-brand" aria-label="CVHOLD">
-                    <img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" />
+                    <img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" />
                   </div>
                   <div class="cv-verified">
                     <i class="fas fa-circle-check" aria-hidden="true"></i>
-                    <span><strong>{{ copy.cvDocument }}</strong><small>{{ copy.verifiedCv }}</small></span>
+                    <span><strong>{{ copy.cvDocument }}</strong></span>
                   </div>
                 </header>
 
@@ -2918,7 +2928,7 @@ onBeforeUnmount(() => {
 
                   <div class="cv-id">
                     <div class="cv-qr">
-                      <img src="/cvhold-qr.svg" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
+                      <img src="/cvhold-qr-custom.png?v=2" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
                     </div>
 
                     <small>CVHOLD ID</small>
@@ -3024,7 +3034,7 @@ onBeforeUnmount(() => {
 
                 <footer class="cv-footer">
                   <div class="cv-brand cv-brand--small" aria-label="CVHOLD">
-                    <img src="/logo-pdf.png" alt="" class="cv-brand__logo" aria-hidden="true" />
+                    <img src="/logo-pdf-transparent.png" alt="" class="cv-brand__logo" aria-hidden="true" />
                   </div>
 
                   <span>{{ copy.cvFooterTagline }}</span>
@@ -4313,24 +4323,26 @@ button:disabled {
   box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, 0.12);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   font-family: Inter, Arial, sans-serif;
 }
 
-.cv-document::before {
+.cv-watermark {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -18%;
   z-index: 0;
-  background-image: url("/watermark.png");
+  background-image: url("/watermark-tile.png");
   background-repeat: repeat;
-  background-size: 5rem auto;
-  background-position: 0 0;
-  opacity: 0.032;
+  background-size: 9.375rem 6.5625rem;
+  background-position: center;
+  opacity: 0.06;
   pointer-events: none;
+  transform: rotate(-28deg);
+  transform-origin: center;
 }
 
-.cv-document > * {
+.cv-document > :not(.cv-watermark) {
   position: relative;
   z-index: 1;
 }
@@ -4361,6 +4373,7 @@ button:disabled {
   gap: 0.55rem;
   min-width: 0;
   color: var(--cv-ink);
+  background: transparent;
 }
 
 .cv-brand__logo,
@@ -4373,6 +4386,7 @@ button:disabled {
   object-position: left center;
   display: block;
   flex: 0 0 auto;
+  background: transparent;
 }
 
 .cv-verified {
@@ -4381,6 +4395,7 @@ button:disabled {
   gap: 0.55rem;
   flex: 0 0 auto;
   color: var(--cv-green);
+  background: transparent;
 }
 
 .cv-verified > i {
@@ -4391,6 +4406,7 @@ button:disabled {
   display: grid;
   gap: 0.12rem;
   text-align: right;
+  background: transparent;
 }
 
 .cv-verified strong {
@@ -4541,13 +4557,14 @@ button:disabled {
 
 .cv-qr {
   position: relative;
-  width: 5.7rem;
-  height: 5.7rem;
+  width: 5.5rem;
+  height: 5.5rem;
   display: block;
-  padding: 0.32rem;
+  padding: 0.24rem;
   border: 0.0625rem solid var(--cv-line);
   border-radius: 0.32rem;
   background: #fff;
+  overflow: hidden;
 }
 
 .cv-qr img {
@@ -4813,14 +4830,18 @@ button:disabled {
 .cv-document--pdf .cv-qr {
   position: relative;
   display: block;
+  width: 5.5rem;
+  height: 5.5rem;
+  padding: 0.24rem;
   overflow: hidden;
 }
 
 .cv-document--pdf .cv-qr img {
-  width: 128%;
-  height: 128%;
-  max-width: none;
-  margin: -14%;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  margin: 0;
+  object-fit: contain;
   object-position: center;
 }
 
