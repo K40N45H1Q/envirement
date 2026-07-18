@@ -11,7 +11,7 @@ import { useUiStore } from '@/stores/ui'
 import { useCvBuilderStore } from '@/stores/cvBuilder'
 import CVBuilder from '@/components/CVBuilder.vue'
 import router from './router'
-import { getLocaleFromPath, stripLocaleFromPath, withLocale } from './router/locale'
+import { getLocaleFromPath, isPublicSeoPath, stripLocaleFromPath, withLocale } from './router/locale'
 
 const auth = useAuth()
 const betaAccess = useBetaAccess()
@@ -44,7 +44,7 @@ const handleBetaUnauthorized = async () => {
 
   await betaAccess.initialize({ force: true })
 
-  if (stripLocaleFromPath(currentRoute.path) === '/beta-access') {
+  if (stripLocaleFromPath(currentRoute.path) === '/beta-access' || isPublicSeoPath(stripLocaleFromPath(currentRoute.path))) {
     return
   }
 
@@ -62,6 +62,7 @@ const redirectToBetaAccessIfNeeded = async () => {
 
   if (
     isBetaRedirecting
+    || isPublicSeoPath(logicalPath)
     || logicalPath === '/beta-access'
     || logicalPath === '/admin'
     || !betaAccess.isReady

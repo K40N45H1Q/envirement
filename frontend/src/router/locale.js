@@ -3,6 +3,23 @@ import { normalizeLanguage } from '@/i18n'
 export const SUPPORTED_LOCALES = ['lv', 'en', 'ru']
 const LOCALE_PREFIX_RE = /^\/(ru|en|lv)(?=\/|$)/
 
+export const PUBLIC_SEO_LOGICAL_PATHS = [
+  '/',
+  '/jobs',
+  '/jobs/categories',
+  '/jobs/countries',
+  '/jobs/latvia-cities',
+  '/employers',
+  '/pricing',
+  '/about',
+  '/contacts',
+  '/faq',
+  '/terms',
+  '/blog',
+]
+
+export const isPublicSeoPath = (path = '') => PUBLIC_SEO_LOGICAL_PATHS.includes(path)
+
 export const getLocaleFromPath = (path = '') => {
   const match = String(path || '').match(LOCALE_PREFIX_RE)
   return normalizeLanguage(match?.[1] || 'lv')

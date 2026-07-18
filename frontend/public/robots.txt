@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /lv/dashboard
+Disallow: /en/dashboard
+Disallow: /ru/dashboard
+Disallow: /lv/admin
+Disallow: /en/admin
+Disallow: /ru/admin
+Disallow: /lv/profile
+Disallow: /en/profile
+Disallow: /ru/profile
+Disallow: /lv/responses
+Disallow: /en/responses
+Disallow: /ru/responses
+Disallow: /lv/messages
+Disallow: /en/messages
+Disallow: /ru/messages
+Disallow: /lv/signin
+Disallow: /en/signin
+Disallow: /ru/signin
+Disallow: /lv/beta-access
+Disallow: /en/beta-access
+Disallow: /ru/beta-access
+
+Sitemap: https://cvhold.com/sitemap.xml
