@@ -2358,11 +2358,6 @@ const balancePdfColumns = (root) => {
 
   root.classList.add('cv-document--balanced')
 
-  if (sectorsSection?.parentElement === main) {
-    sectorsSection.classList.add('cv-flow-item--full')
-    body.appendChild(sectorsSection)
-  }
-
   if (!workSection) return
 
   const entries = Array.from(workSection.querySelectorAll(':scope > .cv-entry'))
@@ -4747,6 +4742,10 @@ button:disabled {
 .cv-aside {
   min-height: auto;
   overflow: visible;
+}
+
+.cv-body > .cv-flow-item--full {
+  grid-column: 1 / -1;
 }
 
 .cv-section {

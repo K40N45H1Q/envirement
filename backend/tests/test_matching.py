@@ -90,7 +90,7 @@ class MatchingTests(unittest.TestCase):
         self.assertEqual(missing_language["score"], 85)
         self.assertEqual(missing_credential["score"], 85)
 
-    def test_candidate_outside_occupation_is_excluded_without_score(self):
+    def test_candidate_outside_occupation_keeps_score_and_flag(self):
         profile = {
             "resume_data_json": json.dumps({
                 "work_experiences": [{"occupation_id": "electrician"}],
@@ -99,14 +99,15 @@ class MatchingTests(unittest.TestCase):
         job = {
             "occupation_id": "welder_mig",
             "experience_level": "no_experience",
-            "skills_json": json.dumps([{"id": "mig_welding", "mandatory": True}]),
+            "skills_json": "[]",
         }
 
         result = score_candidate(profile, job, date(2025, 1, 1))
 
-        self.assertTrue(result["excluded"])
-        self.assertIsNone(result["score"])
-        self.assertEqual(result["breakdown"], {})
+        self.assertFalse(result["excluded"])
+        self.assertEqual(result["score"], 0)
+        self.assertEqual(result["breakdown"]["experience"]["points"], 0)
+        self.assertEqual(result["breakdown"]["skills"]["points"], 0)
         self.assertEqual(result["flags"][0]["type"], "outside_occupation")
 
     def test_recent_short_jobs_receive_stability_penalty(self):

@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 # Версия алгоритма сохраняется вместе с результатом.
 # Это позволяет отличать старые расчёты от новых после изменения логики.
-ALGORITHM_VERSION = "matching_v5"
+ALGORITHM_VERSION = "matching_v8"
 
 # Максимальные веса категорий.
 # До штрафа стабильности сумма положительных весов равна 100.
@@ -824,26 +824,21 @@ def score_candidate(
     )
 
     # Категория 1:
-    # неподходящая профессия полностью исключает кандидата.
-    if not matches_occupation(profile, job):
-        return {
-            "score": None,
-            "label": "excluded",
-            "excluded": True,
-            "algorithm_version": ALGORITHM_VERSION,
-            "breakdown": {},
-            "flags": [
-                flag(
-                    "outside_occupation",
-                    "occupation_id",
-                    get_value(
-                        job,
-                        "occupation_id",
-                    )
-                    or "",
-                )
-            ],
-        }
+    # неподходящая профессия фиксируется флагом и обнуляет итоговый score,
+    # но не блокирует расчёт breakdown и отправку отклика.
+    outside_occupation_flag = (
+        flag(
+            "outside_occupation",
+            "occupation_id",
+            get_value(
+                job,
+                "occupation_id",
+            )
+            or "",
+        )
+        if not matches_occupation(profile, job)
+        else None
+    )
 
     # Категория 2:
     # каждая часть рассчитывается независимо.
@@ -878,8 +873,12 @@ def score_candidate(
         calculation_date,
     )
 
+    if outside_occupation_flag:
+        experience = 0
+        skills = 0
+
     # Итог всегда ограничивается диапазоном от 0 до 100.
-    score = max(
+    raw_score = max(
         0,
         min(
             100,
@@ -891,6 +890,7 @@ def score_candidate(
             + penalty,
         ),
     )
+    score = 0 if outside_occupation_flag else raw_score
 
     # Текстовая категория зависит только от итогового балла.
     label = (
@@ -906,6 +906,7 @@ def score_candidate(
     # Флаги объясняют сильные и слабые стороны,
     # но сами по себе дополнительно баллы не меняют.
     flags = [
+        *([outside_occupation_flag] if outside_occupation_flag else []),
         *language_red,
         *credential_red,
         *skill_red,

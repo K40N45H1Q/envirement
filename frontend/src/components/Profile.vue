@@ -253,11 +253,6 @@ const balancePdfColumns = (root) => {
 
   root.classList.add('cv-document--pdf', 'cv-document--balanced')
 
-  if (sectorsSection?.parentElement === main) {
-    sectorsSection.classList.add('cv-flow-item--full')
-    body.appendChild(sectorsSection)
-  }
-
   if (!workSection) return
 
   const entries = Array.from(workSection.querySelectorAll(':scope > .cv-entry'))
@@ -847,7 +842,7 @@ onMounted(loadProfile)
 .cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: auto; overflow: visible; }
 .cv-main { min-height: auto; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }
 .cv-aside { min-height: auto; overflow: visible; }
-.cv-document--pdf .cv-body > .cv-flow-item--full { grid-column: 1 / -1; }
+.cv-body > .cv-flow-item--full { grid-column: 1 / -1; }
 .cv-document--balanced .cv-body { row-gap: 0; grid-auto-rows: max-content; align-content: start; }
 .cv-document--balanced .cv-flow-item--work-split { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
 .cv-document--pdf .cv-flow-item--work-continuation { padding-right: 0; }

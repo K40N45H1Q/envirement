@@ -767,8 +767,8 @@ textarea {
 }
 
 .response-summary__pill--good {
-  background: rgba(29, 168, 107, 0.12);
-  color: rgba(22, 155, 97, 0.92);
+  background: #e6f0ec;
+  color: #19785a;
 }
 
 .response-summary__pill--partial {
@@ -777,8 +777,8 @@ textarea {
 }
 
 .response-summary__pill--weak {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .response-summary__pill--fail {
@@ -875,8 +875,8 @@ textarea {
 
 .response-candidate-pill--good,
 .response-score-chip--good {
-  background: rgba(29, 168, 107, 0.12);
-  color: rgba(22, 155, 97, 0.92);
+  background: #e6f0ec;
+  color: #19785a;
 }
 
 .response-candidate-pill--partial,
@@ -887,8 +887,8 @@ textarea {
 
 .response-candidate-pill--weak,
 .response-score-chip--weak {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .response-candidate-pill--fail,
@@ -1124,8 +1124,8 @@ textarea {
 }
 
 .response-breakdown-card--good .response-breakdown-card__head strong {
-  background: rgba(29, 168, 107, 0.12);
-  color: rgba(22, 155, 97, 0.92);
+  background: #e6f0ec;
+  color: #19785a;
 }
 
 .response-breakdown-card--partial .response-breakdown-card__head strong {
@@ -1134,8 +1134,8 @@ textarea {
 }
 
 .response-breakdown-card--weak .response-breakdown-card__head strong {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .response-breakdown-card--fail .response-breakdown-card__head strong {

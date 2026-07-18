@@ -305,7 +305,7 @@ watch(() => route.params.id, async () => {
                   <strong>{{ matchAnalysis.meta.label }}</strong>
                   <span>{{ matchAnalysis.profile }}</span>
                 </div>
-                <b>{{ matchAnalysis.excluded ? '0/100' : `${matchAnalysis.score}/100` }}</b>
+                <b :style="{ color: matchAnalysis.meta.textColor }">{{ matchAnalysis.excluded ? '0/100' : `${matchAnalysis.score}/100` }}</b>
               </div>
               <div class="candidate-match__parts">
                 <span v-for="part in matchAnalysis.breakdown" :key="part.key">
@@ -589,7 +589,6 @@ a {
 }
 
 .candidate-match__header > b {
-  color: var(--brand-strong);
   font-size: 1.45rem;
 }
 
