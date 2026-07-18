@@ -2092,6 +2092,38 @@ const getPrintableStyles = () => `
     overflow: hidden !important;
   }
 
+  .cv-body > .cv-flow-item--full {
+    grid-column: 1 / -1 !important;
+  }
+
+  .cv-document--balanced .cv-body {
+    row-gap: 0 !important;
+    grid-auto-rows: max-content !important;
+    align-content: start !important;
+  }
+
+  .cv-document--balanced .cv-flow-item--work-split {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .cv-flow-item--work-continuation {
+    padding-right: 0 !important;
+  }
+
+  .cv-flow-item--work-continuation .cv-summary-text {
+    text-align: justify !important;
+    text-align-last: left !important;
+    hyphens: auto !important;
+  }
+
+  .cv-entry__description {
+    text-align: justify !important;
+    text-align-last: left !important;
+    hyphens: auto !important;
+  }
+
   .cv-section {
     padding-bottom: 4mm !important;
     margin-bottom: 4mm !important;
@@ -2315,6 +2347,101 @@ const normalizePdfQr = (root) => {
   qrImage.style.transform = ''
 }
 
+const balancePdfColumns = (root) => {
+  const body = root.querySelector('.cv-body')
+  const main = root.querySelector('.cv-main')
+  const aside = root.querySelector('.cv-aside')
+  const workSection = root.querySelector('.cv-flow-item--work')
+  const sectorsSection = root.querySelector('.cv-flow-item--sectors')
+
+  if (!body || !main || !aside) return
+
+  root.classList.add('cv-document--balanced')
+
+  if (sectorsSection?.parentElement === main) {
+    sectorsSection.classList.add('cv-flow-item--full')
+    body.appendChild(sectorsSection)
+  }
+
+  if (!workSection) return
+
+  const entries = Array.from(workSection.querySelectorAll(':scope > .cv-entry'))
+  if (!entries.length) return
+
+  const asideChildren = Array.from(aside.children)
+  const asideBottom = asideChildren.length
+    ? Math.max(...asideChildren.map((child) => child.getBoundingClientRect().bottom))
+    : aside.getBoundingClientRect().top
+  const flowText = workSection.querySelector('.cv-summary-text')
+  const flowLineHeight = flowText ? parseFloat(window.getComputedStyle(flowText).lineHeight) || 16 : 16
+  const columnBottom = asideBottom + flowLineHeight
+  const splitIndex = entries.findIndex((entry) => (
+    entry.getBoundingClientRect().bottom > columnBottom
+  ))
+
+  if (splitIndex < 0) return
+
+  const continuation = workSection.cloneNode(false)
+  continuation.classList.add('cv-flow-item--full', 'cv-flow-item--work-continuation')
+  continuation.classList.remove('cv-flow-item--main')
+  continuation.removeAttribute('id')
+
+  const crossingEntry = entries[splitIndex]
+  const description = crossingEntry.querySelector(':scope > .cv-summary-text:last-child')
+  const paragraphs = crossingEntry.querySelectorAll(':scope > .cv-summary-text')
+  const words = description && paragraphs.length > 2
+    ? description.textContent.trim().split(/\s+/).filter(Boolean)
+    : []
+  let continuationEntry = null
+
+  if (words.length > 1 && crossingEntry.getBoundingClientRect().top < columnBottom) {
+    let low = 1
+    let high = words.length
+    let fitCount = 0
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2)
+      description.textContent = words.slice(0, middle).join(' ')
+
+      if (crossingEntry.getBoundingClientRect().bottom <= columnBottom) {
+        fitCount = middle
+        low = middle + 1
+      } else {
+        high = middle - 1
+      }
+    }
+
+    if (fitCount > 0 && fitCount < words.length) {
+      description.textContent = words.slice(0, fitCount).join(' ')
+      continuationEntry = crossingEntry.cloneNode(false)
+      continuationEntry.classList.add('cv-entry--continued')
+      const continuedDescription = description.cloneNode(false)
+      continuedDescription.textContent = words.slice(fitCount).join(' ')
+      continuationEntry.appendChild(continuedDescription)
+      continuation.appendChild(continuationEntry)
+    } else {
+      description.textContent = words.join(' ')
+    }
+  }
+
+  const moveFromIndex = continuationEntry ? splitIndex + 1 : splitIndex
+  entries.slice(moveFromIndex).forEach((entry) => {
+    continuation.appendChild(entry)
+  })
+
+  const moreItem = workSection.querySelector(':scope > .cv-more-item')
+  if (moreItem) continuation.appendChild(moreItem)
+
+  if (continuation.children.length) {
+    workSection.classList.add('cv-flow-item--work-split')
+    body.insertBefore(continuation, sectorsSection?.parentElement === body ? sectorsSection : null)
+  }
+
+  if (!workSection.querySelector(':scope > .cv-entry')) {
+    workSection.remove()
+  }
+}
+
 const openPdfPreview = async () => {
   if (isGeneratingPdf.value || !cvDocumentRef.value) return
 
@@ -2341,6 +2468,7 @@ const openPdfPreview = async () => {
   normalizePdfQr(printableClone)
   renderHost.appendChild(printableClone)
   document.body.appendChild(renderHost)
+  balancePdfColumns(printableClone)
 
   try {
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -2938,7 +3066,7 @@ onBeforeUnmount(() => {
 
                 <section class="cv-body">
                   <main class="cv-main">
-                    <section class="cv-section cv-section--summary">
+                    <section class="cv-section cv-section--summary cv-flow-item cv-flow-item--main">
                       <h2>{{ copy.aboutMe }}</h2>
                       <p
                         v-for="paragraph in cvSummaryParagraphs"
@@ -2949,7 +3077,7 @@ onBeforeUnmount(() => {
                       </p>
                     </section>
 
-                    <section v-if="cvWorkExperiences.length" class="cv-section">
+                    <section v-if="cvWorkExperiences.length" class="cv-section cv-flow-item cv-flow-item--main cv-flow-item--work">
                       <h2>{{ copy.workExperience }}</h2>
                       <div v-for="(work, index) in cvWorkExperiences" :key="`cv-work-${index}`" class="cv-entry">
                         <p class="cv-summary-text">
@@ -2963,12 +3091,12 @@ onBeforeUnmount(() => {
                           <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
                           <span v-if="work.country"> · {{ getLocalizedCountryLabel(work.country, work.country) }}</span>
                         </p>
-                        <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
+                        <p v-if="work.description" class="cv-summary-text cv-entry__description">{{ work.description }}</p>
                       </div>
                     </section>
 
 
-                    <section v-if="cvVisibleSectors.length" class="cv-section">
+                    <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--full cv-flow-item--sectors">
                       <h2>{{ copy.workAreas }}</h2>
                       <div class="cv-sector-grid">
                         <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
@@ -2986,7 +3114,7 @@ onBeforeUnmount(() => {
                   </main>
 
                   <aside class="cv-aside">
-                    <section v-if="cvVisibleLanguages.length" class="cv-section">
+                    <section v-if="cvVisibleLanguages.length" class="cv-section cv-flow-item cv-flow-item--aside">
                       <h2>{{ copy.languages }}</h2>
                       <ul class="cv-list">
                         <li v-for="language in cvVisibleLanguages" :key="`${language.name}-${language.level}`">
@@ -2998,12 +3126,12 @@ onBeforeUnmount(() => {
                       </ul>
                     </section>
 
-                    <section v-if="cvLicenses.length" class="cv-section">
+                    <section v-if="cvLicenses.length" class="cv-section cv-flow-item cv-flow-item--aside">
                       <h2>{{ copy.drivingLicense }}</h2>
                       <p class="cv-summary-text">{{ cvLicenses.join(', ') }}</p>
                     </section>
 
-                    <section v-if="cvVisibleSkills.length" class="cv-section">
+                    <section v-if="cvVisibleSkills.length" class="cv-section cv-flow-item cv-flow-item--aside">
                       <h2>{{ copy.skills }}</h2>
                       <ul class="cv-list">
                         <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
@@ -3013,11 +3141,11 @@ onBeforeUnmount(() => {
                       </ul>
                     </section>
 
-                    <section v-if="profile.licenses.length" class="cv-section">
+                    <section v-if="profile.licenses.length" class="cv-section cv-flow-item cv-flow-item--aside">
                       <h2>{{ copy.certificatesAndLicenses }}</h2>
                       <p class="cv-summary-text">{{ profile.licenses.join(', ') }}</p>
                     </section>
-                    <section v-if="cvEducations.length" class="cv-section">
+                    <section v-if="cvEducations.length" class="cv-section cv-flow-item cv-flow-item--aside">
                       <h2>{{ copy.education }}</h2>
                       <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
                         <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
@@ -4658,6 +4786,12 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+.cv-entry__description {
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
+}
+
 .cv-section p + p {
   margin-top: 0.42rem;
 }
@@ -4854,6 +4988,38 @@ button:disabled {
 .cv-document--pdf .cv-main {
   padding-right: 1.25rem;
   border-right: 0.0625rem solid var(--cv-line);
+}
+
+.cv-document--pdf .cv-body > .cv-flow-item--full {
+  grid-column: 1 / -1;
+}
+
+.cv-document--balanced .cv-body {
+  row-gap: 0;
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.cv-document--balanced .cv-flow-item--work-split {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cv-document--pdf .cv-flow-item--work-continuation {
+  padding-right: 0;
+}
+
+.cv-document--pdf .cv-flow-item--work-continuation .cv-summary-text {
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
+}
+
+.cv-document--pdf .cv-entry__description {
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
 }
 
 .pdf-preview-trigger .cv-sector-grid,

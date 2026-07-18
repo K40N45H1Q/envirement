@@ -242,6 +242,101 @@ const cvId = computed(() => {
 })
 const formatMore = (_key, count) => `+${count}`
 
+const balancePdfColumns = (root) => {
+  const body = root.querySelector('.cv-body')
+  const main = root.querySelector('.cv-main')
+  const aside = root.querySelector('.cv-aside')
+  const workSection = root.querySelector('.cv-flow-item--work')
+  const sectorsSection = root.querySelector('.cv-flow-item--sectors')
+
+  if (!body || !main || !aside) return
+
+  root.classList.add('cv-document--pdf', 'cv-document--balanced')
+
+  if (sectorsSection?.parentElement === main) {
+    sectorsSection.classList.add('cv-flow-item--full')
+    body.appendChild(sectorsSection)
+  }
+
+  if (!workSection) return
+
+  const entries = Array.from(workSection.querySelectorAll(':scope > .cv-entry'))
+  if (!entries.length) return
+
+  const asideChildren = Array.from(aside.children)
+  const asideBottom = asideChildren.length
+    ? Math.max(...asideChildren.map((child) => child.getBoundingClientRect().bottom))
+    : aside.getBoundingClientRect().top
+  const flowText = workSection.querySelector('.cv-summary-text')
+  const flowLineHeight = flowText ? parseFloat(window.getComputedStyle(flowText).lineHeight) || 16 : 16
+  const columnBottom = asideBottom + flowLineHeight
+  const splitIndex = entries.findIndex((entry) => (
+    entry.getBoundingClientRect().bottom > columnBottom
+  ))
+
+  if (splitIndex < 0) return
+
+  const continuation = workSection.cloneNode(false)
+  continuation.classList.add('cv-flow-item--full', 'cv-flow-item--work-continuation')
+  continuation.classList.remove('cv-flow-item--main')
+  continuation.removeAttribute('id')
+
+  const crossingEntry = entries[splitIndex]
+  const description = crossingEntry.querySelector(':scope > .cv-summary-text:last-child')
+  const paragraphs = crossingEntry.querySelectorAll(':scope > .cv-summary-text')
+  const words = description && paragraphs.length > 2
+    ? description.textContent.trim().split(/\s+/).filter(Boolean)
+    : []
+  let continuationEntry = null
+
+  if (words.length > 1 && crossingEntry.getBoundingClientRect().top < columnBottom) {
+    let low = 1
+    let high = words.length
+    let fitCount = 0
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2)
+      description.textContent = words.slice(0, middle).join(' ')
+
+      if (crossingEntry.getBoundingClientRect().bottom <= columnBottom) {
+        fitCount = middle
+        low = middle + 1
+      } else {
+        high = middle - 1
+      }
+    }
+
+    if (fitCount > 0 && fitCount < words.length) {
+      description.textContent = words.slice(0, fitCount).join(' ')
+      continuationEntry = crossingEntry.cloneNode(false)
+      continuationEntry.classList.add('cv-entry--continued')
+      const continuedDescription = description.cloneNode(false)
+      continuedDescription.textContent = words.slice(fitCount).join(' ')
+      continuationEntry.appendChild(continuedDescription)
+      continuation.appendChild(continuationEntry)
+    } else {
+      description.textContent = words.join(' ')
+    }
+  }
+
+  const moveFromIndex = continuationEntry ? splitIndex + 1 : splitIndex
+  entries.slice(moveFromIndex).forEach((entry) => {
+    continuation.appendChild(entry)
+  })
+
+  const moreItem = workSection.querySelector(':scope > .cv-more-item')
+  if (moreItem) continuation.appendChild(moreItem)
+
+  if (continuation.children.length) {
+    workSection.classList.add('cv-flow-item--work-split')
+    body.insertBefore(continuation, sectorsSection?.parentElement === body ? sectorsSection : null)
+  }
+
+  if (!workSection.querySelector(':scope > .cv-entry')) {
+    workSection.remove()
+  }
+}
+
 async function loadProfile() {
   if (!user.value) return
   isLoading.value = true
@@ -265,10 +360,12 @@ async function downloadCv() {
   const renderHost = document.createElement('div')
   renderHost.style.cssText = 'position:fixed;left:-10000px;top:0;width:49.625rem;background:#fff;pointer-events:none;'
   const printableClone = cvDocument.value.cloneNode(true)
+  printableClone.classList.add('cv-document--pdf')
   printableClone.style.transform = 'none'
   printableClone.style.margin = '0'
   renderHost.appendChild(printableClone)
   document.body.appendChild(renderHost)
+  balancePdfColumns(printableClone)
 
   try {
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -393,12 +490,12 @@ onMounted(loadProfile)
 
         <section class="cv-body">
           <main class="cv-main">
-            <section class="cv-section cv-section--summary">
+            <section class="cv-section cv-section--summary cv-flow-item cv-flow-item--main">
               <h2>{{ cvSectionTitle('aboutMe') }}</h2>
               <p v-for="paragraph in cvSummaryParagraphs" :key="paragraph" class="cv-summary-text">{{ paragraph }}</p>
             </section>
 
-            <section v-if="cvWorkExperiences.length" class="cv-section">
+            <section v-if="cvWorkExperiences.length" class="cv-section cv-flow-item cv-flow-item--main cv-flow-item--work">
               <h2>{{ cvSectionTitle('workExperience') }}</h2>
               <div v-for="(work, index) in cvWorkExperiences" :key="`cv-work-${index}`" class="cv-entry">
                 <p class="cv-summary-text"><strong>{{ work.position }}</strong><span v-if="work.company_name"> · {{ work.company_name }}</span></p>
@@ -407,13 +504,13 @@ onMounted(loadProfile)
                   <span v-if="work.job_category"> · {{ categoryLabel(work.job_category) }}</span>
                   <span v-if="work.country"> · {{ work.country }}</span>
                 </p>
-                <p v-if="work.description" class="cv-summary-text">{{ work.description }}</p>
+                <p v-if="work.description" class="cv-summary-text cv-entry__description">{{ work.description }}</p>
               </div>
               <p v-if="cvMoreWorkExperiencesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreWorkExperiencesCount) }}</p>
             </section>
 
 
-            <section v-if="cvVisibleSectors.length" class="cv-section">
+            <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--full cv-flow-item--sectors">
               <h2>{{ cvSectionTitle('workAreas') }}</h2>
               <div class="cv-sector-grid">
                 <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
@@ -427,7 +524,7 @@ onMounted(loadProfile)
           </main>
 
           <aside class="cv-aside">
-            <section v-if="cvVisibleLanguages.length" class="cv-section">
+            <section v-if="cvVisibleLanguages.length" class="cv-section cv-flow-item cv-flow-item--aside">
               <h2>{{ cvSectionTitle('languages') }}</h2>
               <ul class="cv-list">
                 <li v-for="item in cvVisibleLanguages" :key="`${item.name}-${item.level}`">{{ displayLanguageName(item.name) }} — {{ displayLanguageLevel(item.level) }}</li>
@@ -435,12 +532,12 @@ onMounted(loadProfile)
               </ul>
             </section>
 
-            <section v-if="cvLicenses.length" class="cv-section">
+            <section v-if="cvLicenses.length" class="cv-section cv-flow-item cv-flow-item--aside">
               <h2>{{ cvSectionTitle('drivingLicense') }}</h2>
               <p class="cv-summary-text">{{ cvLicenses.join(', ') }}</p>
             </section>
 
-            <section v-if="cvVisibleSkills.length" class="cv-section">
+            <section v-if="cvVisibleSkills.length" class="cv-section cv-flow-item cv-flow-item--aside">
               <h2>{{ cvSectionTitle('skills') }}</h2>
               <ul class="cv-list">
                 <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
@@ -448,12 +545,12 @@ onMounted(loadProfile)
               </ul>
             </section>
 
-            <section v-if="certificates.length" class="cv-section">
+            <section v-if="certificates.length" class="cv-section cv-flow-item cv-flow-item--aside">
               <h2>{{ cvSectionTitle('certificatesAndLicenses') }}</h2>
               <p class="cv-summary-text">{{ certificates.join(', ') }}</p>
             </section>
 
-            <section v-if="cvEducations.length" class="cv-section">
+            <section v-if="cvEducations.length" class="cv-section cv-flow-item cv-flow-item--aside">
               <h2>{{ cvSectionTitle('education') }}</h2>
               <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
                 <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
@@ -750,11 +847,18 @@ onMounted(loadProfile)
 .cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: auto; overflow: visible; }
 .cv-main { min-height: auto; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }
 .cv-aside { min-height: auto; overflow: visible; }
+.cv-document--pdf .cv-body > .cv-flow-item--full { grid-column: 1 / -1; }
+.cv-document--balanced .cv-body { row-gap: 0; grid-auto-rows: max-content; align-content: start; }
+.cv-document--balanced .cv-flow-item--work-split { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.cv-document--pdf .cv-flow-item--work-continuation { padding-right: 0; }
+.cv-document--pdf .cv-flow-item--work-continuation .cv-summary-text { text-align: justify; text-align-last: left; hyphens: auto; }
+.cv-document--pdf .cv-entry__description { text-align: justify; text-align-last: left; hyphens: auto; }
 .cv-section { padding-bottom: .72rem; margin: 0 0 .72rem; border-bottom: .0625rem solid var(--cv-line); break-inside: avoid; page-break-inside: avoid; }
 .cv-section:last-child { margin-bottom: 0; }
 .cv-section h2 { margin: 0 0 .48rem; padding: 0; border: 0; color: var(--cv-green); font-size: .78rem; line-height: 1.1; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .cv-section p { margin: 0; color: var(--cv-ink); font-size: .72rem; line-height: 1.42; }
 .cv-summary-text { display: block; overflow: visible; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
+.cv-entry__description { text-align: justify; text-align-last: left; hyphens: auto; }
 .cv-section p + p { margin-top: .42rem; }
 .cv-entry + .cv-entry { margin-top: .55rem; padding-top: .55rem; border-top: .0625rem solid var(--cv-line); }
 .cv-list { display: grid; gap: .3rem; }
