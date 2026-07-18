@@ -2,7 +2,7 @@ import json
 import unittest
 from datetime import date
 
-from app.services.matching import score_candidate
+from app.services.matchscore import score_candidate
 
 
 class MatchingTests(unittest.TestCase):
@@ -41,9 +41,12 @@ class MatchingTests(unittest.TestCase):
             "languages_json": "[]",
             "licenses_json": "[]",
             "skill_ids_json": "[]",
-            "resume_data_json": json.dumps({"work_experiences": []}),
+            "resume_data_json": json.dumps({
+                "work_experiences": [{"occupation_id": "welder_mig"}],
+            }),
         }
         job = {
+            "occupation_id": "welder_mig",
             "experience_level": "no_experience",
             "languages_json": "[]",
             "licenses_json": json.dumps([{"id": "C", "mandatory": True}]),
@@ -52,8 +55,59 @@ class MatchingTests(unittest.TestCase):
 
         result = score_candidate(profile, job, date(2025, 1, 1))
 
-        self.assertEqual(result["score"], 80)
+        self.assertEqual(result["score"], 85)
         self.assertEqual(result["flags"][0]["type"], "required_missing")
+
+    def test_experience_and_skills_have_higher_priority(self):
+        base_profile = {
+            "languages_json": "[]",
+            "licenses_json": "[]",
+            "skill_ids_json": "[]",
+            "availability": "Immediate",
+            "resume_data_json": json.dumps({
+                "work_experiences": [{"occupation_id": "welder_mig"}],
+            }),
+        }
+        missing_experience = score_candidate(base_profile, {
+            "occupation_id": "welder_mig",
+            "experience_level": "2_years",
+        }, date(2025, 1, 1))
+        missing_skill = score_candidate(base_profile, {
+            "experience_level": "no_experience",
+            "skills_json": json.dumps([{"id": "mig_welding", "mandatory": True}]),
+        }, date(2025, 1, 1))
+        missing_language = score_candidate(base_profile, {
+            "experience_level": "no_experience",
+            "languages_json": json.dumps([{"id": "latvian", "level": "B2", "mandatory": True}]),
+        }, date(2025, 1, 1))
+        missing_credential = score_candidate(base_profile, {
+            "experience_level": "no_experience",
+            "licenses_json": json.dumps([{"id": "B", "mandatory": True}]),
+        }, date(2025, 1, 1))
+
+        self.assertEqual(missing_experience["score"], 70)
+        self.assertEqual(missing_skill["score"], 70)
+        self.assertEqual(missing_language["score"], 85)
+        self.assertEqual(missing_credential["score"], 85)
+
+    def test_candidate_outside_occupation_is_excluded_without_score(self):
+        profile = {
+            "resume_data_json": json.dumps({
+                "work_experiences": [{"occupation_id": "electrician"}],
+            }),
+        }
+        job = {
+            "occupation_id": "welder_mig",
+            "experience_level": "no_experience",
+            "skills_json": json.dumps([{"id": "mig_welding", "mandatory": True}]),
+        }
+
+        result = score_candidate(profile, job, date(2025, 1, 1))
+
+        self.assertTrue(result["excluded"])
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["breakdown"], {})
+        self.assertEqual(result["flags"][0]["type"], "outside_occupation")
 
     def test_recent_short_jobs_receive_stability_penalty(self):
         profile = {

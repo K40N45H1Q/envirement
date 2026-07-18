@@ -85,11 +85,18 @@ const mainRole = computed(() => (
   || cvCopy.value.candidateRole
 ))
 const contacts = computed(() => [
-  profile.value.email || user.value?.email,
-  ...(Array.isArray(resume.value.additional_emails) ? resume.value.additional_emails : []),
-  profile.value.phone,
-  ...(Array.isArray(resume.value.additional_phones) ? resume.value.additional_phones : []),
-].filter(Boolean))
+  { value: profile.value.email || user.value?.email, icon: 'far fa-envelope' },
+  ...(Array.isArray(resume.value.additional_emails) ? resume.value.additional_emails : []).map((value) => ({
+    value,
+    icon: 'far fa-envelope',
+  })),
+  { value: profile.value.phone, icon: 'fas fa-phone' },
+  { value: profile.value.residence, icon: 'fas fa-location-dot' },
+  ...(Array.isArray(resume.value.additional_phones) ? resume.value.additional_phones : []).map((value) => ({
+    value,
+    icon: 'fas fa-phone',
+  })),
+].filter((item) => item.value))
 const skills = computed(() => {
   if (Array.isArray(profile.value.skills)) return profile.value.skills.filter(Boolean)
   return String(profile.value.skills || '').split(/[,;\n]/).map((item) => item.trim()).filter(Boolean)
@@ -97,11 +104,11 @@ const skills = computed(() => {
 const languages = computed(() => (
   Array.isArray(profile.value.languages) ? profile.value.languages.filter((item) => item?.name) : []
 ))
-const licenses = computed(() => (
-  [...new Set([
-    ...(Array.isArray(resume.value.driving_licenses) ? resume.value.driving_licenses : []),
-    ...(Array.isArray(profile.value.licenses) ? profile.value.licenses : []),
-  ])].filter(Boolean)
+const drivingLicenses = computed(() => [...new Set(
+  Array.isArray(resume.value.driving_licenses) ? resume.value.driving_licenses : [],
+)].filter(Boolean))
+const certificates = computed(() => (
+  Array.isArray(profile.value.licenses) ? profile.value.licenses.filter(Boolean) : []
 ))
 
 const localeValue = (catalog, value) => {
@@ -159,22 +166,22 @@ const formatExperience = (value) => String(value || '')
 
 const additionalDetails = computed(() => [
   !resume.value.hide_birth_date && resume.value.birth_date && {
+    icon: 'far fa-calendar',
     label: cvCopy.value.birthDate,
     value: formatDate(resume.value.birth_date),
   },
   !resume.value.hide_gender && resume.value.gender && {
+    icon: 'fas fa-user',
     label: cvCopy.value.gender,
     value: localeValue(genderNames, resume.value.gender),
   },
-  resume.value.communication_language && {
-    label: cvCopy.value.communicationLanguage,
-    value: localeValue(languageNames, resume.value.communication_language),
-  },
   resume.value.citizenship && {
+    icon: 'fas fa-passport',
     label: cvCopy.value.citizenship,
     value: resume.value.citizenship,
   },
   resume.value.no_driving_license && {
+    icon: 'fas fa-car-side',
     label: cvCopy.value.drivingLicenses,
     value: cvCopy.value.noDrivingLicense,
   },
@@ -200,8 +207,8 @@ const cvEducations = computed(() => educationEntries.value.slice(0, MAX_PRINT_ED
 })))
 const cvMoreEducationsCount = computed(() => Math.max(0, educationEntries.value.length - MAX_PRINT_EDUCATIONS))
 const cvContactItems = computed(() => contacts.value.map((value) => ({
-  value,
-  icon: String(value).includes('@') ? 'far fa-envelope' : 'fas fa-phone',
+  value: value.value,
+  icon: value.icon,
 })))
 const cvSummaryParagraphs = computed(() => {
   const text = String(profile.value.summary || '').trim()
@@ -222,12 +229,8 @@ const cvVisibleSkills = computed(() => skills.value.slice(0, 10))
 const cvMoreSkillsCount = computed(() => Math.max(0, skills.value.length - cvVisibleSkills.value.length))
 const cvVisibleLanguages = computed(() => languages.value.slice(0, 5))
 const cvMoreLanguagesCount = computed(() => Math.max(0, languages.value.length - cvVisibleLanguages.value.length))
-const cvVisibleLicenses = computed(() => licenses.value.slice(0, 5))
-const cvMoreLicensesCount = computed(() => Math.max(0, licenses.value.length - cvVisibleLicenses.value.length))
-const cvAdditionalItems = computed(() => additionalDetails.value.map((item, index) => ({
-  ...item,
-  icon: ['far fa-calendar', 'fas fa-user', 'fas fa-globe', 'fas fa-passport', 'fas fa-car-side'][index] || 'fas fa-circle-info',
-})))
+const cvLicenses = computed(() => drivingLicenses.value)
+const cvAdditionalItems = computed(() => additionalDetails.value)
 const displayLanguageName = (value) => localeValue(languageNames, value)
 const displayEducation = (value) => localeValue(educationNames, value)
 const categoryLabel = (value) => value
@@ -237,12 +240,6 @@ const cvId = computed(() => {
   for (let index = 0; index < source.length; index += 1) hash = ((hash << 5) - hash) + source.charCodeAt(index)
   return `CVH-${(Math.abs(hash) % 900000) + 100000}`
 })
-const cvQrCells = computed(() => Array.from({ length: 121 }, (_, index) => {
-  const row = Math.floor(index / 11)
-  const column = index % 11
-  const corner = (row < 3 && column < 3) || (row < 3 && column > 7) || (row > 7 && column < 3)
-  return corner || ((index * 17 + Number(cvId.value.slice(-3))) % 7 < 3)
-}))
 const formatMore = (_key, count) => `+${count}`
 
 async function loadProfile() {
@@ -375,10 +372,18 @@ onMounted(loadProfile)
             </div>
           </div>
 
+          <div v-if="cvAdditionalItems.length" class="cv-top-additional">
+            <ul class="cv-extra-list">
+              <li v-for="item in cvAdditionalItems" :key="item.label">
+                <i :class="item.icon"></i>
+                <span>{{ item.label }}: {{ item.value }}</span>
+              </li>
+            </ul>
+          </div>
+
           <div class="cv-id">
-            <div class="cv-qr" aria-hidden="true">
-              <span v-for="(active, index) in cvQrCells" :key="index" class="cv-qr-cell" :class="{ 'cv-qr-cell--active': active }"></span>
-              <strong>CV</strong>
+            <div class="cv-qr">
+              <img src="/cvhold-qr.svg" alt="QR-код сайта cvhold.com" width="330" height="330" decoding="sync" />
             </div>
             <small>CVHOLD ID</small>
             <strong>{{ cvId }}</strong>
@@ -406,21 +411,6 @@ onMounted(loadProfile)
               <p v-if="cvMoreWorkExperiencesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreWorkExperiencesCount) }}</p>
             </section>
 
-            <section v-if="cvEducations.length" class="cv-section">
-              <h2>{{ cvSectionTitle('education') }}</h2>
-              <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
-                <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
-                <p class="cv-summary-text">
-                  {{ displayEducation(education.level) }}
-                  <span v-if="education.speciality"> · {{ education.speciality }}</span>
-                  <span v-if="education.second_speciality"> · {{ education.second_speciality }}</span>
-                  <span v-if="education.country"> · {{ education.country }}</span>
-                  <span v-if="education.start_date || education.end_date"> · {{ formatDate(education.start_date) }}—{{ education.current ? cvCopy.present : formatDate(education.end_date) }}</span>
-                </p>
-                <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
-              </div>
-              <p v-if="cvMoreEducationsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreEducationsCount) }}</p>
-            </section>
 
             <section v-if="cvVisibleSectors.length" class="cv-section">
               <h2>{{ cvSectionTitle('workAreas') }}</h2>
@@ -433,13 +423,6 @@ onMounted(loadProfile)
               </div>
             </section>
 
-            <section v-if="cvVisibleSkills.length" class="cv-section">
-              <h2>{{ cvSectionTitle('skills') }}</h2>
-              <ul class="cv-list">
-                <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
-                <li v-if="cvMoreSkillsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreSkillsCount) }}</li>
-              </ul>
-            </section>
           </main>
 
           <aside class="cv-aside">
@@ -451,19 +434,38 @@ onMounted(loadProfile)
               </ul>
             </section>
 
-            <section v-if="cvVisibleLicenses.length" class="cv-section">
-              <h2>{{ cvSectionTitle('certificatesAndLicenses') }}</h2>
+            <section v-if="cvLicenses.length" class="cv-section">
+              <h2>{{ cvSectionTitle('drivingLicense') }}</h2>
+              <p class="cv-summary-text">{{ cvLicenses.join(', ') }}</p>
+            </section>
+
+            <section v-if="cvVisibleSkills.length" class="cv-section">
+              <h2>{{ cvSectionTitle('skills') }}</h2>
               <ul class="cv-list">
-                <li v-for="license in cvVisibleLicenses" :key="license">{{ license }}</li>
-                <li v-if="cvMoreLicensesCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreLicensesCount) }}</li>
+                <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
+                <li v-if="cvMoreSkillsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreSkillsCount) }}</li>
               </ul>
             </section>
 
-            <section class="cv-section">
-              <h2>{{ cvSectionTitle('additionalDetails') }}</h2>
-              <ul class="cv-extra-list">
-                <li v-for="item in cvAdditionalItems" :key="item.label"><i :class="item.icon"></i><span>{{ item.label }}: {{ item.value }}</span></li>
-              </ul>
+            <section v-if="certificates.length" class="cv-section">
+              <h2>{{ cvSectionTitle('certificatesAndLicenses') }}</h2>
+              <p class="cv-summary-text">{{ certificates.join(', ') }}</p>
+            </section>
+
+            <section v-if="cvEducations.length" class="cv-section">
+              <h2>{{ cvSectionTitle('education') }}</h2>
+              <div v-for="(education, index) in cvEducations" :key="`cv-education-${index}`" class="cv-entry">
+                <p class="cv-summary-text"><strong>{{ education.institution }}</strong></p>
+                <p class="cv-summary-text">
+                  {{ displayEducation(education.level) }}
+                  <span v-if="education.speciality"> &middot; {{ education.speciality }}</span>
+                  <span v-if="education.second_speciality"> &middot; {{ education.second_speciality }}</span>
+                  <span v-if="education.country"> &middot; {{ education.country }}</span>
+                  <span v-if="education.start_date || education.end_date"> &middot; {{ formatDate(education.start_date) }}&mdash;{{ education.current ? cvCopy.present : formatDate(education.end_date) }}</span>
+                </p>
+                <p v-if="education.additional_information" class="cv-summary-text">{{ education.additional_information }}</p>
+              </div>
+              <p v-if="cvMoreEducationsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreEducationsCount) }}</p>
             </section>
           </aside>
         </section>
@@ -680,12 +682,32 @@ onMounted(loadProfile)
   padding: 1.45rem 1.7rem 1.15rem;
   background: #fff;
   color: var(--cv-ink);
+  position: relative;
+  isolation: isolate;
   border-radius: .8rem;
   box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, .12);
   display: flex;
   flex-direction: column;
   overflow: visible;
   font-family: Inter, Arial, sans-serif;
+}
+
+.cv-document::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/watermark.png");
+  background-repeat: repeat;
+  background-size: 5rem auto;
+  background-position: 0 0;
+  opacity: .032;
+  pointer-events: none;
+}
+
+.cv-document > * {
+  position: relative;
+  z-index: 1;
 }
 
 .cv-header, .cv-top, .cv-footer {
@@ -707,6 +729,7 @@ onMounted(loadProfile)
 .cv-verified small { color: var(--cv-green-dark); font-size: .55rem; line-height: 1; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .cv-top { padding: 1rem 0 .95rem; border-bottom: .0625rem solid var(--cv-line); align-items: flex-start; }
 .cv-person { display: grid; grid-template-columns: 4.25rem minmax(0, 1fr); gap: .85rem; align-items: start; min-width: 0; }
+.cv-top-additional { flex: 1 1 12rem; min-width: 10rem; padding: 4.45rem 1rem 0; }
 .cv-avatar { width: 4.25rem; height: 4.25rem; display: grid; place-items: center; overflow: hidden; border: 0; border-radius: 50%; background: linear-gradient(180deg, #16b85b 0%, #139e4f 100%); box-shadow: none; color: #fff; font-size: 1.05rem; line-height: 1; font-weight: 900; }
 .cv-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-person h1 { margin: 0; color: #05070a; font-size: clamp(2rem, 4vw, 2.45rem); line-height: .95; letter-spacing: -.055em; overflow-wrap: anywhere; }
@@ -719,13 +742,11 @@ onMounted(loadProfile)
 .cv-id { display: grid; justify-items: center; gap: .18rem; color: var(--cv-ink); flex: 0 0 auto; }
 .cv-id small { margin-top: .18rem; color: var(--cv-green); font-size: .6rem; line-height: 1; font-weight: 900; text-transform: uppercase; }
 .cv-id > strong { font-size: .72rem; line-height: 1; }
-.cv-qr { position: relative; width: 5.7rem; height: 5.7rem; display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); gap: .075rem; padding: .32rem; border: .0625rem solid var(--cv-line); border-radius: .32rem; background: #fff; }
-.cv-qr-cell { background: transparent; border-radius: .035rem; }
-.cv-qr-cell--active { background: #111; }
-.cv-qr strong { position: absolute; inset: 50% auto auto 50%; width: 1.48rem; height: 1.48rem; display: grid; place-items: center; transform: translate(-50%, -50%); border-radius: .22rem; background: #111; color: var(--cv-green); font-size: .5rem; line-height: 1; font-weight: 900; }
-.cv-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 1rem; flex: 1 1 auto; min-height: 0; overflow: visible; }
-.cv-main { min-height: 0; overflow: visible; padding-right: 0; border-right: 0; }
-.cv-aside { min-height: 0; overflow: visible; padding: 0; border: 0; }
+.cv-qr { position: relative; width: 5.7rem; height: 5.7rem; display: block; padding: .32rem; border: .0625rem solid var(--cv-line); border-radius: .32rem; background: #fff; }
+.cv-qr img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.cv-body { display: grid; grid-template-columns: minmax(0, 1.34fr) minmax(12.5rem, 0.82fr); gap: 1.25rem; padding-top: 1rem; flex: 1 1 auto; min-height: auto; overflow: visible; }
+.cv-main { min-height: auto; overflow: visible; padding-right: 1.25rem; border-right: .0625rem solid var(--cv-line); }
+.cv-aside { min-height: auto; overflow: visible; }
 .cv-section { padding-bottom: .72rem; margin: 0 0 .72rem; border-bottom: .0625rem solid var(--cv-line); break-inside: avoid; page-break-inside: avoid; }
 .cv-section:last-child { margin-bottom: 0; }
 .cv-section h2 { margin: 0 0 .48rem; padding: 0; border: 0; color: var(--cv-green); font-size: .78rem; line-height: 1.1; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
@@ -748,7 +769,7 @@ onMounted(loadProfile)
 .cv-footer { margin-top: auto; padding-top: .55rem; border-top: .0625rem solid var(--cv-line); color: var(--cv-muted); font-size: .63rem; line-height: 1.1; break-inside: avoid; page-break-inside: avoid; }
 .cv-brand--small .cv-brand__logo { width: 5.8rem; max-width: 5.8rem; height: 1.45rem; max-height: 1.45rem; }
 
-@media (max-width: 72rem) {
+@media (max-width: 40rem) {
   .cv-body { grid-template-columns: 1fr; }
   .cv-main { padding-right: 0; border-right: 0; }
 }

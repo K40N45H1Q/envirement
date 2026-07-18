@@ -2,14 +2,14 @@ import json
 import secrets
 import shutil
 from datetime import date
-from os import getenv, path
+from os import getenv, makedirs, path, remove
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, get_session
-from app.services.matching import parse_date
+from app.services.matchscore import parse_date
 from routes.safety import get_current_user
 
 router = APIRouter()
@@ -24,11 +24,25 @@ def save_upload(file: Optional[UploadFile], prefix: str):
     if not file:
         return None, None
 
-    filename = f"{prefix}_{secrets.token_hex(8)}_{file.filename}"
+    makedirs(UPLOAD_DIR, exist_ok=True)
+    original_filename = path.basename(file.filename or "upload")
+    filename = f"{prefix}_{secrets.token_hex(8)}_{original_filename}"
     file_path = path.join(UPLOAD_DIR, filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    return f"/uploads/{filename}", file.filename
+    return f"/uploads/{filename}", original_filename
+
+
+def remove_upload(upload_url: Optional[str]) -> None:
+    if not upload_url or not upload_url.startswith("/uploads/"):
+        return
+
+    upload_root = path.abspath(UPLOAD_DIR)
+    file_path = path.abspath(path.join(upload_root, path.basename(upload_url)))
+    if path.dirname(file_path) != upload_root:
+        return
+    if path.exists(file_path):
+        remove(file_path)
 
 
 def parse_json_field(value: Optional[str], fallback):
@@ -149,6 +163,8 @@ async def update_profile(
     if not profile:
         profile = CandidateProfile(user_id=current_user.id)
 
+    previous_avatar_url = profile.avatar_url
+    previous_resume_url = profile.resume_url
     avatar_url, _ = save_upload(avatar, "avatar")
     resume_url, resume_name = save_upload(resume, "resume")
 
@@ -189,7 +205,18 @@ async def update_profile(
 
     session.add(profile)
     session.add(current_user)
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        remove_upload(avatar_url)
+        remove_upload(resume_url)
+        raise
+
+    if avatar_url and previous_avatar_url != avatar_url:
+        remove_upload(previous_avatar_url)
+    if resume_url and previous_resume_url != resume_url:
+        remove_upload(previous_resume_url)
+
     session.refresh(profile)
     return serialize_profile(profile)
 

@@ -173,7 +173,7 @@ let shouldSaveAgain = false
 let isApplyingServerProfile = false
 let printFrame = null
 let previousBodyOverflow = ''
-const CV_DRAFT_STORAGE_KEY = 'cv-builder-draft'
+const LEGACY_CV_DRAFT_STORAGE_KEY = 'cv-builder-draft'
 
 const profile = ref(createEmptyProfile())
 
@@ -757,6 +757,10 @@ const cvContactItems = computed(() => [
     icon: 'fas fa-phone',
     value,
   })),
+  profile.value.residence && {
+    icon: 'fas fa-location-dot',
+    value: profile.value.residence,
+  },
 ].filter((item) => item.value))
 
 const legacyCvAdditionalItems = computed(() => [
@@ -837,11 +841,6 @@ const cvAdditionalItems = computed(() => [
     icon: 'fas fa-car-side',
     label: copy.value.drivingLicenses,
     value: copy.value.noDrivingLicense,
-  },
-  profile.value.residence && {
-    icon: 'fas fa-location-dot',
-    label: copy.value.residence,
-    value: profile.value.residence,
   },
 ].filter(Boolean))
 
@@ -1081,35 +1080,15 @@ const getErrorMessage = (error, fallback) => (
   || fallback
 )
 
-const getDraftStorageKey = () => {
-  const identifier = toText(user.value?.id || user.value?.email).trim() || 'guest'
-  return `${CV_DRAFT_STORAGE_KEY}:${identifier}`
-}
-
-const loadDraftProfile = () => {
+const clearLegacyDraftProfile = () => {
   try {
-    const raw = window.localStorage.getItem(getDraftStorageKey())
-    if (!raw) return null
-
-    return normalizeProfile(JSON.parse(raw))
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index)
+      if (key === LEGACY_CV_DRAFT_STORAGE_KEY || key?.startsWith(`${LEGACY_CV_DRAFT_STORAGE_KEY}:`)) {
+        window.localStorage.removeItem(key)
+      }
+    }
   } catch {
-    return null
-  }
-}
-
-const saveDraftProfile = () => {
-  try {
-    window.localStorage.setItem(getDraftStorageKey(), JSON.stringify(profile.value))
-  } catch {
-    // Черновик не должен ломать форму, если localStorage недоступен.
-  }
-}
-
-const clearDraftProfile = () => {
-  try {
-    window.localStorage.removeItem(getDraftStorageKey())
-  } catch {
-    // Игнорируем ошибки очистки localStorage.
   }
 }
 
@@ -1123,22 +1102,13 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
 
 const applyServerProfile = (rawProfile) => {
   isApplyingServerProfile = true
-  const normalizedProfile = normalizeProfile(rawProfile)
-  const draftProfile = loadDraftProfile()
-  const nextProfile = draftProfile ? normalizeProfile({
-    ...normalizedProfile,
-    ...draftProfile,
-    resume_data: {
-      ...normalizedProfile.resume_data,
-      ...draftProfile.resume_data,
-    },
-  }) : normalizedProfile
+  const nextProfile = normalizeProfile(rawProfile)
   nextProfile.resume_data.cv_language = language.value
   localizeProfileOccupations(nextProfile, language.value)
   profile.value = nextProfile
   firstNameLocked.value = Boolean(nextProfile.first_name.trim())
   lastNameLocked.value = Boolean(nextProfile.last_name.trim())
-  savedSnapshot.value = draftProfile ? '' : snapshotProfile()
+  savedSnapshot.value = snapshotProfile()
 
   window.setTimeout(() => {
     isApplyingServerProfile = false
@@ -1148,9 +1118,10 @@ const applyServerProfile = (rawProfile) => {
 const loadProfile = async () => {
   isLoading.value = true
   status.value = ''
+  clearLegacyDraftProfile()
 
   if (!isAuthenticated.value) {
-    profile.value = loadDraftProfile() || createEmptyProfile()
+    profile.value = createEmptyProfile()
     profile.value.resume_data.cv_language = language.value
     firstNameLocked.value = false
     lastNameLocked.value = false
@@ -1254,7 +1225,6 @@ const performSave = async ({ silent = false, force = false } = {}) => {
     avatarFile.value = null
     resumeFile.value = null
     revokeAvatarPreview()
-    clearDraftProfile()
     applyServerProfile(serverProfile)
     clearErrors()
     status.value = silent ? '' : copy.value.saveSuccess
@@ -1804,6 +1774,8 @@ const getPrintableStyles = () => `
     box-shadow: none !important;
     background: #fff !important;
     color: var(--cv-ink) !important;
+    position: relative !important;
+    isolation: isolate !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
@@ -1811,6 +1783,24 @@ const getPrintableStyles = () => `
     font-family: var(--cv-font-family) !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  .cv-document::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    background-image: url("/watermark.png") !important;
+    background-repeat: repeat !important;
+    background-size: 20mm auto !important;
+    background-position: 0 0 !important;
+    opacity: 0.028 !important;
+    pointer-events: none !important;
+  }
+
+  .cv-document > * {
+    position: relative !important;
+    z-index: 1 !important;
   }
 
   .cv-header,
@@ -2036,13 +2026,17 @@ const getPrintableStyles = () => `
     border: 0.0625rem solid var(--cv-line) !important;
     border-radius: 0.32rem !important;
     background: #fff !important;
+    overflow: hidden !important;
   }
 
   .cv-qr img {
-    width: 100% !important;
-    height: 100% !important;
+    width: 128% !important;
+    height: 128% !important;
+    max-width: none !important;
     display: block !important;
+    margin: -14% !important;
     object-fit: contain !important;
+    object-position: center !important;
   }
 
   .cv-qr-cell {
@@ -2291,6 +2285,27 @@ const buildPrintableDocument = () => {
   }
 }
 
+const normalizePdfQr = (root) => {
+  const qr = root.querySelector('.cv-qr')
+  const qrImage = qr?.querySelector('img')
+  if (!qr || !qrImage) return
+
+  qr.style.position = 'relative'
+  qr.style.display = 'block'
+  qr.style.overflow = 'hidden'
+
+  qrImage.style.position = ''
+  qrImage.style.top = ''
+  qrImage.style.left = ''
+  qrImage.style.width = '128%'
+  qrImage.style.height = '128%'
+  qrImage.style.maxWidth = 'none'
+  qrImage.style.margin = '-14%'
+  qrImage.style.objectFit = 'contain'
+  qrImage.style.objectPosition = 'center'
+  qrImage.style.transform = ''
+}
+
 const openPdfPreview = async () => {
   if (isGeneratingPdf.value || !cvDocumentRef.value) return
 
@@ -2314,6 +2329,7 @@ const openPdfPreview = async () => {
   printableClone.classList.add('cv-document--pdf')
   printableClone.style.transform = 'none'
   printableClone.style.margin = '0'
+  normalizePdfQr(printableClone)
   renderHost.appendChild(printableClone)
   document.body.appendChild(renderHost)
 
@@ -2397,11 +2413,6 @@ watch(step, (value) => {
   emit('step-change', value)
 }, { immediate: true })
 
-watch(profile, () => {
-  if (!isLoaded.value || isApplyingServerProfile) return
-  saveDraftProfile()
-}, { deep: true })
-
 onMounted(() => {
   previousBodyOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
@@ -2420,7 +2431,9 @@ onBeforeUnmount(() => {
     <div class="cv-builder-overlay">
       <div class="main-card" role="dialog" aria-modal="true" :aria-label="copy.pageTitle">
         <div class="close-wrapper">
-          <button class="close" @click="exitBuilder">X</button>
+          <button type="button" class="close" :aria-label="copy.exit" :title="copy.exit" @click="exitBuilder">
+            <i class="fas fa-xmark"></i>
+          </button>
         </div>
         <div class="main-card__scroll">
 
@@ -3035,7 +3048,7 @@ onBeforeUnmount(() => {
               <i class="fas fa-right-from-bracket"></i>{{ copy.exit }}
             </button>
 
-            <button v-if="step > 1" type="button" class="cv-action-button btn-light" :disabled="isSaving" @click="goPrev">
+            <button v-if="step > 1" type="button" class="cv-action-button btn-secondary" :disabled="isSaving" @click="goPrev">
               <i class="fas fa-arrow-left"></i>{{ copy.back }}
             </button>
 
@@ -3053,20 +3066,38 @@ onBeforeUnmount(() => {
 
 .close-wrapper {
   width: 100%;
-  
 }
 
 .close {
   position: absolute;
-  top: 0.3rem;
-  right: 0.6rem;
-  padding: 0.6rem;
-  border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-secondary) 86%, white);
+  color: var(--text-muted);
+  box-shadow: 0 0.55rem 1.25rem rgba(16, 24, 40, 0.08);
   cursor: pointer;
-  border: 0.2rem solid red;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
 
+.close:hover,
+.close:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-base) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--brand-soft) 58%, white);
+  color: var(--brand-strong);
+  box-shadow: none;
+  transform: translateY(-0.0625rem);
+}
+
+.close:focus-visible {
+  outline: 0.1875rem solid color-mix(in srgb, var(--brand-base) 18%, transparent);
+  outline-offset: 0.125rem;
 }
 
 .cv-builder-overlay {
@@ -3858,6 +3889,7 @@ textarea:focus,
 }
 
 .btn-light,
+.btn-secondary,
 .btn-primary,
 .btn-danger {
   min-height: 3.3rem;
@@ -3871,6 +3903,12 @@ textarea:focus,
   justify-content: center;
   gap: 0.45rem;
   cursor: pointer;
+}
+
+.btn-secondary {
+  border: 0.125rem solid var(--border-strong);
+  background: var(--surface-secondary);
+  color: var(--brand-strong);
 }
 
 .btn-primary {
@@ -4269,12 +4307,32 @@ button:disabled {
   padding: 1.45rem 1.7rem 1.15rem;
   background: #fff;
   color: var(--cv-ink);
+  position: relative;
+  isolation: isolate;
   border-radius: 0.8rem;
   box-shadow: 0 1.5rem 3rem rgba(16, 24, 40, 0.12);
   display: flex;
   flex-direction: column;
   overflow: visible;
   font-family: Inter, Arial, sans-serif;
+}
+
+.cv-document::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/watermark.png");
+  background-repeat: repeat;
+  background-size: 5rem auto;
+  background-position: 0 0;
+  opacity: 0.032;
+  pointer-events: none;
+}
+
+.cv-document > * {
+  position: relative;
+  z-index: 1;
 }
 
 .cv-header,
@@ -4750,6 +4808,20 @@ button:disabled {
 .pdf-preview-trigger .cv-id,
 .cv-document--pdf .cv-id {
   justify-items: center;
+}
+
+.cv-document--pdf .cv-qr {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.cv-document--pdf .cv-qr img {
+  width: 128%;
+  height: 128%;
+  max-width: none;
+  margin: -14%;
+  object-position: center;
 }
 
 .pdf-preview-trigger .cv-body,

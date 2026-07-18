@@ -912,12 +912,12 @@ watch(filteredJobs, async () => {
   justify-content: space-between;
 }
 
-  .pagination-button {
-    min-height: 2.85rem;
+.pagination-button {
+  box-sizing: border-box;
+  min-height: 2.85rem;
   padding: 0.72rem 1rem;
   border: 0.0625rem solid color-mix(in srgb, var(--brand-base) 18%, var(--border-subtle));
   border-radius: 999rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 249, 245, 0.98));
   color: var(--text-primary);
   font: inherit;
   font-weight: 800;
@@ -928,13 +928,6 @@ watch(filteredJobs, async () => {
   cursor: pointer;
   box-shadow: 0 0.55rem 1.35rem rgba(16, 24, 40, 0.06);
   transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-
-.pagination-button:hover:not(:disabled),
-.pagination-button:focus-visible:not(:disabled) {
-  border-color: color-mix(in srgb, var(--brand-base) 44%, var(--border-subtle));
-  color: var(--brand-strong);
-  box-shadow: none;
 }
 
 .pagination-button:disabled {
@@ -955,14 +948,13 @@ watch(filteredJobs, async () => {
   border-radius: 50%;
 }
 
-  .pagination-button--prev,
-  .pagination-button--next {
-    min-width: 9.5rem;
-  }
+.pagination-button--prev,
+.pagination-button--next {
+  min-width: 9.5rem;
+}
 
 .pagination-button--active {
-  border-color: color-mix(in srgb, var(--brand-base) 60%, white);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-base) 95%, white), color-mix(in srgb, var(--brand-strong) 90%, white));
+  background-color: var(--brand-base) !important;
   color: #fff;
   box-shadow: none;
 }
@@ -972,6 +964,10 @@ watch(filteredJobs, async () => {
   font-weight: 800;
   letter-spacing: 0.12em;
   padding-inline: 0.15rem;
+}
+
+.pagination-button {
+  background-color: #fff;
 }
 
 .job-row {

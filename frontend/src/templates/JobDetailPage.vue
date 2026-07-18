@@ -151,6 +151,8 @@ const submitApplication = async () => {
           ? 'jobDetailPage.apply.candidateOnly'
           : err?.key === 'job_not_available'
             ? 'jobDetailPage.apply.jobUnavailable'
+            : err?.key === 'outside_professional_area'
+              ? 'jobDetailPage.apply.outsideProfessionalArea'
             : err?.key === 'missing_fields'
               ? 'jobDetailPage.apply.fillRequiredFields'
           : 'jobDetailPage.apply.failed',
@@ -303,7 +305,7 @@ watch(() => route.params.id, async () => {
                   <strong>{{ matchAnalysis.meta.label }}</strong>
                   <span>{{ matchAnalysis.profile }}</span>
                 </div>
-                <b>{{ matchAnalysis.score }}/100</b>
+                <b>{{ matchAnalysis.excluded ? '0/100' : `${matchAnalysis.score}/100` }}</b>
               </div>
               <div class="candidate-match__parts">
                 <span v-for="part in matchAnalysis.breakdown" :key="part.key">
@@ -321,9 +323,10 @@ watch(() => route.params.id, async () => {
               <button
                 class="primary"
                 type="button"
+                :disabled="matchAnalysis?.excluded"
                 @click="applyStatus = ''; openModal(applyModal)"
               >
-                {{ t('jobDetailPage.form.submit') }}
+                {{ matchAnalysis?.excluded ? matchAnalysis.meta.label : t('jobDetailPage.form.submit') }}
               </button>
             </section>
           </aside>

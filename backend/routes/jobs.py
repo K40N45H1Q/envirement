@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Path,
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
-from app.services.matching import ALGORITHM_VERSION, parse_date, score_candidate
+from app.services.matchscore import ALGORITHM_VERSION, parse_date, score_candidate
 from routes.safety import get_current_user, require_account_types
 
 router = APIRouter()
@@ -501,17 +501,19 @@ async def apply_to_job(
     if existing_application:
         raise HTTPException(status_code=400, detail={"key": "duplicate_application"})
 
+    profile = session.exec(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    ).first()
+    match_result = score_candidate(profile or {}, job)
+    if match_result["excluded"]:
+        raise HTTPException(status_code=400, detail={"key": "outside_professional_area"})
+
     resume_url = None
     resume_name = None
     if resume_upload:
         makedirs(UPLOAD_DIR, exist_ok=True)
         resume_url = store_resume_file(resume_upload)
         resume_name = resume_upload.filename
-
-    profile = session.exec(
-        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
-    ).first()
-    match_result = score_candidate(profile or {}, job)
 
     application = JobApplication(
         job_id=job_id,
@@ -601,8 +603,10 @@ def get_my_job_responses(
         job_data = job_map.get(app.job_id, {})
         profile = profile_map.get(app.applicant_user_id)
         match_analysis = parse_json_field(app.match_json, None)
-        if not isinstance(match_analysis, dict):
+        if not isinstance(match_analysis, dict) or match_analysis.get("algorithm_version") != ALGORITHM_VERSION:
             match_analysis = score_candidate(profile or {}, my_jobs_by_id.get(app.job_id, {}))
+        if match_analysis.get("excluded"):
+            continue
         result.append({
             "id": app.id,
             "job_id": app.job_id,
@@ -654,7 +658,7 @@ def get_my_job_responses(
             "candidate_licenses": parse_json_field(profile.licenses_json, []) if profile else [],
             "candidate_sectors": parse_json_field(profile.sectors_json, []) if profile else [],
             "match_analysis": match_analysis,
-            "match_score": match_analysis.get("score", 0),
+            "match_score": match_analysis.get("score") or 0,
             "match_label": match_analysis.get("label", "weak"),
             "created_at": app.created_at,
         })

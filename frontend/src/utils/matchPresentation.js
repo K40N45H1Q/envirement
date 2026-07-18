@@ -1,24 +1,21 @@
-const WEIGHTS = {
-  experience: 30,
-  languages: 20,
-  availability: 20,
-  credentials: 20,
-  skills: 10,
-}
+import { resolveOccupation } from '@/utils/occupations'
 
 const COPY = {
   ru: {
     excellent: 'Отличное совпадение', good: 'Хорошее совпадение', partial: 'Частичное совпадение', weak: 'Слабое совпадение',
+    excluded: 'Вне профессиональной области', outside_occupation: 'Профессия не совпадает',
     experience: 'Опыт', languages: 'Языки', availability: 'Доступность', credentials: 'Права и лицензии', skills: 'Навыки', stability_penalty: 'Стабильность',
     required_missing: 'Обязательное требование', stability: 'Частая смена работы', exceeds_requirement: 'Выше требования', serverMatch: 'Серверный расчёт',
   },
   en: {
     excellent: 'Excellent match', good: 'Good match', partial: 'Partial match', weak: 'Weak match',
+    excluded: 'Outside professional area', outside_occupation: 'Occupation does not match',
     experience: 'Experience', languages: 'Languages', availability: 'Availability', credentials: 'Licences and certificates', skills: 'Skills', stability_penalty: 'Stability',
     required_missing: 'Mandatory requirement', stability: 'Frequent job changes', exceeds_requirement: 'Exceeds requirement', serverMatch: 'Server-calculated match',
   },
   lv: {
     excellent: 'Izcila atbilstība', good: 'Laba atbilstība', partial: 'Daļēja atbilstība', weak: 'Vāja atbilstība',
+    excluded: 'Ārpus profesionālās jomas', outside_occupation: 'Profesija neatbilst',
     experience: 'Pieredze', languages: 'Valodas', availability: 'Pieejamība', credentials: 'Tiesības un licences', skills: 'Prasmes', stability_penalty: 'Stabilitāte',
     required_missing: 'Obligāta prasība', stability: 'Bieža darba maiņa', exceeds_requirement: 'Pārsniedz prasību', serverMatch: 'Servera aprēķins',
   },
@@ -46,14 +43,17 @@ const detailLines = (key, detail, copy) => {
 
 export const presentMatchAnalysis = (raw = {}, locale = 'ru') => {
   const copy = COPY[locale] || COPY.ru
-  const score = Number(raw?.score || 0)
-  const styleKey = styleKeyForScore(score)
+  const excluded = Boolean(raw?.excluded)
+  const score = excluded ? null : Number(raw?.score || 0)
+  const styleKey = excluded ? 'fail' : styleKeyForScore(score)
   const flags = Array.isArray(raw?.flags) ? raw.flags : []
   const redFlags = flags.filter((flag) => flag.type === 'required_missing')
+  const exclusionFlags = flags.filter((flag) => flag.type === 'outside_occupation')
+  const localizedOccupation = (value) => resolveOccupation(value, '', locale)?.label || value
   const hasStabilityFlag = flags.some((flag) => flag.type === 'stability')
   const breakdown = Object.entries(raw?.breakdown || {}).map(([key, detail]) => {
     const points = Number(detail?.points || 0)
-    const max = WEIGHTS[key] || 0
+    const max = Number(detail?.max_points || 0)
     const partScore = key === 'stability_penalty' ? Math.max(0, 100 + points * 10) : max ? Math.round(points / max * 100) : 100
     const partStyle = styleKeyForScore(partScore)
     return {
@@ -67,11 +67,15 @@ export const presentMatchAnalysis = (raw = {}, locale = 'ru') => {
 
   return {
     score,
+    excluded,
     label: raw?.label || 'weak',
     algorithmVersion: raw?.algorithm_version || '',
     profile: copy.serverMatch,
-    trafficLight: redFlags.length ? 'red' : hasStabilityFlag ? 'yellow' : score >= 70 ? 'green' : score >= 50 ? 'yellow' : 'red',
-    failedGates: redFlags.map((flag) => `${copy.required_missing}: ${flag.value}`),
+    trafficLight: excluded || redFlags.length ? 'red' : hasStabilityFlag ? 'yellow' : score >= 70 ? 'green' : score >= 50 ? 'yellow' : 'red',
+    failedGates: [
+      ...exclusionFlags.map((flag) => `${copy.outside_occupation}: ${localizedOccupation(flag.value)}`),
+      ...redFlags.map((flag) => `${copy.required_missing}: ${flag.value}`),
+    ],
     flags: flags.map((flag) => ({ ...flag, label: copy[flag.type] || flag.type })),
     meta: { ...META[styleKey], label: copy[raw?.label] || copy.weak },
     breakdown,
