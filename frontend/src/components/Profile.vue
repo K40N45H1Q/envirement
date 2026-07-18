@@ -10,7 +10,6 @@ import { createPaginatedCvPdf } from '@/utils/cvPdf'
 
 const MAX_PRINT_WORK_EXPERIENCES = 3
 const MAX_PRINT_EDUCATIONS = 3
-const MAX_SUMMARY_LENGTH = 560
 const MAX_WORK_DESCRIPTION_LENGTH = 420
 const MAX_SHORT_FIELD_LENGTH = 120
 
@@ -213,7 +212,7 @@ const cvContactItems = computed(() => contacts.value.map((value) => ({
 const cvSummaryParagraphs = computed(() => {
   const text = String(profile.value.summary || '').trim()
   return text
-    ? text.split(/\n{2,}/).filter(Boolean).slice(0, 2).map((paragraph) => limitText(paragraph, MAX_SUMMARY_LENGTH / 2, { preserveLineBreaks: true }))
+    ? text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
     : [cvCopy.value.summaryFallback]
 })
 const cvVisibleSectors = computed(() => (
@@ -505,17 +504,6 @@ onMounted(loadProfile)
             </section>
 
 
-            <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--full cv-flow-item--sectors">
-              <h2>{{ cvSectionTitle('workAreas') }}</h2>
-              <div class="cv-sector-grid">
-                <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
-                  <i :class="sector.iconClass"></i>
-                  <span class="cv-sector__copy"><strong>{{ sector.label }}</strong><small>{{ sector.experience }}</small></span>
-                </div>
-                <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item"><span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span></div>
-              </div>
-            </section>
-
           </main>
 
           <aside class="cv-aside">
@@ -538,6 +526,17 @@ onMounted(loadProfile)
                 <li v-for="skill in cvVisibleSkills" :key="skill">{{ skill }}</li>
                 <li v-if="cvMoreSkillsCount" class="cv-more-item">{{ formatMore('moreItems', cvMoreSkillsCount) }}</li>
               </ul>
+            </section>
+
+            <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--aside cv-flow-item--sectors">
+              <h2>{{ cvSectionTitle('workAreas') }}</h2>
+              <div class="cv-sector-grid">
+                <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
+                  <i :class="sector.iconClass"></i>
+                  <span class="cv-sector__copy"><strong>{{ sector.label }}</strong><small>{{ sector.experience }}</small></span>
+                </div>
+                <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item"><span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span></div>
+              </div>
             </section>
 
             <section v-if="certificates.length" class="cv-section cv-flow-item cv-flow-item--aside">
@@ -885,4 +884,6 @@ onMounted(loadProfile)
   .cv-id { justify-items: start; }
   .cv-sector-grid { grid-template-columns: 1fr; }
 }
+
+.cv-flow-item--sectors .cv-sector-grid { grid-template-columns: 1fr !important; }
 </style>

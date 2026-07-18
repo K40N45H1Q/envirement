@@ -734,9 +734,8 @@ const legacyCvSummaryParagraphs = computed(() => {
   if (summary) {
     return summary
       .split(/\n{2,}/)
-      .map((paragraph) => limitText(paragraph, 280, { preserveLineBreaks: true }))
+      .map((paragraph) => paragraph.trim())
       .filter(Boolean)
-      .slice(0, 2)
   }
 
   const fallbackParts = [
@@ -809,9 +808,8 @@ const cvSummaryParagraphs = computed(() => {
   if (summary) {
     return summary
       .split(/\n{2,}/)
-      .map((paragraph) => limitText(paragraph, 280, { preserveLineBreaks: true }))
+      .map((paragraph) => paragraph.trim())
       .filter(Boolean)
-      .slice(0, 2)
   }
 
   const fallbackParts = [
@@ -3091,21 +3089,6 @@ onBeforeUnmount(() => {
                     </section>
 
 
-                    <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--full cv-flow-item--sectors">
-                      <h2>{{ copy.workAreas }}</h2>
-                      <div class="cv-sector-grid">
-                        <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
-                          <i :class="sector.iconClass"></i>
-                          <span class="cv-sector__copy">
-                            <strong>{{ sector.label }}</strong>
-                          </span>
-                        </div>
-                        <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
-                          <span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span>
-                        </div>
-                      </div>
-                    </section>
-
                   </main>
 
                   <aside class="cv-aside">
@@ -3134,6 +3117,21 @@ onBeforeUnmount(() => {
                           {{ formatMore('moreItems', cvMoreSkillsCount) }}
                         </li>
                       </ul>
+                    </section>
+
+                    <section v-if="cvVisibleSectors.length" class="cv-section cv-flow-item cv-flow-item--aside cv-flow-item--sectors">
+                      <h2>{{ copy.workAreas }}</h2>
+                      <div class="cv-sector-grid">
+                        <div v-for="sector in cvVisibleSectors" :key="sector.value" class="cv-sector">
+                          <i :class="sector.iconClass"></i>
+                          <span class="cv-sector__copy">
+                            <strong>{{ sector.label }}</strong>
+                          </span>
+                        </div>
+                        <div v-if="cvMoreSectorsCount" class="cv-sector cv-more-item">
+                          <span>{{ formatMore('moreItems', cvMoreSectorsCount) }}</span>
+                        </div>
+                      </div>
                     </section>
 
                     <section v-if="profile.licenses.length" class="cv-section cv-flow-item cv-flow-item--aside">
@@ -5464,5 +5462,9 @@ button:disabled {
   .cv-footer {
     margin-top: auto !important;
   }
+}
+
+.cv-flow-item--sectors .cv-sector-grid {
+  grid-template-columns: 1fr !important;
 }
 </style>
