@@ -25,4 +25,4 @@ Disallow: /lv/beta-access
 Disallow: /en/beta-access
 Disallow: /ru/beta-access
 
-Sitemap: https://cvhold.com/sitemap.xml
+Sitemap: https://www.cvhold.com/sitemap.xml

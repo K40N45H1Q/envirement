@@ -1,148 +1,159 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://cvhold.com/lv</loc>
+    <loc>https://www.cvhold.com/</loc>
+    <lastmod>2026-07-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/"/>
+  </url>
+
+  <url>
+    <loc>https://www.cvhold.com/lv</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/"/>
   </url>
   <url>
-    <loc>https://cvhold.com/en</loc>
+    <loc>https://www.cvhold.com/en</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/"/>
   </url>
   <url>
-    <loc>https://cvhold.com/ru</loc>
+    <loc>https://www.cvhold.com/ru</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/"/>
   </url>
 
   <url>
-    <loc>https://cvhold.com/lv/jobs/categories</loc>
+    <loc>https://www.cvhold.com/lv/jobs/categories</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/categories"/>
   </url>
   <url>
-    <loc>https://cvhold.com/en/jobs/categories</loc>
+    <loc>https://www.cvhold.com/en/jobs/categories</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/categories"/>
   </url>
   <url>
-    <loc>https://cvhold.com/ru/jobs/categories</loc>
+    <loc>https://www.cvhold.com/ru/jobs/categories</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/categories"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/categories"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/categories"/>
   </url>
 
   <url>
-    <loc>https://cvhold.com/lv/jobs/countries</loc>
+    <loc>https://www.cvhold.com/lv/jobs/countries</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/countries"/>
   </url>
   <url>
-    <loc>https://cvhold.com/en/jobs/countries</loc>
+    <loc>https://www.cvhold.com/en/jobs/countries</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/countries"/>
   </url>
   <url>
-    <loc>https://cvhold.com/ru/jobs/countries</loc>
+    <loc>https://www.cvhold.com/ru/jobs/countries</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/countries"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/countries"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/countries"/>
   </url>
 
   <url>
-    <loc>https://cvhold.com/lv/jobs/latvia-cities</loc>
+    <loc>https://www.cvhold.com/lv/jobs/latvia-cities</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
   </url>
   <url>
-    <loc>https://cvhold.com/en/jobs/latvia-cities</loc>
+    <loc>https://www.cvhold.com/en/jobs/latvia-cities</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
   </url>
   <url>
-    <loc>https://cvhold.com/ru/jobs/latvia-cities</loc>
+    <loc>https://www.cvhold.com/ru/jobs/latvia-cities</loc>
     <lastmod>2026-07-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="lv" href="https://cvhold.com/lv/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://cvhold.com/en/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://cvhold.com/ru/jobs/latvia-cities"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="lv" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.cvhold.com/en/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.cvhold.com/ru/jobs/latvia-cities"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.cvhold.com/lv/jobs/latvia-cities"/>
   </url>
 
-  <url><loc>https://cvhold.com/lv/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cvhold.com/en/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cvhold.com/ru/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cvhold.com/lv/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://cvhold.com/en/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://cvhold.com/ru/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://cvhold.com/lv/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/en/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/ru/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/lv/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/en/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/ru/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://cvhold.com/lv/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/en/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/ru/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/lv/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/en/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/ru/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://cvhold.com/lv/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://cvhold.com/en/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://cvhold.com/ru/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://www.cvhold.com/lv/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.cvhold.com/en/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.cvhold.com/ru/employers</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.cvhold.com/lv/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.cvhold.com/en/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.cvhold.com/ru/pricing</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.cvhold.com/lv/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/en/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/ru/about</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/lv/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/en/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/ru/contacts</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cvhold.com/lv/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/en/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/ru/faq</loc><lastmod>2026-07-18</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/lv/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/en/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/ru/blog</loc><lastmod>2026-07-18</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cvhold.com/lv/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://www.cvhold.com/en/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://www.cvhold.com/ru/terms</loc><lastmod>2026-07-18</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
 </urlset>

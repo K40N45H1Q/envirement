@@ -22,7 +22,7 @@ import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
 import { getLocaleFromPath, hasLocalePrefix, isPublicSeoPath, localizeFullPath, stripLocaleFromPath, withLocale } from './locale'
 
-const SITE_ORIGIN = 'https://cvhold.com'
+const SITE_ORIGIN = 'https://www.cvhold.com'
 
 const SEO_COPY = {
   lv: {
@@ -101,8 +101,9 @@ const updateSeoHead = (to) => {
   const [title, description] = seoLocale.pages[logicalPath] || [seoLocale.defaultTitle, seoLocale.defaultDescription]
   const isIndexable = isPublicSeoPath(logicalPath)
   const canonicalLogicalPath = logicalPath === '/jobs' ? '/' : logicalPath
-  const canonicalPath = withLocale(canonicalLogicalPath, locale)
-  const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`
+  const canonicalUrl = canonicalLogicalPath === '/' && !hasLocalePrefix(to.path)
+    ? `${SITE_ORIGIN}/`
+    : `${SITE_ORIGIN}${withLocale(canonicalLogicalPath, locale)}`
 
   document.documentElement.lang = locale
   document.title = title
@@ -251,6 +252,7 @@ const localizedChildren = [
 ]
 
 const routes = [
+  { path: '/', component: JobsPage, meta: { logicalPath: '/' } },
   {
     path: '/:locale(ru|en|lv)',
     children: localizedChildren,
@@ -314,7 +316,7 @@ router.beforeEach(async (to) => {
   const routeLogicalPath = typeof to.meta.logicalPath === 'string' ? to.meta.logicalPath : logicalPath
   const isJobDetailRoute = to.matched.some((record) => record.meta?.logicalPath === '/jobs/:id')
 
-  if (!hasLocalePrefix(to.path)) {
+  if (!hasLocalePrefix(to.path) && to.path !== '/') {
     return localizeFullPath(to.fullPath, locale)
   }
 
