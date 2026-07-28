@@ -11,7 +11,7 @@ from app.core.config import settings
 
 
 engine: AsyncEngine = create_async_engine(
-    settings.database_url,
+    settings.database_async_url,
     echo=settings.app_debug,
     future=True,
 )

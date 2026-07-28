@@ -23,17 +23,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  createdToken: {
-    type: String,
-    default: '',
-  },
 })
 
 const emit = defineEmits(['create-token', 'delete-token', 'update-beta-access'])
 const { language, t } = useI18n()
 const router = useRouter()
 const auth = useAuth()
-const note = ref('')
+const email = ref('')
 const currentPage = ref(1)
 const showDeleteAccountConfirm = ref(false)
 const isDeletingAccount = ref(false)
@@ -71,8 +67,9 @@ const betaAccessModel = computed({
 })
 
 const submit = () => {
-  emit('create-token', { note: note.value })
-  note.value = ''
+  if (!email.value.trim()) return
+  emit('create-token', { email: email.value })
+  email.value = ''
 }
 
 const copyToken = async (token) => {
@@ -92,7 +89,7 @@ const formatDate = (value) => {
   }).format(new Date(value))
 }
 
-const tokenStateLabel = (token) => (token.used ? t('aPanelSettings.active') : t('aPanelSettings.inactive'))
+const tokenStateLabel = (token) => (token.is_active ? t('aPanelSettings.active') : t('aPanelSettings.inactive'))
 
 const accountEmail = computed(() => auth.user?.email || '')
 
@@ -142,8 +139,8 @@ const deleteAccount = async () => {
         </label>
 
         <label class="note-field">
-          <span class="visually-hidden">{{ t('aPanelSettings.note') }}</span>
-          <input v-model="note" :placeholder="t('aPanelSettings.notePlaceholder')" />
+          <span class="visually-hidden">{{ t('aPanelSettings.email') }}</span>
+          <input v-model="email" type="email" required :placeholder="t('aPanelSettings.emailPlaceholder')" />
         </label>
 
         <button class="btn-primary apanel-create-button" type="submit" :disabled="isSaving">
@@ -167,7 +164,7 @@ const deleteAccount = async () => {
             <thead>
               <tr>
                 <th>{{ t('aPanelSettings.tokenColumn') }}</th>
-                <th>{{ t('aPanelSettings.noteColumn') }}</th>
+                <th>{{ t('aPanelSettings.emailColumn') }}</th>
                 <th>{{ t('aPanelSettings.statusColumn') }}</th>
                 <th>{{ t('aPanelSettings.usedColumn') }}</th>
                 <th>{{ t('aPanelSettings.actionsColumn') }}</th>
@@ -180,11 +177,11 @@ const deleteAccount = async () => {
                     <code>{{ token.token || '-' }}</code>
                   </div>
                 </td>
-                <td class="apanel-token-note">{{ token.note || '-' }}</td>
+                <td class="apanel-token-note">{{ token.email || '-' }}</td>
                 <td>
                   <span
                     class="apanel-token-status"
-                    :class="{ 'apanel-token-status--active': token.used }"
+                    :class="{ 'apanel-token-status--active': token.is_active }"
                   >
                     {{ tokenStateLabel(token) }}
                   </span>

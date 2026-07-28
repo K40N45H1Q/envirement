@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import select
 
 from database.models import BetaAccessToken, CandidateProfile, Job, User, get_session
-from app.services.beta_auth import get_beta_access_enabled, set_beta_access_enabled
+from app.services.beta_auth import (
+    get_beta_access_enabled,
+    normalize_beta_email,
+    set_beta_access_enabled,
+)
 from routes.safety import get_current_user, serialize_user
 
 
@@ -34,7 +38,7 @@ def serialize_beta_token(token: BetaAccessToken, assigned_user: User | None = No
         "assigned_user_id": user_id,
         "assigned_user": serialize_user(assigned_user) if assigned_user else None,
         "created_by_user_id": token.created_by_user_id,
-        "note": token.note or "",
+        "email": token.email or "",
         "is_active": token.is_active,
         "used": token.used_at is not None,
         "used_at": token.used_at,
@@ -322,15 +326,16 @@ async def create_beta_token(
 ):
     require_admin(current_user)
     payload = await request.json()
-    note = str(payload.get("note") or "").strip() or None
+    email = normalize_beta_email(payload.get("email"))
+    if not email:
+        raise HTTPException(status_code=400, detail={"error": "beta_token_email_required"})
 
     raw_token = token_urlsafe(24)
     beta_token = BetaAccessToken(
         token=raw_token,
         token_hash=token_hash(raw_token),
-        assigned_user_id=0,
+        email=email,
         created_by_user_id=current_user.id,
-        note=note,
         is_active=True,
     )
     session.add(beta_token)
@@ -359,8 +364,11 @@ async def update_beta_token(
 
     if "is_active" in payload:
         beta_token.is_active = bool(payload["is_active"])
-    if "note" in payload:
-        beta_token.note = str(payload.get("note") or "").strip() or None
+    if "email" in payload:
+        email = normalize_beta_email(payload.get("email"))
+        if not email:
+            raise HTTPException(status_code=400, detail={"error": "beta_token_email_required"})
+        beta_token.email = email
 
     session.add(beta_token)
     session.commit()

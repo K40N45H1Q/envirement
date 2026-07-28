@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, create_engine, Session
 from sqlalchemy import event
 
+from app.core.config import settings
+
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -121,22 +123,12 @@ class CandidateProfile(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class BetaBlockedIP(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    ip_address: str = Field(index=True, unique=True)
-    failed_attempts: int = Field(default=0)
-    is_blocked: bool = Field(default=False)
-    blocked_at: Optional[datetime] = None
-    last_failed_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-
 class BetaAccessToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     token: str = Field(default="")
     token_hash: str = Field(index=True, unique=True)
-    assigned_user_id: int = Field(foreign_key="user.id", index=True)
+    email: str = Field(default="", index=True)
+    assigned_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     created_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     note: Optional[str] = None
     is_active: bool = Field(default=True)
@@ -189,11 +181,6 @@ def update_candidate_profile_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 
-@event.listens_for(BetaBlockedIP, "before_update")
-def update_beta_blocked_ip_timestamp(mapper, connection, target):
-    target.updated_at = datetime.now(timezone.utc)
-
-
 @event.listens_for(BetaAccessToken, "before_update")
 def update_beta_access_token_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
@@ -214,20 +201,44 @@ def update_password_reset_verification_timestamp(mapper, connection, target):
     target.updated_at = datetime.now(timezone.utc)
 
 
-engine = create_engine("sqlite:///default.db", echo=False)
+engine = create_engine(settings.database_sync_url, echo=settings.app_debug)
 SQLModel.metadata.create_all(engine)
 
 
 def ensure_beta_access_token_columns():
     with engine.begin() as connection:
-        columns = {
-            row[1]
-            for row in connection.exec_driver_sql("PRAGMA table_info(betaaccesstoken)").fetchall()
-        }
+        if engine.dialect.name == "sqlite":
+            columns = {
+                row[1]
+                for row in connection.exec_driver_sql("PRAGMA table_info(betaaccesstoken)").fetchall()
+            }
+        else:
+            columns = {
+                row[0]
+                for row in connection.exec_driver_sql(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'betaaccesstoken'"
+                ).fetchall()
+            }
 
         if "token" not in columns:
             connection.exec_driver_sql(
                 "ALTER TABLE betaaccesstoken ADD COLUMN token VARCHAR NOT NULL DEFAULT ''"
+            )
+
+        if "email" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE betaaccesstoken ADD COLUMN email VARCHAR NOT NULL DEFAULT ''"
+            )
+
+        connection.exec_driver_sql(
+            "UPDATE betaaccesstoken SET email = LOWER(TRIM(note)) WHERE email = '' AND note IS NOT NULL"
+        )
+        if engine.dialect.name != "sqlite":
+            connection.exec_driver_sql(
+                "ALTER TABLE betaaccesstoken ALTER COLUMN assigned_user_id DROP NOT NULL"
+            )
+            connection.exec_driver_sql(
+                "UPDATE betaaccesstoken SET assigned_user_id = NULL WHERE assigned_user_id = 0"
             )
 
 
@@ -235,6 +246,8 @@ ensure_beta_access_token_columns()
 
 
 def ensure_job_columns():
+    if engine.dialect.name != "sqlite":
+        return
     with engine.begin() as connection:
         columns = {
             row[1]
@@ -347,6 +360,8 @@ def ensure_job_columns():
 
 
 def ensure_user_columns():
+    if engine.dialect.name != "sqlite":
+        return
     with engine.begin() as connection:
         columns = {
             row[1]
@@ -390,6 +405,8 @@ ensure_job_columns()
 
 
 def ensure_application_columns():
+    if engine.dialect.name != "sqlite":
+        return
     with engine.begin() as connection:
         columns = {
             row[1]
@@ -428,6 +445,8 @@ ensure_application_columns()
 
 
 def ensure_candidate_profile_columns():
+    if engine.dialect.name != "sqlite":
+        return
     with engine.begin() as connection:
         columns = {
             row[1]

@@ -123,7 +123,7 @@
         <button type="button" class="btn-secondary" @click="$emit('open-login')">
           {{ t('common.login') }}
         </button>
-        <button type="button" class="btn-primary" @click="$emit('open-register')">
+        <button type="button" class="btn-primary" :disabled="registrationDisabled" @click="$emit('open-register')">
           {{ t('common.register') }}
         </button>
       </template>
@@ -224,7 +224,7 @@
               <button type="button" class="btn-secondary" @click="openLoginFromMenu">
                 {{ t('common.login') }}
               </button>
-              <button type="button" class="btn-primary" @click="openRegisterFromMenu">
+              <button type="button" class="btn-primary" :disabled="registrationDisabled" @click="openRegisterFromMenu">
                 {{ t('common.register') }}
               </button>
             </template>
@@ -261,6 +261,12 @@ function routeForAccount(accountType) {
 
 export default {
   emits: ['open-login', 'open-register'],
+  props: {
+    registrationDisabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   components: {
     BaseDropdown,
     Logo,
@@ -616,6 +622,7 @@ export default {
     },
 
     openRegisterFromMenu() {
+      if (this.registrationDisabled) return
       this.closeMenu()
       this.$emit('open-register')
     },

@@ -335,6 +335,13 @@ p {
   width: fit-content;
 }
 
+.plan-card .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  box-shadow: none;
+}
+
 .jobs-panel {
   gap: 0.75rem;
 }

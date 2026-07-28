@@ -49,11 +49,11 @@ export const deleteAdminJob = (jobId) => apiRequest(`/api/admin/jobs/${jobId}`, 
   requireAuth: true,
 })
 
-export const createAdminBetaToken = ({ note }) => apiRequest('/api/admin/beta-tokens', {
+export const createAdminBetaToken = ({ email }) => apiRequest('/api/admin/beta-tokens', {
   method: 'POST',
   requireAuth: true,
   body: JSON.stringify({
-    note,
+    email,
   }),
 })
 

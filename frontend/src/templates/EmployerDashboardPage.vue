@@ -9,6 +9,7 @@ import DashboardShell from '@/components/dashboard/DashboardShell.vue'
 import MessagesPanel from '@/components/messages/MessagesPanel.vue'
 import { resolveApiUrl } from '@/api/client'
 import { deleteAccount as deleteAccountRequest } from '@/api/auth'
+import { confirmEmployerPlanCheckout, createEmployerPlanCheckout } from '@/api/pricing'
 import { useAuth } from '@/stores/auth'
 import {
   approveResponseChat,
@@ -183,6 +184,9 @@ const isDeletingAccount = ref(false)
 const deleteAccountError = ref('')
 const deletingId = ref(null)
 const approvingId = ref(null)
+const paymentLoadingPlanId = ref('')
+const invoicePdfUrl = ref('')
+const invoiceUrl = ref('')
 const editingId = ref(null)
 const form = ref(blankForm())
 const status = ref('')
@@ -393,6 +397,31 @@ const localizedResponseStats = computed(() => ([
   { label: copy.value.chatActive, value: scoredResponses.value.filter((item) => item.chat_approved).length },
 ]))
 
+function getJobSaveErrorMessage(caughtError) {
+  if (!(caughtError instanceof ApiError)) return copy.value.jobSaveUnknownError
+
+  const messages = {
+    missing_company_profile: copy.value.missingCompanyProfileError,
+    subscription_required: copy.value.subscriptionRequiredError,
+    subscription_job_limit_reached: copy.value.subscriptionJobLimitReachedError,
+    occupation_required: copy.value.occupationRequiredError,
+    invalid_required_from: copy.value.invalidRequiredFrom,
+    missing_logo: copy.value.missingLogoError,
+    file_upload_failed: copy.value.fileUploadFailedError,
+    network_error: copy.value.jobSaveNetworkError,
+    server_error: copy.value.jobSaveInternalError,
+    validation_title: copy.value.titleRequiredError,
+    validation_salary: copy.value.salaryRequiredError,
+    validation_location: copy.value.chooseCityError,
+    validation_description: copy.value.descriptionRequiredError,
+    validation_country_key: copy.value.chooseCountryError,
+    validation_country_label: copy.value.chooseCountryError,
+    validation_country_flag_code: copy.value.chooseCountryError,
+  }
+
+  return messages[caughtError.key] || interpolate(copy.value.jobSaveServerError, { reason: caughtError.key || 'unknown_error' })
+}
+
 function localizedResponseCount(count) {
   return interpolate(copy.value.responsesCount, { count })
 }
@@ -567,6 +596,73 @@ async function fetchDashboardData({ silent = false } = {}) {
 async function loadDashboard() {
   await fetchDashboardData()
   await messaging.loadConversations(route.query.application, { silent: true })
+}
+
+async function startPlanCheckout(plan) {
+  if (!plan?.id || hasActiveSubscription.value || paymentLoadingPlanId.value) return
+
+  paymentLoadingPlanId.value = plan.id
+  invoicePdfUrl.value = ''
+  invoiceUrl.value = ''
+  status.value = ''
+  error.value = ''
+
+  try {
+    const checkout = await createEmployerPlanCheckout({
+      planId: plan.id,
+      returnPath: route.fullPath || `${route.path}?section=pricing`,
+    })
+    if (!checkout?.url) throw new Error('missing_checkout_url')
+    window.location.assign(checkout.url)
+  } catch (caughtError) {
+    error.value = caughtError instanceof ApiError && caughtError.key === 'active_subscription_exists'
+      ? copy.value.activeSubscriptionPurchaseBlocked
+      : copy.value.paymentError
+    paymentLoadingPlanId.value = ''
+  }
+}
+
+async function handleCheckoutReturn() {
+  const paymentStatus = route.query.stripe_payment
+  if (!paymentStatus) return
+
+  if (paymentStatus === 'cancelled') {
+    status.value = ''
+    error.value = copy.value.paymentCancelled
+  }
+
+  if (paymentStatus === 'success') {
+    const sessionId = typeof route.query.stripe_session_id === 'string' ? route.query.stripe_session_id : ''
+    invoicePdfUrl.value = typeof route.query.stripe_invoice_pdf === 'string' ? route.query.stripe_invoice_pdf : ''
+    invoiceUrl.value = typeof route.query.stripe_invoice_url === 'string' ? route.query.stripe_invoice_url : ''
+    if (!sessionId) {
+      error.value = copy.value.paymentError
+    } else {
+      try {
+        const result = await confirmEmployerPlanCheckout({ sessionId })
+        if (result?.user) {
+          auth.setUser(result.user)
+        }
+        invoicePdfUrl.value = result?.invoice_pdf || invoicePdfUrl.value
+        invoiceUrl.value = result?.invoice_url || invoiceUrl.value
+        status.value = copy.value.paymentSuccess
+        error.value = ''
+      } catch {
+        status.value = ''
+        error.value = copy.value.paymentError
+      }
+    }
+  }
+
+  const {
+    stripe_payment: stripePayment,
+    stripe_session_id: stripeSessionId,
+    stripe_invoice_id: stripeInvoiceId,
+    stripe_invoice_pdf: stripeInvoicePdf,
+    stripe_invoice_url: stripeInvoiceUrl,
+    ...query
+  } = route.query
+  await router.replace({ path: route.path, query })
 }
 
 async function refreshDashboardSilently() {
@@ -784,39 +880,28 @@ async function submitJob() {
       skills_json: JSON.stringify(skills),
     }
 
+    let savedJob = null
+
     if (isEditing.value) {
       await updateJob(editingId.value, payload)
       status.value = copy.value.jobUpdated
     } else {
-      await createJob(payload)
+      savedJob = await createJob(payload)
       status.value = (!employerCompanyName.value && form.value.company)
         ? `${copy.value.jobSaved} ${copy.value.companyRestored}`
         : copy.value.jobSaved
     }
 
-    await auth.loadUser({ force: true })
+    await auth.loadUser({ force: true }).catch(() => {})
     resetForm()
     isJobModalOpen.value = false
-    await loadDashboard()
-    await setSection('jobs')
-  } catch (caughtError) {
-    if (caughtError instanceof ApiError) {
-      if (caughtError.key === 'missing_company_profile') {
-        error.value = copy.value.missingCompanyProfileError
-      } else if (caughtError.key === 'subscription_required') {
-        error.value = copy.value.subscriptionRequiredError
-      } else if (caughtError.key === 'subscription_job_limit_reached') {
-        error.value = copy.value.subscriptionJobLimitReachedError
-      } else if (caughtError.key === 'occupation_required') {
-        error.value = copy.value.occupationRequiredError
-      } else if (caughtError.key === 'invalid_required_from') {
-        error.value = copy.value.invalidRequiredFrom
-      } else {
-        error.value = copy.value.jobSaveError
-      }
-    } else {
-      error.value = copy.value.jobSaveError
+    await loadDashboard().catch(() => {})
+    if (savedJob && !jobs.value.some((job) => Number(job.id) === Number(savedJob.id))) {
+      jobs.value = [normalizeJob(savedJob), ...jobs.value]
     }
+    await setSection('jobs').catch(() => {})
+  } catch (caughtError) {
+    error.value = getJobSaveErrorMessage(caughtError)
   } finally {
     isSaving.value = false
   }
@@ -956,6 +1041,7 @@ watch(
 onMounted(async () => {
   window.addEventListener('keydown', handleModalKeydown)
   await auth.loadUser({ force: true })
+  await handleCheckoutReturn()
   if (activeSection.value !== 'pricing' && !hasActiveSubscription.value) {
     await setSection('pricing')
   }
@@ -998,6 +1084,16 @@ onBeforeUnmount(() => {
       </template>
 
       <p v-if="status" class="status success">{{ status }}</p>
+      <p v-if="invoicePdfUrl" class="status success">
+        <a :href="invoicePdfUrl" target="_blank" rel="noopener noreferrer">
+          {{ copy.downloadInvoicePdf }}
+        </a>
+      </p>
+      <p v-else-if="invoiceUrl" class="status success">
+        <a :href="invoiceUrl" target="_blank" rel="noopener noreferrer">
+          {{ copy.openInvoice }}
+        </a>
+      </p>
       <p v-if="error" class="status danger">{{ error }}</p>
       <p v-if="isLoading" class="state">{{ copy.loadingDashboard }}</p>
 
@@ -1707,8 +1803,18 @@ onBeforeUnmount(() => {
                 </li>
               </ul>
 
-              <button type="button" :class="plan.id === currentPlanId ? 'btn-secondary' : 'btn-primary'" disabled>
-                {{ plan.id === currentPlanId ? copy.current : copy.assignedByAdmin }}
+              <button v-if="plan.id === currentPlanId" type="button" class="btn-secondary" disabled>
+                {{ copy.current }}
+              </button>
+              <button
+                v-if="plan.id !== currentPlanId"
+                type="button"
+                class="btn-primary"
+                :disabled="hasActiveSubscription || Boolean(paymentLoadingPlanId)"
+                @click="startPlanCheckout(plan)"
+              >
+                <i :class="paymentLoadingPlanId === plan.id ? 'fas fa-spinner fa-spin' : 'fas fa-credit-card'"></i>
+                {{ paymentLoadingPlanId === plan.id ? copy.paymentStarting : copy.choosePlan }}
               </button>
             </article>
           </section>

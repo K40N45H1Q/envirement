@@ -13,12 +13,6 @@ export class ApiError extends Error {
   }
 }
 
-export const getAuthToken = () => localStorage.getItem('token')
-
-export const setAuthToken = (token) => {
-  localStorage.setItem('token', token)
-}
-
 export const clearAuthToken = () => {
   localStorage.removeItem('token')
 }
@@ -36,7 +30,14 @@ const getErrorKey = (payload) => {
   if (!payload) return 'unknown_error'
   if (payload.detail?.error) return payload.detail.error
   if (payload.detail?.key) return payload.detail.key
-  if (typeof payload.detail === 'string') return payload.detail
+  if (Array.isArray(payload.detail)) {
+    const fieldError = payload.detail.find((item) => Array.isArray(item?.loc) && item.loc.length)
+    const field = fieldError?.loc?.[fieldError.loc.length - 1]
+    return field ? `validation_${field}` : 'validation_error'
+  }
+  if (typeof payload.detail === 'string') {
+    return payload.detail.includes('Traceback') ? 'server_error' : payload.detail
+  }
   if (payload.error) return payload.error
   if (payload.key) return payload.key
   return 'unknown_error'
@@ -72,13 +73,7 @@ const refreshAccessToken = async () => {
         return false
       }
 
-      const data = parseResponseBody(await response.text())
-      if (!data?.token) {
-        clearAuthToken()
-        return false
-      }
-
-      setAuthToken(data.token)
+      clearAuthToken()
       return true
     } catch {
       return false
@@ -116,22 +111,13 @@ const executeRequest = async (url, options, attempt = 0) => {
 }
 
 export const apiRequest = async (path, options = {}) => {
-  const token = getAuthToken()
+  clearAuthToken()
   const headers = new Headers(options.headers || {})
   const skipAuth = options.skipAuth === true
-  const requireAuth = options.requireAuth === true
   const suppressUnauthorizedEvent = options.suppressUnauthorizedEvent === true
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
-  }
-
-  if (requireAuth && !token) {
-    throw new ApiError('unauthorized', 401)
-  }
-
-  if (!skipAuth && token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`)
   }
 
   let response
@@ -148,7 +134,6 @@ export const apiRequest = async (path, options = {}) => {
 
   const canRefreshSession = (
     response.status === 401
-    && Boolean(token)
     && !skipAuth
     && options.retryAuth !== false
     && path !== '/api/login'
@@ -157,8 +142,6 @@ export const apiRequest = async (path, options = {}) => {
   )
 
   if (canRefreshSession && await refreshAccessToken()) {
-    headers.set('Authorization', `Bearer ${getAuthToken()}`)
-
     try {
       response = await executeRequest(`${API_BASE_URL}${path}`, {
         ...options,
@@ -178,16 +161,13 @@ export const apiRequest = async (path, options = {}) => {
       const errorKey = getErrorKey(data)
 
       if (!suppressUnauthorizedEvent) {
-        window.dispatchEvent(new CustomEvent(
-          errorKey === 'beta_auth_required' ? 'app:beta-unauthorized' : 'app:unauthorized',
-          {
-            detail: {
-              path,
-              status: response.status,
-              key: errorKey,
-            },
+        window.dispatchEvent(new CustomEvent('app:unauthorized', {
+          detail: {
+            path,
+            status: response.status,
+            key: errorKey,
           },
-        ))
+        }))
       }
     }
     throw new ApiError(getErrorKey(data), response.status, data)

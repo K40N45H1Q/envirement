@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { getAuthToken } from '@/api/client'
 import { getMe, logout as logoutRequest } from '@/api/auth'
 
 const normalizeAccountType = (accountType) => {
@@ -7,12 +6,15 @@ const normalizeAccountType = (accountType) => {
   return accountType || ''
 }
 
+let logoutRequestPromise = null
+
 export const useAuth = defineStore('auth', {
   state: () => ({
     state: {
       user: null,
       isLoading: false,
       isReady: false,
+      isGuest: false,
     },
     bootstrapPromise: null,
   }),
@@ -41,6 +43,7 @@ export const useAuth = defineStore('auth', {
     resetState() {
       this.state.user = null
       this.state.isLoading = false
+      this.state.isGuest = true
     },
 
     finalizeReady() {
@@ -48,17 +51,14 @@ export const useAuth = defineStore('auth', {
     },
 
     async loadUser({ force = false } = {}) {
-      const token = getAuthToken()
-
-      if (!token) {
-        this.resetState()
-        this.finalizeReady()
-        return null
-      }
-
       if (!force && this.state.user) {
         this.finalizeReady()
         return this.state.user
+      }
+
+      if (!force && this.state.isGuest) {
+        this.finalizeReady()
+        return null
       }
 
       if (!force && this.bootstrapPromise) {
@@ -75,7 +75,12 @@ export const useAuth = defineStore('auth', {
           const isUnauthorized = error?.status === 401
 
           if (isUnauthorized) {
-            logoutRequest()
+            this.state.isGuest = true
+            if (!logoutRequestPromise) {
+              logoutRequestPromise = logoutRequest().finally(() => {
+                logoutRequestPromise = null
+              })
+            }
             this.state.user = null
           }
 
@@ -92,18 +97,22 @@ export const useAuth = defineStore('auth', {
 
     setUser(user) {
       this.state.user = user
+      this.state.isGuest = false
       this.finalizeReady()
     },
 
     logout() {
-      logoutRequest()
+      if (!logoutRequestPromise) {
+        logoutRequestPromise = logoutRequest().finally(() => {
+          logoutRequestPromise = null
+        })
+      }
       this.resetState()
       this.finalizeReady()
     },
 
     async initialize() {
       if (this.state.isReady && this.state.user) return this.state.user
-      if (this.state.isReady && !getAuthToken()) return null
       return this.loadUser()
     },
   },

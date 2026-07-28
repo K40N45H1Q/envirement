@@ -225,32 +225,15 @@
               <span>{{ t('register.verifyEmailHint', { email: email.trim() }) }}</span>
             </div>
 
-            <div class="field">
-              <input
-                v-model.trim="verificationCode"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                :placeholder="t('register.verificationCode')"
-                class="input input-center"
-                autocomplete="one-time-code"
-                @input="setError('')"
-              />
-            </div>
-
             <div class="actions">
               <button type="button" class="btn-secondary secondary-action" :disabled="loading" @click="goBackFromVerification">
                 {{ t('common.back') }}
               </button>
-              <button type="submit" class="submit-btn btn-primary" :disabled="loading">
+              <button type="button" class="submit-btn btn-primary" :disabled="loading" @click="resendCode">
                 <span v-if="loading" class="spinner"></span>
-                <span v-else>{{ t('register.verifyAndCreate') }}</span>
+                <span v-else>{{ t('register.resendVerificationLink') }}</span>
               </button>
             </div>
-
-            <button type="button" class="link link-inline" :disabled="loading" @click="resendCode">
-              {{ t('register.resendCode') }}
-            </button>
           </template>
 
           <button v-if="isAccountStep" type="button" class="link" @click="emit('open-login')">
@@ -265,11 +248,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from '@/i18n'
-import { login, requestRegistrationCode, verifyRegistrationCode } from '@/api/auth'
+import { requestRegistrationLink } from '@/api/auth'
 import BaseDropdown from '@/components/BaseDropdown.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 
-defineProps({
+const props = defineProps({
   visible: {
     type: Boolean,
     default: false,
@@ -298,7 +281,6 @@ const companyName = ref('')
 const companyCountry = ref('')
 const companyIndustry = ref('general')
 const companyRegistrationNumber = ref('')
-const verificationCode = ref('')
 const isPasswordTouched = ref(false)
 const isConfirmTouched = ref(false)
 const feedbackMessage = ref('')
@@ -370,7 +352,6 @@ function resetForm() {
   companyCountry.value = ''
   companyIndustry.value = 'general'
   companyRegistrationNumber.value = ''
-  verificationCode.value = ''
   isPasswordTouched.value = false
   isConfirmTouched.value = false
   currentStep.value = 1
@@ -442,23 +423,20 @@ function getErrorMessage(requestError) {
   if (key === 'company_registration_number_exists') return t('register.companyRegistrationNumberExists')
   if (key === 'missing_company_fields') return t('register.fillCompanyFields')
   if (key === 'missing_fields') return t('register.fillRequiredFields')
-  if (key === 'missing_verification_fields') return t('register.fillVerificationCode')
-  if (key === 'invalid_verification_code') return t('register.invalidVerificationCode')
-  if (key === 'verification_code_expired') return t('register.verificationCodeExpired')
   if (key === 'verification_session_not_found') return t('register.verificationSessionNotFound')
-  if (key === 'smtp_not_configured' || key === 'smtp_delivery_failed') return t('register.codeDeliveryFailed')
+  if (key === 'supabase_email_delivery_failed') return t('register.codeDeliveryFailed')
   if (key === 'email_verification_required') return t('register.verifyEmailRequired')
+  if (key === 'beta_registration_closed') return t('register.betaRegistrationClosed')
   if (key === 'invalid_account_type') return t('register.createAccountFailed')
   if (key === 'network_error') return t('register.networkError')
 
   return t('register.createAccountFailed')
 }
 
-async function sendVerificationCode() {
-  await requestRegistrationCode(buildRegistrationPayload())
+async function sendVerificationLink() {
+  await requestRegistrationLink(buildRegistrationPayload())
   currentStep.value = 2
-  verificationCode.value = ''
-  setFeedback(t('register.codeSent'), 'success')
+  setFeedback(t('register.linkSent'), 'success')
 }
 
 async function resendCode() {
@@ -466,7 +444,7 @@ async function resendCode() {
   loading.value = true
 
   try {
-    await sendVerificationCode()
+    await sendVerificationLink()
   } catch (requestError) {
     setError(getErrorMessage(requestError))
   } finally {
@@ -476,7 +454,6 @@ async function resendCode() {
 
 function goBackFromVerification() {
   currentStep.value = 1
-  verificationCode.value = ''
   setError('')
 }
 
@@ -484,39 +461,6 @@ async function handleSubmit() {
   setError('')
 
   if (isVerificationStep.value) {
-    if (!verificationCode.value) {
-      setError(t('register.fillVerificationCode'))
-      return
-    }
-
-    loading.value = true
-
-    try {
-      const payload = await verifyRegistrationCode({
-        email: email.value.trim(),
-        code: verificationCode.value.trim(),
-      })
-      const loginPayload = await login({
-        email: email.value.trim(),
-        password: password.value,
-      })
-
-      emit('registered', {
-        ...payload,
-        ...loginPayload,
-        accountType: selectedAccountType.value,
-        fullName: selectedAccountType.value === 'candidate' ? `${firstName.value.trim()} ${lastName.value.trim()}` : '',
-        email: email.value.trim(),
-        companyName: selectedAccountType.value === 'employer' ? companyName.value.trim() : '',
-        successMessage: selectedAccountType.value === 'employer'
-          ? t('register.successEmployer')
-          : t('register.successCandidate'),
-      })
-    } catch (requestError) {
-      setError(getErrorMessage(requestError))
-    } finally {
-      loading.value = false
-    }
     return
   }
 
@@ -530,7 +474,7 @@ async function handleSubmit() {
   loading.value = true
 
   try {
-    await sendVerificationCode()
+    await sendVerificationLink()
   } catch (requestError) {
     setError(getErrorMessage(requestError))
   } finally {

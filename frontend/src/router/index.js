@@ -14,11 +14,8 @@ import InfoPage from '@/templates/InfoPage.vue'
 import ContactsPage from '@/templates/ContactsPage.vue'
 import SignInPage from '@/templates/SignInPage.vue'
 import AdminPanel from '@/components/apanel/AdminPanel.vue'
-import BLogin from '@/components/BLogin.vue'
 import { normalizeLanguage } from '@/i18n'
-import { getAuthToken } from '@/api/client'
 import { useAuth } from '@/stores/auth'
-import { useBetaAccess } from '@/stores/betaAccess'
 import { useUiStore } from '@/stores/ui'
 import { getLocaleFromPath, hasLocalePrefix, isPublicSeoPath, localizeFullPath, stripLocaleFromPath, withLocale } from './locale'
 
@@ -229,7 +226,6 @@ const localizedChildren = [
   { path: 'jobs/:id', component: JobDetailPage, meta: { logicalPath: '/jobs/:id' } },
   { path: 'employers', component: HomePage, meta: { logicalPath: '/employers' } },
   { path: 'pricing', component: PricingPage, meta: { logicalPath: '/pricing' } },
-  { path: 'beta-access', component: BLogin, meta: { logicalPath: '/beta-access' } },
   { path: 'signin', component: SignInPage, meta: { logicalPath: '/signin' } },
   { path: 'profile', component: ProfilePage, meta: { logicalPath: '/profile', requiresAuth: true, accountTypes: ['candidate', 'admin'] } },
   { path: 'dashboard', component: DashboardPage, meta: { logicalPath: '/dashboard', requiresAuth: true, accountTypes: ['candidate', 'employer', 'admin'] } },
@@ -306,9 +302,7 @@ router.afterEach((to) => {
 
 router.beforeEach(async (to) => {
   const auth = useAuth()
-  const betaAccess = useBetaAccess()
   const uiStore = useUiStore()
-  const token = getAuthToken()
   const locale = hasLocalePrefix(to.path)
     ? getLocaleFromPath(to.path)
     : normalizeLanguage(uiStore.language)
@@ -324,32 +318,8 @@ router.beforeEach(async (to) => {
     uiStore.setLanguage(locale)
   }
 
-  const skipsBetaGate = ['/beta-access', '/signin', '/admin'].includes(routeLogicalPath) || isPublicSeoPath(routeLogicalPath)
-
-  if (!skipsBetaGate) {
-    const hasBetaAccess = await betaAccess.initialize()
-
-    if (!hasBetaAccess) {
-      return localizeRouteLocation({
-        path: '/beta-access',
-        query: {
-          redirect: to.fullPath,
-        },
-      }, locale)
-    }
-  } else if (routeLogicalPath === '/beta-access') {
-    const hasBetaAccess = await betaAccess.initialize()
-
-    if (hasBetaAccess) {
-      const target = typeof to.query.redirect === 'string' ? to.query.redirect : withLocale('/', locale)
-      if (target !== to.fullPath) {
-        return target
-      }
-    }
-  }
-
   if (isJobDetailRoute) {
-    const authenticatedUser = token ? await auth.initialize() : null
+    const authenticatedUser = await auth.initialize()
 
     if (!authenticatedUser) {
       return localizeRouteLocation({
@@ -363,16 +333,6 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth) {
-    if (!token) {
-      return localizeRouteLocation({
-        path: '/signin',
-        query: {
-          auth: 'login',
-          redirect: to.fullPath,
-        },
-      }, locale)
-    }
-
     await auth.initialize()
 
     if (!auth.state.user) {
@@ -451,7 +411,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (routeLogicalPath === '/signin' && token) {
+  if (routeLogicalPath === '/signin') {
     await auth.initialize()
 
     if (auth.state.user) {

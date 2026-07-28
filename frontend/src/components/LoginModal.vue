@@ -16,9 +16,12 @@
             </div>
           </Transition>
 
-          <p v-if="isResetMode" class="hint">{{ t('login.forgotHint') }}</p>
+          <p v-if="isResetMode" class="hint">
+            {{ isRecoveryPasswordMode ? t('login.recoveryPasswordHint') : t('login.forgotHint') }}
+          </p>
 
           <input
+            v-if="!isRecoveryPasswordMode"
             v-model.trim="email"
             type="email"
             :placeholder="t('loginExtra.emailPlaceholder')"
@@ -32,7 +35,7 @@
               <input
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
-                :placeholder="t('login.password')"
+                :placeholder="betaAccessRequired ? t('login.betaTokenPlaceholder') : t('login.password')"
                 class="input"
                 :class="{ error: feedbackType === 'error' && feedbackMessage }"
                 @input="clearFeedback"
@@ -49,18 +52,7 @@
             </div>
           </template>
 
-          <template v-else-if="resetRequested">
-            <input
-              v-model.trim="resetCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              :placeholder="t('login.resetCode')"
-              class="input input-center"
-              :class="{ error: feedbackType === 'error' && feedbackMessage }"
-              @input="clearFeedback"
-            />
-
+          <template v-else-if="isRecoveryPasswordMode">
             <div class="password">
               <input
                 v-model="newPassword"
@@ -135,19 +127,19 @@
           </button>
 
           <template v-if="isResetMode">
-            <button v-if="resetRequested" type="button" class="link" :disabled="isSubmitting" @click="requestResetCode">
-              {{ t('login.resendResetCode') }}
+            <button v-if="!isRecoveryPasswordMode && resetRequested" type="button" class="link" :disabled="isSubmitting" @click="requestResetLink">
+              {{ t('login.resendResetLink') }}
             </button>
-            <button type="button" class="link" @click="switchToLogin">
+            <button v-if="!isRecoveryPasswordMode" type="button" class="link" @click="switchToLogin">
               {{ t('login.backToLogin') }}
             </button>
           </template>
 
           <template v-else>
-            <button type="button" class="link" @click="switchToReset">
+            <button v-if="!betaAccessRequired" type="button" class="link" @click="switchToReset">
               <span class="link-accent">{{ t('login.forgotPassword') }}</span>
             </button>
-            <button type="button" class="link" @click="openRegister">
+            <button v-if="!betaAccessRequired" type="button" class="link" :disabled="registrationDisabled" @click="openRegister">
               {{ t('login.noAccount') }} <span class="link-accent">{{ t('login.registerNow') }}</span>
             </button>
           </template>
@@ -161,7 +153,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
-import { confirmPasswordReset, getMe, login, requestPasswordResetCode } from '@/api/auth'
+import { login, requestPasswordResetLink, updateRecoveryPassword } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import { defaultRouteForAccount } from '@/utils/auth'
 
@@ -170,6 +162,18 @@ const props = defineProps({
   notice: {
     type: Object,
     default: null,
+  },
+  recoveryPasswordMode: {
+    type: Boolean,
+    default: false,
+  },
+  registrationDisabled: {
+    type: Boolean,
+    default: false,
+  },
+  betaAccessRequired: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -180,7 +184,6 @@ const { t } = useI18n()
 
 const email = ref('')
 const password = ref('')
-const resetCode = ref('')
 const newPassword = ref('')
 const confirmNewPassword = ref('')
 const showPassword = ref(false)
@@ -194,9 +197,11 @@ const mode = ref('login')
 const resetRequested = ref(false)
 
 const isResetMode = computed(() => mode.value === 'reset')
+const isRecoveryPasswordMode = computed(() => props.recoveryPasswordMode)
 const submitLabel = computed(() => {
   if (!isResetMode.value) return t('common.login')
-  return resetRequested.value ? t('login.resetPassword') : t('login.requestResetCode')
+  if (isRecoveryPasswordMode.value) return t('login.resetPassword')
+  return t('login.requestResetLink')
 })
 const resetChecks = computed(() => ({
   length: newPassword.value.length >= 8,
@@ -208,7 +213,9 @@ const resetChecks = computed(() => ({
 const showResetRequirements = computed(() => isResetPasswordTouched.value || newPassword.value.length > 0)
 
 const close = () => emit('close')
-const openRegister = () => emit('open-register')
+const openRegister = () => {
+  if (!props.registrationDisabled) emit('open-register')
+}
 
 const clearFeedback = () => {
   feedbackMessage.value = ''
@@ -221,7 +228,6 @@ const setFeedback = (message, type = 'error') => {
 }
 
 const resetResetState = () => {
-  resetCode.value = ''
   newPassword.value = ''
   confirmNewPassword.value = ''
   showPassword.value = false
@@ -245,7 +251,7 @@ const switchToLogin = () => {
 }
 
 const applyNotice = (notice) => {
-  if (isResetMode.value || !notice?.message) {
+  if ((isResetMode.value && notice?.mode !== 'recovery-password') || !notice?.message) {
     if (!isResetMode.value) clearFeedback()
     return
   }
@@ -265,7 +271,7 @@ const isPasswordStrong = (value) => (
   && /[^A-Za-z0-9]/.test(value)
 )
 
-const requestResetCode = async () => {
+const requestResetLink = async () => {
   if (!email.value) {
     setFeedback(t('login.missingResetEmail'))
     return
@@ -275,14 +281,13 @@ const requestResetCode = async () => {
   clearFeedback()
 
   try {
-    await requestPasswordResetCode({ email: email.value.trim() })
+    await requestPasswordResetLink({ email: email.value.trim() })
     resetRequested.value = true
-    setFeedback(t('login.resetCodeSent'), 'success')
+    setFeedback(t('login.resetLinkSent'), 'success')
   } catch (error) {
     const errorMessages = {
       missing_reset_email: t('login.missingResetEmail'),
-      smtp_not_configured: t('login.resetEmailDeliveryFailed'),
-      smtp_delivery_failed: t('login.resetEmailDeliveryFailed'),
+      supabase_email_delivery_failed: t('login.resetEmailDeliveryFailed'),
       network_error: t('login.networkError'),
       unknown_error: t('login.unknownError'),
     }
@@ -298,12 +303,12 @@ const submitLogin = async () => {
     return
   }
 
-  await login({
+  const result = await login({
     email: email.value.trim(),
     password: password.value,
   })
 
-  const user = await getMe()
+  const user = result.user
   setUser(user)
   setFeedback(t('loginExtra.signedIn'), 'success')
   const redirectTo = typeof route.query.redirect === 'string'
@@ -316,12 +321,12 @@ const submitLogin = async () => {
 }
 
 const submitReset = async () => {
-  if (!resetRequested.value) {
-    await requestResetCode()
+  if (!isRecoveryPasswordMode.value) {
+    await requestResetLink()
     return
   }
 
-  if (!email.value || !resetCode.value || !newPassword.value || !confirmNewPassword.value) {
+  if (!newPassword.value || !confirmNewPassword.value) {
     setFeedback(t('login.missingResetFields'))
     return
   }
@@ -343,21 +348,22 @@ const submitReset = async () => {
   clearFeedback()
 
   try {
-    await confirmPasswordReset({
-      email: email.value.trim(),
-      code: resetCode.value.trim(),
+    const result = await updateRecoveryPassword({
       newPassword: newPassword.value,
     })
+    const user = result.user
+    setUser(user)
     setFeedback(t('login.resetSuccess'), 'success')
     password.value = ''
     resetResetState()
-    mode.value = 'login'
+    window.setTimeout(() => {
+      close()
+      router.push(defaultRouteForAccount(user.account_type))
+    }, 400)
   } catch (error) {
     const errorMessages = {
       missing_reset_fields: t('login.missingResetFields'),
       weak_password: t('login.weakPassword'),
-      invalid_password_reset_code: t('login.invalidResetCode'),
-      password_reset_code_expired: t('login.resetCodeExpired'),
       password_reset_session_not_found: t('login.resetSessionNotFound'),
       network_error: t('login.networkError'),
       unknown_error: t('login.unknownError'),
@@ -380,6 +386,7 @@ const submit = async () => {
     } catch (error) {
       const errorMessages = {
         invalid_credentials: t('login.invalidCredentials'),
+        invalid_beta_credentials: t('login.invalidBetaCredentials'),
         missing_fields: t('login.missingFields'),
         no_token_received: t('login.noToken'),
         network_error: t('login.networkError'),
@@ -397,11 +404,21 @@ const submit = async () => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  if (isRecoveryPasswordMode.value) {
+    mode.value = 'reset'
+    resetRequested.value = true
+  }
 })
 
 watch(() => props.notice, (notice) => {
   applyNotice(notice)
 }, { immediate: true, deep: true })
+
+watch(isRecoveryPasswordMode, (enabled) => {
+  if (!enabled) return
+  mode.value = 'reset'
+  resetRequested.value = true
+})
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)

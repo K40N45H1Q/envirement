@@ -1,4 +1,4 @@
-import { apiRequest, clearAuthToken, setAuthToken } from './client'
+import { apiRequest, clearAuthToken } from './client'
 
 export const createAccount = ({
   fullName,
@@ -49,29 +49,37 @@ const buildRegistrationPayload = ({
   company_registration_number: companyRegistrationNumber,
 })
 
-export const requestRegistrationCode = (payload) => apiRequest('/api/request_registration_code', {
+export const requestRegistrationLink = (payload) => apiRequest('/api/request_registration_link', {
   method: 'POST',
   body: buildRegistrationPayload(payload),
 })
 
-export const verifyRegistrationCode = ({ email, code }) => apiRequest('/api/verify_registration_code', {
-  method: 'POST',
-  body: JSON.stringify({
-    email,
-    code,
-  }),
+export const getRegistrationOptions = () => apiRequest('/api/registration_options', {
+  retryAuth: false,
+  suppressUnauthorizedEvent: true,
 })
 
-export const requestPasswordResetCode = ({ email }) => apiRequest('/api/request_password_reset_code', {
+export const requestPasswordResetLink = ({ email }) => apiRequest('/api/request_password_reset_link', {
   method: 'POST',
   body: JSON.stringify({ email }),
 })
 
-export const confirmPasswordReset = ({ email, code, newPassword }) => apiRequest('/api/confirm_password_reset', {
+export const completeEmailLinkAuth = ({ accessToken, refreshToken, expiresIn, type }) => apiRequest('/api/auth/email-link', {
   method: 'POST',
+  skipAuth: true,
+  retryAuth: false,
   body: JSON.stringify({
-    email,
-    code,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+    type,
+  }),
+})
+
+export const updateRecoveryPassword = ({ newPassword }) => apiRequest('/api/auth/recovery-password', {
+  method: 'POST',
+  requireAuth: true,
+  body: JSON.stringify({
     new_password: newPassword,
   }),
 })
@@ -82,11 +90,11 @@ export const login = async ({ email, password }) => {
     body: JSON.stringify({ email, password }),
   })
 
-  if (!data?.token) {
-    throw new Error('no_token_received')
+  if (!data?.user) {
+    throw new Error('no_user_received')
   }
 
-  setAuthToken(data.token)
+  clearAuthToken()
   return data
 }
 
@@ -99,7 +107,7 @@ export const deleteAccount = () => apiRequest('/api/account', {
 
 export const logout = () => {
   clearAuthToken()
-  apiRequest('/api/logout', {
+  return apiRequest('/api/logout', {
     method: 'POST',
     skipAuth: true,
     retryAuth: false,

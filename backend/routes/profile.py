@@ -1,8 +1,6 @@
 import json
-import secrets
-import shutil
 from datetime import date
-from os import getenv, makedirs, path, remove
+from os import path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -10,39 +8,21 @@ from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, get_session
 from app.services.matchscore import parse_date
+from app.services.supabase_storage import remove_file, upload_file
 from routes.safety import get_current_user
 
 router = APIRouter()
-
-UPLOAD_DIR = getenv("UPLOAD_DIR")
-if not UPLOAD_DIR:
-    base_dir = path.dirname(path.dirname(path.abspath(__file__)))
-    UPLOAD_DIR = path.join(base_dir, "uploads")
-
 
 def save_upload(file: Optional[UploadFile], prefix: str):
     if not file:
         return None, None
 
-    makedirs(UPLOAD_DIR, exist_ok=True)
     original_filename = path.basename(file.filename or "upload")
-    filename = f"{prefix}_{secrets.token_hex(8)}_{original_filename}"
-    file_path = path.join(UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return f"/uploads/{filename}", original_filename
+    return upload_file(file, "profiles", prefix), original_filename
 
 
 def remove_upload(upload_url: Optional[str]) -> None:
-    if not upload_url or not upload_url.startswith("/uploads/"):
-        return
-
-    upload_root = path.abspath(UPLOAD_DIR)
-    file_path = path.abspath(path.join(upload_root, path.basename(upload_url)))
-    if path.dirname(file_path) != upload_root:
-        return
-    if path.exists(file_path):
-        remove(file_path)
+    remove_file(upload_url)
 
 
 def parse_json_field(value: Optional[str], fallback):

@@ -1,12 +1,17 @@
 ﻿<script setup>
 import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getPricingPlans } from '@/api/pricing'
 import { useI18n } from '@/i18n'
 import ServiceCard from '@/components/ServiceCard.vue'
+import { useAuth } from '@/stores/auth'
 
 const billingPeriod = ref('monthly')
 const pricingResponse = ref(null)
 const pricingError = ref(false)
+const route = useRoute()
+const router = useRouter()
+const auth = useAuth()
 const { language, t } = useI18n()
 
 const staticPlans = computed(() => ({
@@ -87,6 +92,20 @@ const plans = computed(() => {
     }
   })
 })
+
+const startPlan = async () => {
+  if (auth.user) return
+
+  await router.push({
+    path: route.path,
+    query: {
+      ...route.query,
+      auth: 'login',
+      redirect: route.fullPath,
+    },
+    hash: route.hash,
+  })
+}
 </script>
 
 <template>
@@ -134,7 +153,7 @@ const plans = computed(() => {
           </li>
         </ul>
 
-        <button class="btn-primary plan-button">{{ t('pricing.start') }}</button>
+        <button class="btn-primary plan-button" @click="startPlan">{{ t('pricing.start') }}</button>
       </article>
     </div>
   </ServiceCard>
@@ -332,4 +351,3 @@ p {
   }
 }
 </style>
-

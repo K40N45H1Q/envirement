@@ -21,8 +21,5 @@ Disallow: /ru/messages
 Disallow: /lv/signin
 Disallow: /en/signin
 Disallow: /ru/signin
-Disallow: /lv/beta-access
-Disallow: /en/beta-access
-Disallow: /ru/beta-access
 
 Sitemap: https://www.cvhold.com/sitemap.xml

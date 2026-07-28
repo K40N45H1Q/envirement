@@ -55,7 +55,6 @@ const isRefreshing = ref(false)
 const isSaving = ref(false)
 const isSavingSettings = ref(false)
 const error = ref('')
-const createdToken = ref('')
 const adminRefreshTimer = ref(null)
 
 const stats = computed(() => [
@@ -111,7 +110,13 @@ const loadAdminData = async ({ silent = false } = {}) => {
     }
     tokens.value = Array.isArray(tokenData) ? tokenData : []
     betaAccessEnabled.value = Boolean(betaSettingsData?.enabled)
-  } catch {
+  } catch (caughtError) {
+    if (caughtError?.status === 401) {
+      stopAdminRealtime()
+      auth.resetState()
+      return
+    }
+
     if (!silent) error.value = t('adminPanel.loadError')
   } finally {
     if (silent) {
@@ -138,14 +143,12 @@ const stopAdminRealtime = () => {
   adminRefreshTimer.value = null
 }
 
-const createToken = async ({ note }) => {
+const createToken = async ({ email }) => {
   isSaving.value = true
   error.value = ''
-  createdToken.value = ''
 
   try {
-    const token = await createAdminBetaToken({ note })
-    createdToken.value = token.token || ''
+    await createAdminBetaToken({ email })
     await loadAdminData()
   } catch {
     error.value = t('adminPanel.createTokenError')
@@ -292,7 +295,6 @@ onBeforeUnmount(stopAdminRealtime)
           :beta-access-enabled="betaAccessEnabled"
           :is-saving="isSaving"
           :is-saving-settings="isSavingSettings"
-          :created-token="createdToken"
           @create-token="createToken"
           @delete-token="deleteToken"
           @update-beta-access="updateBetaAccess"

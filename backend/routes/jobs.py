@@ -1,16 +1,14 @@
 import json
-import secrets
-import shutil
 from datetime import datetime, timezone
-from os import path, makedirs, getenv, remove
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Path, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Path, Request, Response, UploadFile
 from sqlmodel import select
 
 from database.models import CandidateProfile, Job, JobApplication, Message, User, get_session
 from app.services.matchscore import ALGORITHM_VERSION, parse_date, score_candidate
-from routes.safety import get_current_user, require_account_types
+from app.services.supabase_storage import remove_file, upload_file
+from routes.safety import ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME, get_current_user, require_account_types
 
 router = APIRouter()
 PLAN_JOB_LIMITS = {
@@ -18,12 +16,6 @@ PLAN_JOB_LIMITS = {
     "standard": 5,
     "pro": 20,
 }
-
-UPLOAD_DIR = getenv("UPLOAD_DIR")
-if not UPLOAD_DIR:
-    base_dir = path.dirname(path.dirname(path.abspath(__file__)))
-    UPLOAD_DIR = path.join(base_dir, "uploads")
-
 
 def get_application_context(application_id: int, current_user: User, session):
     application = session.get(JobApplication, application_id)
@@ -72,26 +64,11 @@ def parse_json_field(value: Optional[str], fallback):
 
 
 def store_upload_file(upload: UploadFile) -> str:
-    filename = f"{secrets.token_hex(8)}_{upload.filename}"
-    file_path = path.join(UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(upload.file, buffer)
-    return f"/uploads/{filename}"
+    return upload_file(upload, "jobs")
 
 
 def remove_upload_file(upload_url: Optional[str]) -> None:
-    if not upload_url or not upload_url.startswith("/uploads/"):
-        return
-
-    try:
-        full_path = path.join(
-            path.dirname(path.dirname(path.abspath(__file__))),
-            upload_url.lstrip("/")
-        )
-        if path.exists(full_path):
-            remove(full_path)
-    except Exception:
-        pass
+    remove_file(upload_url)
 
 
 def store_resume_file(upload: UploadFile) -> str:
@@ -118,13 +95,15 @@ def ensure_active_employer_subscription(user: User) -> None:
 
 
 def get_optional_current_user(
+    request: Request,
+    response: Response,
     authorization: str | None = Header(None),
     session=Depends(get_session),
 ) -> User | None:
-    if not authorization:
+    if not authorization and not request.cookies.get(ACCESS_COOKIE_NAME) and not request.cookies.get(REFRESH_COOKIE_NAME):
         return None
     try:
-        return get_current_user(authorization=authorization, session=session)
+        return get_current_user(request=request, response=response, authorization=authorization, session=session)
     except HTTPException:
         return None
 
@@ -184,8 +163,6 @@ async def create_job(
         current_user.company_name = company_name
         session.add(current_user)
     ensure_employer_plan_allows_job(current_user, session)
-
-    makedirs(UPLOAD_DIR, exist_ok=True)
 
     if logo:
         logo_path = store_upload_file(logo)
@@ -330,8 +307,6 @@ async def update_job(
 
     old_logo = job.logo
     old_banner = job.banner_url
-    makedirs(UPLOAD_DIR, exist_ok=True)
-
     if logo:
         new_logo_path = store_upload_file(logo)
         remove_upload_file(old_logo)
@@ -511,7 +486,6 @@ async def apply_to_job(
     resume_url = None
     resume_name = None
     if resume_upload:
-        makedirs(UPLOAD_DIR, exist_ok=True)
         resume_url = store_resume_file(resume_upload)
         resume_name = resume_upload.filename
 
